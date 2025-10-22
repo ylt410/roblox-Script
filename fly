@@ -1,0 +1,236 @@
+-- 精简版：GUI 左上（小），速度以 1 为单位增减，但每 1 单位映射为更快的实际速度
+-- 把此 LocalScript 放在 StarterGui
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ===== UI（左上、缩小版） =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SimpleVIPFlyUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local leftFrame = Instance.new("Frame")
+leftFrame.Size = UDim2.new(0, 200, 0, 110)
+leftFrame.Position = UDim2.new(0, 12, 0, 12)
+leftFrame.BackgroundTransparency = 1
+leftFrame.Parent = screenGui
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 180, 0, 40)
+toggleBtn.Position = UDim2.new(0, 0, 0, 0)
+toggleBtn.TextScaled = true
+toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+toggleBtn.TextColor3 = Color3.fromRGB(1,1,1)
+toggleBtn.Parent = leftFrame
+local tCorner = Instance.new("UICorner", toggleBtn); tCorner.CornerRadius = UDim.new(0,6)
+local tStroke = Instance.new("UIStroke", toggleBtn); tStroke.Color = Color3.fromRGB(120,120,255); tStroke.Thickness = 2
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0, 180, 0, 20)
+speedLabel.Position = UDim2.new(0, 0, 0, 44)
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextScaled = false
+speedLabel.TextSize = 18
+speedLabel.TextColor3 = Color3.fromRGB(230,230,230)
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = leftFrame
+
+local minusBtn = Instance.new("TextButton")
+minusBtn.Size = UDim2.new(0, 36, 0, 36)
+minusBtn.Position = UDim2.new(0, 0, 0, 68)
+minusBtn.Text = "-"
+minusBtn.TextScaled = true
+minusBtn.BackgroundColor3 = Color3.fromRGB(55,55,55)
+minusBtn.Parent = leftFrame
+local mCorner = Instance.new("UICorner", minusBtn); mCorner.CornerRadius = UDim.new(0,6)
+
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0, 36, 0, 36)
+plusBtn.Position = UDim2.new(0, 144, 0, 68)
+plusBtn.Text = "+"
+plusBtn.TextScaled = true
+plusBtn.BackgroundColor3 = Color3.fromRGB(55,55,55)
+plusBtn.Parent = leftFrame
+local pCorner = Instance.new("UICorner", plusBtn); pCorner.CornerRadius = UDim.new(0,6)
+
+local speedHint = Instance.new("TextLabel")
+speedHint.Size = UDim2.new(0, 100, 0, 36)
+speedHint.Position = UDim2.new(0, 44, 0, 68)
+speedHint.BackgroundTransparency = 1
+speedHint.Text = "速度"
+speedHint.TextScaled = true
+speedHint.TextColor3 = Color3.fromRGB(200,200,200)
+speedHint.Parent = leftFrame
+
+-- ===== 飞行变量 =====
+local flying = false
+local bv, bg
+local renderConn, charRemovingConn
+
+-- 用户可见的“单位速度”，从 1 开始，每次 +1 / -1
+local speed = 1
+local minSpeed, maxSpeed = 0.1, 200   -- 用户可见速度范围（可调整）
+local speedStep = 1                    -- 每次 +1 / -1
+
+-- speedScale：把“1 单位”映射成多少实际 studs/s（你要每 1 更快就调大这个值）
+local speedScale = 40                  -- ← 关键：每 1 单位等于 40 studs/s（你可以改成更大）
+local function effectiveSpeed()
+	return speed * speedScale
+end
+
+local function refreshSpeedLabel()
+	-- 显示两者：用户单位和实际速度，便于调试
+	speedLabel.Text = string.format("速度：%.0f  (实速：%.1f)", speed, effectiveSpeed())
+end
+refreshSpeedLabel()
+
+-- ===== 创建/清理 BV/BG =====
+local function createBVBG(hrp)
+	local newBV = Instance.new("BodyVelocity")
+	newBV.Name = "VIPFly_BV"
+	newBV.MaxForce = Vector3.new(1e5,1e5,1e5)
+	newBV.P = 1e4
+	newBV.Velocity = Vector3.new(0,0,0)
+	newBV.Parent = hrp
+
+	local newBG = Instance.new("BodyGyro")
+	newBG.Name = "VIPFly_BG"
+	newBG.MaxTorque = Vector3.new(1e5,1e5,1e5)
+	newBG.P = 1e4
+	newBG.CFrame = hrp.CFrame
+	newBG.Parent = hrp
+
+	return newBV, newBG
+end
+
+local function clearFlightObjects(char)
+	if char then
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			for _, v in ipairs(hrp:GetChildren()) do
+				if v.Name == "VIPFly_BV" or v.Name == "VIPFly_BG" then
+					v:Destroy()
+				end
+			end
+		end
+	end
+	if renderConn and renderConn.Connected then
+		renderConn:Disconnect()
+		renderConn = nil
+	end
+	if charRemovingConn and charRemovingConn.Connected then
+		charRemovingConn:Disconnect()
+		charRemovingConn = nil
+	end
+end
+
+-- ===== 飞行启动/停止（使用 Humanoid.MoveDirection + 摄像机朝向） =====
+local function startFlying()
+	if flying then return end
+	local char = player.Character or player.CharacterAdded:Wait()
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then return end
+
+	-- 在此插入你的 VIP 检查（如需要）
+	-- if not isPlayerVIP(player) then return end
+
+	clearFlightObjects(char)
+
+	bv, bg = createBVBG(hrp)
+	local prevPlatformStand = humanoid.PlatformStand
+	humanoid.PlatformStand = true
+
+	renderConn = RunService.RenderStepped:Connect(function()
+		if not char or not char.Parent then return end
+
+		local cam = workspace.CurrentCamera
+		local moveDir = humanoid.MoveDirection
+		local camForwardH = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
+		if camForwardH.Magnitude == 0 then camForwardH = Vector3.new(0,0,-1) end
+		camForwardH = camForwardH.Unit
+		local camRightH = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z)
+		if camRightH.Magnitude == 0 then camRightH = Vector3.new(1,0,0) end
+		camRightH = camRightH.Unit
+
+		local inputX = moveDir:Dot(camRightH)
+		local inputZ = moveDir:Dot(camForwardH)
+
+		local camRightFull = cam.CFrame.RightVector
+		local camForwardFull = cam.CFrame.LookVector
+
+		local finalDir = (camRightFull * inputX) + (camForwardFull * inputZ)
+		local finalVel
+		local eff = effectiveSpeed()
+		if finalDir.Magnitude > 0.001 then
+			finalVel = finalDir.Unit * eff
+		else
+			finalVel = Vector3.new(0,0,0)
+		end
+
+		if bv and bv.Parent then
+			bv.Velocity = finalVel
+		end
+		if bg and bg.Parent then
+			bg.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.CFrame.LookVector)
+		end
+	end)
+
+	charRemovingConn = player.CharacterRemoving:Connect(function()
+		if humanoid and humanoid.Parent then
+			humanoid.PlatformStand = prevPlatformStand
+		end
+		clearFlightObjects(char)
+		flying = false
+		toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
+	end)
+
+	flying = true
+	toggleBtn.Text = "环绕阴乐开发 · 飞行中"
+end
+
+local function stopFlying()
+	if not flying then return end
+	local char = player.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then humanoid.PlatformStand = false end
+		clearFlightObjects(char)
+	end
+	flying = false
+	toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
+end
+
+-- ===== UI 事件 =====
+toggleBtn.MouseButton1Click:Connect(function()
+	if flying then
+		stopFlying()
+	else
+		startFlying()
+	end
+end)
+
+minusBtn.MouseButton1Click:Connect(function()
+	speed = math.max(minSpeed, speed - speedStep)
+	refreshSpeedLabel()
+end)
+plusBtn.MouseButton1Click:Connect(function()
+	speed = math.min(maxSpeed, speed + speedStep)
+	refreshSpeedLabel()
+end)
+
+-- 清理保护
+screenGui.AncestryChanged:Connect(function(_, parent)
+	if not parent and flying then
+		stopFlying()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	wait(0.05)
+end)
