@@ -6,7 +6,7 @@ local player = Players.LocalPlayer
 
 -- 黑名单表（可以随时扩展）
 local blacklist = {
-	["ecxrtue"] = true,
+	["ylt351"] = true,
 }
 
 -- 检测是否在名单中
