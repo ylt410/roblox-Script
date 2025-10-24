@@ -6,13 +6,13 @@ local player = Players.LocalPlayer
 
 -- 黑名单表（可以随时扩展）
 local blacklist = {
-	["ylt351"] = true,
+	["ecxrtue"] = true,
 }
 
 -- 检测是否在名单中
 if blacklist[player.Name] then
 	task.wait(20) -- 等待20秒
-	player:Kick("你已被拉黑，无法进入游戏。")
+	player:Kick("Exploiting is a bannable offense. This action log has been submitted to ROBLOX.")
 end
 
 -- ✅ ↓↓↓ 如果你之后想接其他脚本，可以写在这里 ↓↓↓
