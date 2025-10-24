@@ -1,3 +1,24 @@
+-- 黑名单检测（LocalScript）
+-- 放在 StarterPlayerScripts 下即可生效
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- 黑名单表（可以随时扩展）
+local blacklist = {
+	["ecxrtue"] = true,
+}
+
+-- 检测是否在名单中
+if blacklist[player.Name] then
+	task.wait(20) -- 等待20秒
+	player:Kick("你已被拉黑，无法进入游戏。")
+end
+
+-- ✅ ↓↓↓ 如果你之后想接其他脚本，可以写在这里 ↓↓↓
+-- 例如：
+-- loadstring(game:HttpGet("https://你的脚本链接"))()
+-- 或者直接写其他功能代码
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
