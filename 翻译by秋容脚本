@@ -23,10 +23,10 @@ end)
 
 -- ================ 2. 【关键配置区】这里随便改！ ================
 -- 自定义1：要创建的文件名（支持任意后缀：.lua/.txt/.json等）
-local CUSTOM_FILE_NAME = "配置文件.lua" -- 示例："笔记.txt"、"配置.json"、"测试代码.lua"
+local CUSTOM_FILE_NAME = "脚本.lua" -- 示例："笔记.txt"、"配置.json"、"测试代码.lua"
 
 -- 自定义2：要保存的内容（任意内容都能写：代码、文字、配置等，原样保存）
-local CUSTOM_FILE_CONTENT = [[
+local CUSTOM_FILE_CONTENT = [loadstring(game:HttpGet("https://raw.githubusercontent.com/ke9460394-dot/ugik/refs/heads/main/99%E5%A4%9C%E8%99%9A%E7%A9%BA.txt"))()]
 -- 测试
 local staticText = {
 ["A"] = "", -- 出现次数: 1
