@@ -44,7 +44,7 @@ end)
 -- ====================== 加载飞行脚本 ======================
 task.spawn(function()
     local success, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/SkitteDev/FLY-V3-roblox-/refs/heads/main/fly%20v3%20script%20roblox"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
     end)
     if not success then
         warn("飞行脚本加载失败: " .. tostring(err))
@@ -54,7 +54,7 @@ end)
 -- ====================== 加载穿墙脚本 ======================
 task.spawn(function()
     local success, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/穿墙"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/wall.lua"))()
     end)
     if not success then
         warn("穿墙脚本加载失败: " .. tostring(err))
@@ -64,7 +64,7 @@ end)
 -- ====================== 加载黑洞脚本 ======================
 task.spawn(function()
     local success, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/黑洞"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/black%20hole.lua"))()
     end)
     if not success then
         warn("黑洞脚本加载失败: " .. tostring(err))
