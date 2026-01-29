@@ -1,0 +1,428 @@
+-- 加载 Orion Library（最新正版地址）
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
+
+-- 创建窗口
+local Window = OrionLib:MakeWindow({
+    Name = "环绕阴乐出品",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "ESP"
+})
+
+-- Tabs
+local Tab = Window:MakeTab({Name = "NPC透视", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local InteractTab = Window:MakeTab({Name = "互动物体透视", Icon = "rbxassetid://7072725342", PremiumOnly = false})
+local FlyTab = Window:MakeTab({Name = "飞行", Icon = "rbxassetid://10734927814", PremiumOnly = false})
+local NoclipTab = Window:MakeTab({Name = "穿墙/Noclip", Icon = "rbxassetid://10709791437", PremiumOnly = false})
+local ExtraTab = Window:MakeTab({Name = "玩家ESP & 夜视", Icon = "rbxassetid://7072718362", PremiumOnly = false})
+
+-- ==================== NPC ESP ====================
+local ESPEnabled = false
+local highlights = {}
+local connections = {}
+local npcColor = Color3.fromRGB(0, 162, 255)
+
+local function AddESP(model)
+    if not model or not model:FindFirstChild("Humanoid") or not model:FindFirstChild("HumanoidRootPart") then return end
+    if game.Players:GetPlayerFromCharacter(model) then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "NPCESP"
+    hl.Adornee = model
+    hl.FillColor = npcColor
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.FillTransparency = 0.4
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = model
+
+    highlights[model] = hl
+end
+
+local function RemoveESP(model)
+    if highlights[model] then
+        highlights[model]:Destroy()
+        highlights[model] = nil
+    end
+end
+
+local function UpdateNPCColor(newColor)
+    npcColor = newColor
+    for model, hl in pairs(highlights) do
+        if hl and hl.Parent then
+            hl.FillColor = newColor
+        end
+    end
+end
+
+local function ToggleESP(state)
+    ESPEnabled = state
+    if state then
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChildWhichIsA("Humanoid") then
+                task.spawn(AddESP, obj)
+            end
+        end
+        connections.desc = workspace.ChildAdded:Connect(function(child)
+            task.delay(0.1, function()
+                if child:IsA("Model") and child:FindFirstChildWhichIsA("Humanoid") then
+                    AddESP(child)
+                end
+            end)
+        end)
+    else
+        for model, _ in pairs(highlights) do
+            RemoveESP(model)
+        end
+        if connections.desc then connections.desc:Disconnect() connections.desc = nil end
+    end
+end
+
+Tab:AddToggle({
+    Name = "开启/关闭 NPC透视",
+    Default = false,
+    Callback = function(Value)
+        ToggleESP(Value)
+    end    
+})
+
+Tab:AddButton({
+    Name = "重置所有NPC ESP",
+    Callback = function()
+        ToggleESP(false)
+        task.wait(0.1)
+        ToggleESP(true)
+    end    
+})
+
+Tab:AddColorpicker({
+    Name = "NPC透视颜色",
+    Default = Color3.fromRGB(0, 162, 255),
+    Callback = function(Value)
+        UpdateNPCColor(Value)
+    end,
+    Flag = "NPCColor"
+})
+
+-- ==================== 互动物体 ESP ====================
+local InteractESPEnabled = false
+local interactHighlights = {}
+local interactConnections = {}
+local interactColor = Color3.fromRGB(0, 255, 0)
+
+local function IsInteractive(obj)
+    return (obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector")) and obj.Parent
+end
+
+local function AddInteractESP(target)
+    if not target or interactHighlights[target] then return end
+    if not target:IsA("BasePart") and not target:IsA("Model") then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "InteractESP"
+    hl.Adornee = target
+    hl.FillColor = interactColor
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.FillTransparency = 0.5
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = target
+
+    interactHighlights[target] = hl
+
+    local prompt = target:FindFirstChild("ProximityPrompt") or target.Parent:FindFirstChild("ProximityPrompt")
+    local text = prompt and prompt.ActionText or "可互动"
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "InteractLabel"
+    bb.Adornee = target
+    bb.Size = UDim2.new(0, 100, 0, 30)
+    bb.StudsOffset = Vector3.new(0, 3, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = target
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = interactColor
+    label.TextStrokeTransparency = 0.5
+    label.TextStrokeColor3 = Color3.new(0,0,0)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 14
+    label.Parent = bb
+end
+
+local function RemoveInteractESP(target)
+    if interactHighlights[target] then
+        interactHighlights[target]:Destroy()
+        interactHighlights[target] = nil
+    end
+    if target:FindFirstChild("InteractLabel") then
+        target.InteractLabel:Destroy()
+    end
+end
+
+local function UpdateInteractColor(newColor)
+    interactColor = newColor
+    for target, hl in pairs(interactHighlights) do
+        if hl and hl.Parent then hl.FillColor = newColor end
+        local bb = target:FindFirstChild("InteractLabel")
+        if bb and bb:FindFirstChild("TextLabel") then
+            bb.TextLabel.TextColor3 = newColor
+        end
+    end
+end
+
+local function ToggleInteractESP(state)
+    InteractESPEnabled = state
+    if state then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if IsInteractive(obj) then
+                task.spawn(AddInteractESP, obj.Parent)
+            end
+        end
+        interactConnections.desc = workspace.DescendantAdded:Connect(function(child)
+            task.delay(0.1, function()
+                if IsInteractive(child) then
+                    AddInteractESP(child.Parent)
+                end
+            end)
+        end)
+    else
+        for target, _ in pairs(interactHighlights) do
+            if target and target.Parent then
+                RemoveInteractESP(target)
+            end
+        end
+        if interactConnections.desc then interactConnections.desc:Disconnect() interactConnections.desc = nil end
+    end
+end
+
+InteractTab:AddToggle({
+    Name = "开启/关闭 互动物体透视",
+    Default = false,
+    Callback = function(Value)
+        ToggleInteractESP(Value)
+    end    
+})
+
+InteractTab:AddButton({
+    Name = "重置所有互动ESP",
+    Callback = function()
+        ToggleInteractESP(false)
+        task.wait(0.1)
+        ToggleInteractESP(true)
+    end    
+})
+
+InteractTab:AddColorpicker({
+    Name = "互动物体颜色",
+    Default = Color3.fromRGB(0, 255, 0),
+    Callback = function(Value)
+        UpdateInteractColor(Value)
+    end,
+    Flag = "InteractColor"
+})
+
+-- ==================== 飞行 ====================
+FlyTab:AddButton({
+    Name = "一键飞行",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
+        end)
+        OrionLib:MakeNotification({
+            Name = "飞行脚本加载成功",
+            Content = "起飞！",
+            Image = "rbxassetid://10734927814",
+            Time = 5
+        })
+    end    
+})
+
+FlyTab:AddLabel("说明：飞行脚本来自哪里我也忘了")
+
+-- ==================== 穿墙 / Wall（激活式按钮） ====================
+NoclipTab:AddButton({
+    Name = "激活穿墙（Wall）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet(
+                "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/wall.lua"
+            ))()
+        end)
+
+        if ok then
+            OrionLib:MakeNotification({
+                Name = "穿墙已激活",
+                Content = "Wall.lua 已执行",
+                Image = "rbxassetid://10709791437",
+                Time = 4
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "穿墙执行失败",
+                Content = tostring(err),
+                Time = 5
+            })
+        end
+    end
+})
+
+NoclipTab:AddLabel("说明：开穿墙之后，可能会导致角色和磕到甲沟炎一样抖动")
+
+-- ==================== 玩家ESP ====================
+ExtraTab:AddButton({
+    Name = "执行玩家ESP",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/esp888"))()
+        end)
+        OrionLib:MakeNotification({
+            Name = "玩家ESP加载成功",
+            Content = "敌人位置一清二楚",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end    
+})
+
+-- ==================== 夜视 & 去雾（纯实用版） ====================
+local NightVisionEnabled = false
+local NoFogEnabled = false
+
+local Lighting = game:GetService("Lighting")
+
+local originalLighting = {
+    Brightness = Lighting.Brightness,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    FogEnd = Lighting.FogEnd,
+    FogStart = Lighting.FogStart,
+    FogColor = Lighting.FogColor,
+    ClockTime = Lighting.ClockTime,
+    GlobalShadows = Lighting.GlobalShadows,
+    EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale or 1,
+    EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale or 0,
+    ColorShift_Top = Lighting.ColorShift_Top,
+    ColorShift_Bottom = Lighting.ColorShift_Bottom
+}
+
+local function ApplyNightVision(enable)
+    if enable then
+        Lighting.Brightness = 12
+        Lighting.Ambient = Color3.fromRGB(220, 220, 220)
+        Lighting.OutdoorAmbient = Color3.fromRGB(220, 220, 220)
+        Lighting.EnvironmentDiffuseScale = 1
+        Lighting.EnvironmentSpecularScale = 1
+        Lighting.GlobalShadows = false
+        Lighting.ClockTime = 12
+        Lighting.ColorShift_Top = Color3.new(0,0,0)
+        Lighting.ColorShift_Bottom = Color3.new(0,0,0)
+        
+        OrionLib:MakeNotification({
+            Name = "夜视开启",
+            Content = "黑夜直接变白天，敌人都看得清",
+            Time = 4
+        })
+    else
+        Lighting.Brightness = originalLighting.Brightness
+        Lighting.Ambient = originalLighting.Ambient
+        Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+        Lighting.EnvironmentDiffuseScale = originalLighting.EnvironmentDiffuseScale
+        Lighting.EnvironmentSpecularScale = originalLighting.EnvironmentSpecularScale
+        Lighting.GlobalShadows = originalLighting.GlobalShadows
+        Lighting.ClockTime = originalLighting.ClockTime
+        Lighting.ColorShift_Top = originalLighting.ColorShift_Top
+        Lighting.ColorShift_Bottom = originalLighting.ColorShift_Bottom
+        
+        OrionLib:MakeNotification({
+            Name = "夜视关闭",
+            Content = "恢复正常，别闪瞎眼",
+            Time = 4
+        })
+    end
+end
+
+local function ApplyNoFog(enable)
+    if enable then
+        Lighting.FogEnd = math.huge
+        Lighting.FogStart = 0
+        Lighting.FogColor = Color3.fromRGB(200, 200, 220)
+        
+        for _, obj in pairs(Lighting:GetChildren()) do
+            if obj:IsA("Atmosphere") then
+                obj.Density = 0
+                obj.Offset = 0
+                obj.Glare = 0
+                obj.Haze = 0
+            end
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "去雾开启",
+            Content = "雾全没了，视野拉到宇宙尽头",
+            Time = 4
+        })
+    else
+        Lighting.FogEnd = originalLighting.FogEnd
+        Lighting.FogStart = originalLighting.FogStart
+        Lighting.FogColor = originalLighting.FogColor
+        
+        OrionLib:MakeNotification({
+            Name = "去雾关闭",
+            Content = "雾气回来了",
+            Time = 4
+        })
+    end
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if NightVisionEnabled then ApplyNightVision(true) end
+    if NoFogEnabled then ApplyNoFog(true) end
+end)
+
+ExtraTab:AddSection({Name = "夜视 & 去雾"})
+
+ExtraTab:AddToggle({
+    Name = "超级夜视（纯亮+无阴影）",
+    Default = false,
+    Callback = function(Value)
+        NightVisionEnabled = Value
+        ApplyNightVision(Value)
+    end    
+})
+
+ExtraTab:AddToggle({
+    Name = "彻底去雾",
+    Default = false,
+    Callback = function(Value)
+        NoFogEnabled = Value
+        ApplyNoFog(Value)
+    end    
+})
+
+ExtraTab:AddButton({
+    Name = "一键全开（夜视+去雾）",
+    Callback = function()
+        NightVisionEnabled = true
+        NoFogEnabled = true
+        ApplyNightVision(true)
+        ApplyNoFog(true)
+    end    
+})
+
+ExtraTab:AddButton({
+    Name = "全部关闭",
+    Callback = function()
+        NightVisionEnabled = false
+        NoFogEnabled = false
+        ApplyNightVision(false)
+        ApplyNoFog(false)
+    end    
+})
+
+ExtraTab:AddLabel("夜视+去雾一起用，基本等于白天外挂")
+
+OrionLib:Init()
