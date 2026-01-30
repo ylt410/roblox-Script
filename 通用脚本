@@ -59,9 +59,17 @@ end
 local function AddNPCESP(model)
     if not model or NPCESP.Highlights[model] then return end
     if not model:FindFirstChildWhichIsA("Humanoid") then return end
-    if game.Players:GetPlayerFromCharacter(model) then return end
+    
+    -- 等待一下确保Humanoid加载完成
+    local humanoid = model:WaitForChild("Humanoid", 2)
+    if not humanoid then return end
+    
+    -- 检查是否是玩家角色
+    if Players:GetPlayerFromCharacter(model) then return end
+    
     local part = GetNPCPart(model)
     if not part then return end
+    
     local hl = Instance.new("Highlight")
     hl.Name = "NPCESP"
     hl.Adornee = model
@@ -72,6 +80,13 @@ local function AddNPCESP(model)
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     hl.Parent = model
     NPCESP.Highlights[model] = hl
+    
+    -- 当NPC被销毁时自动清理
+    model.AncestryChanged:Connect(function()
+        if not model.Parent then
+            RemoveNPCESP(model)
+        end
+    end)
 end
 
 local function RemoveNPCESP(model)
@@ -88,15 +103,29 @@ local function UpdateNPCESPColor(color)
     end
 end
 
+local function ScanAllNPCs()
+    -- 使用GetDescendants扫描所有后代对象
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChildWhichIsA("Humanoid") then
+            task.spawn(AddNPCESP, obj)
+        end
+    end
+end
+
 local function ToggleNPCESP(state)
     NPCESP.Enabled = state
     if state then
-        for _, obj in pairs(workspace:GetChildren()) do
-            task.spawn(AddNPCESP, obj)
-        end
+        -- 扫描所有已存在的NPC
+        ScanAllNPCs()
+        
+        -- 使用DescendantAdded检测所有新出现的对象
         if not Connections.NPC then
-            Connections.NPC = workspace.ChildAdded:Connect(function(child)
-                task.delay(0.1, function() AddNPCESP(child) end)
+            Connections.NPC = workspace.DescendantAdded:Connect(function(child)
+                -- 等待一下确保对象加载完成
+                task.wait(0.1)
+                if child:IsA("Model") and child:FindFirstChildWhichIsA("Humanoid") then
+                    AddNPCESP(child)
+                end
             end)
         end
     else
@@ -116,11 +145,33 @@ local function IsInteractive(obj)
     return obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector")
 end
 
+local function FindInteractiveObject(prompt)
+    -- 从ProximityPrompt向上查找可交互的对象
+    local parent = prompt.Parent
+    if not parent then return nil end
+    
+    -- 如果父对象是BasePart或Model，通常这就是我们要的对象
+    if parent:IsA("BasePart") or parent:IsA("Model") then
+        return parent
+    end
+    
+    -- 否则继续向上查找
+    local current = parent
+    while current and current ~= workspace do
+        if current:IsA("BasePart") or current:IsA("Model") then
+            return current
+        end
+        current = current.Parent
+    end
+    
+    return nil
+end
+
 local function FindAdornPart(target)
     if target:IsA("BasePart") then return target end
     if target:IsA("Model") then
         if target.PrimaryPart then return target.PrimaryPart end
-        for _, c in pairs(target:GetChildren()) do
+        for _, c in pairs(target:GetDescendants()) do
             if c:IsA("BasePart") then return c end
         end
     end
@@ -130,6 +181,7 @@ end
 local function AddInteractESP(target)
     if not target or InteractESP.Highlights[target] then return end
     if not target:IsA("BasePart") and not target:IsA("Model") then return end
+    
     local hl = Instance.new("Highlight")
     hl.Name = "InteractESP"
     hl.Adornee = target
@@ -143,8 +195,10 @@ local function AddInteractESP(target)
 
     local adornPart = FindAdornPart(target)
     if adornPart then
-        local prompt = target:FindFirstChildWhichIsA("ProximityPrompt") or (target.Parent and target.Parent:FindFirstChildWhichIsA("ProximityPrompt"))
-        local text = (prompt and (prompt.ActionText ~= "" and prompt.ActionText)) or "可互动"
+        -- 查找ProximityPrompt获取提示文本
+        local prompt = target:FindFirstChildWhichIsA("ProximityPrompt") or target:FindFirstDescendantWhichIsA("ProximityPrompt")
+        local text = (prompt and prompt.ActionText ~= "" and prompt.ActionText) or "可互动"
+        
         local bb = Instance.new("BillboardGui")
         bb.Name = "InteractLabel"
         bb.Adornee = adornPart
@@ -152,6 +206,7 @@ local function AddInteractESP(target)
         bb.StudsOffset = Vector3.new(0,3,0)
         bb.AlwaysOnTop = true
         bb.Parent = adornPart
+        
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1,0,1,0)
         label.BackgroundTransparency = 1
@@ -171,7 +226,9 @@ local function RemoveInteractESP(target)
         InteractESP.Highlights[target] = nil
     end
     for _, v in pairs(target:GetDescendants()) do
-        if v:IsA("BillboardGui") and v.Name=="InteractLabel" then pcall(function() v:Destroy() end) end
+        if v:IsA("BillboardGui") and v.Name=="InteractLabel" then 
+            pcall(function() v:Destroy() end) 
+        end
     end
 end
 
@@ -188,17 +245,36 @@ local function UpdateInteractColor(color)
     end
 end
 
+local function ScanAllInteractives()
+    -- 扫描所有已存在的互动物体
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if IsInteractive(obj) then
+            -- 找到正确的可交互对象
+            local target = FindInteractiveObject(obj)
+            if target then
+                task.spawn(AddInteractESP, target)
+            end
+        end
+    end
+end
+
 local function ToggleInteractESP(state)
     InteractESP.Enabled = state
     if state then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if IsInteractive(obj) and obj.Parent then AddInteractESP(obj.Parent) end
-        end
+        -- 扫描所有已存在的互动物体
+        ScanAllInteractives()
+        
+        -- 检测新添加的ProximityPrompt或ClickDetector
         if not Connections.Interact then
             Connections.Interact = workspace.DescendantAdded:Connect(function(child)
-                task.delay(0.1, function()
-                    if IsInteractive(child) and child.Parent then AddInteractESP(child.Parent) end
-                end)
+                task.wait(0.1)
+                if IsInteractive(child) then
+                    -- 找到正确的可交互对象
+                    local target = FindInteractiveObject(child)
+                    if target then
+                        AddInteractESP(target)
+                    end
+                end
             end)
         end
     else
