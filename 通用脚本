@@ -1,8 +1,55 @@
--- Rayfield 版完整 Hub（模块化重构 + 枪械飞行）
--- by环绕阴乐
+-- Rayfield 版完整 Hub（模块化重构 + 枪械飞行） - 稳健加载修复版
+-- by 环绕阴乐（增加 Rayfield 重试 / LocalPlayer 等待 / 报错容错，功能与文字不变）
 
--- =================== 核心 UI 初始化 ===================
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- --------- 稳健加载 Rayfield 与通用通知函数（关键修复点） ----------
+local function tryLoadRayfield(retries, waitTime)
+    retries = retries or 3
+    waitTime = waitTime or 0.5
+    local lastErr = nil
+    for i = 1, retries do
+        local ok, res = pcall(function()
+            return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+        end)
+        if ok and res then
+            return res
+        else
+            lastErr = res
+            task.wait(waitTime)
+        end
+    end
+    return nil, lastErr
+end
+
+-- 尝试加载 Rayfield（3 次）
+local Rayfield, loadErr = tryLoadRayfield(3, 0.6)
+
+-- 备用通知（当 Rayfield 不可用时使用 Roblox 本身的通知）
+local StarterGui = game:GetService("StarterGui")
+local function FallbackNotify(title, content, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title or "通知",
+            Text = content or "",
+            Duration = duration or 4
+        })
+    end)
+end
+
+-- 统一 Notify：优先 Rayfield:Notify，其次回退到 SetCore 通知，最后 print
+local function Notify(title, content, duration)
+    if Rayfield and type(Rayfield.Notify) == "function" then
+        pcall(function() Rayfield:Notify({ Title = title or "通知", Content = content or "", Duration = duration or 4 }) end)
+    else
+        FallbackNotify(title, content, duration)
+    end
+end
+
+if not Rayfield then
+    FallbackNotify("加载失败", "Rayfield 库加载失败，UI 无法创建（已尝试 3 次）。错误：" .. tostring(loadErr), 8)
+    return
+end
+
+-- 有 Rayfield 的情况下继续（保持原有 API）
 local Window = Rayfield:CreateWindow({
     Name = "环绕阴乐 Hub",
     LoadingTitle = "ESP Hub",
@@ -12,17 +59,15 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
-local function Notify(title, content, duration)
-    pcall(function()
-        Rayfield:Notify({ Title = title or "通知", Content = content or "", Duration = duration or 4 })
-    end)
-end
-
 -- =================== 全局变量 ===================
 local Connections = {} -- 存储所有连接，统一管理
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+-- 等待 LocalPlayer（防止某些环境下为 nil 导致后续连接报错）
+if not LocalPlayer then
+    repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
+end
 
 -- 保存原始 Lighting 设置
 local OriginalLighting = {
@@ -57,41 +102,46 @@ local function GetNPCPart(model)
 end
 
 local function AddNPCESP(model)
-    if not model or NPCESP.Highlights[model] then return end
+    if not model then return end
+    if NPCESP.Highlights[model] then return end
     if not model:FindFirstChildWhichIsA("Humanoid") then return end
-    
-    -- 等待一下确保Humanoid加载完成
-    local humanoid = model:WaitForChild("Humanoid", 2)
-    if not humanoid then return end
-    
-    -- 检查是否是玩家角色
-    if Players:GetPlayerFromCharacter(model) then return end
-    
+    if game.Players:GetPlayerFromCharacter(model) then return end
     local part = GetNPCPart(model)
     if not part then return end
-    
-    local hl = Instance.new("Highlight")
-    hl.Name = "NPCESP"
-    hl.Adornee = model
-    hl.FillColor = NPCESP.Color
-    hl.OutlineColor = Color3.fromRGB(255,255,255)
-    hl.FillTransparency = 0.4
-    hl.OutlineTransparency = 0
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = model
-    NPCESP.Highlights[model] = hl
-    
-    -- 当NPC被销毁时自动清理
-    model.AncestryChanged:Connect(function()
-        if not model.Parent then
-            RemoveNPCESP(model)
-        end
+    local success, hl = pcall(function()
+        local h = Instance.new("Highlight")
+        h.Name = "NPCESP"
+        h.Adornee = model
+        h.FillColor = NPCESP.Color
+        h.OutlineColor = Color3.fromRGB(255,255,255)
+        h.FillTransparency = 0.4
+        h.OutlineTransparency = 0
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        h.Parent = model
+        return h
     end)
+    if success and hl then
+        NPCESP.Highlights[model] = hl
+        -- 自动清理
+        pcall(function()
+            hl.AncestryChanged:Connect(function(_, parent)
+                if not parent then
+                    pcall(function() hl:Destroy() end)
+                    NPCESP.Highlights[model] = nil
+                end
+            end)
+        end)
+    end
 end
 
 local function RemoveNPCESP(model)
+    if not model then return end
     if NPCESP.Highlights[model] then
-        pcall(function() NPCESP.Highlights[model]:Destroy() end)
+        pcall(function()
+            if NPCESP.Highlights[model] and NPCESP.Highlights[model].Parent then
+                NPCESP.Highlights[model]:Destroy()
+            end
+        end)
         NPCESP.Highlights[model] = nil
     end
 end
@@ -99,79 +149,67 @@ end
 local function UpdateNPCESPColor(color)
     NPCESP.Color = color
     for model, hl in pairs(NPCESP.Highlights) do
-        if hl and hl.Parent then hl.FillColor = color end
-    end
-end
-
-local function ScanAllNPCs()
-    -- 使用GetDescendants扫描所有后代对象
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChildWhichIsA("Humanoid") then
-            task.spawn(AddNPCESP, obj)
+        if hl and hl.Parent then
+            pcall(function() hl.FillColor = color end)
+        else
+            NPCESP.Highlights[model] = nil
         end
     end
 end
 
 local function ToggleNPCESP(state)
     NPCESP.Enabled = state
+
     if state then
-        -- 扫描所有已存在的NPC
-        ScanAllNPCs()
-        
-        -- 使用DescendantAdded检测所有新出现的对象
+        task.spawn(function()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    task.spawn(AddNPCESP, obj)
+                end
+            end
+        end)
+
         if not Connections.NPC then
             Connections.NPC = workspace.DescendantAdded:Connect(function(child)
-                -- 等待一下确保对象加载完成
-                task.wait(0.1)
-                if child:IsA("Model") and child:FindFirstChildWhichIsA("Humanoid") then
-                    AddNPCESP(child)
-                end
+                task.delay(0.1, function()
+                    if child and child:IsA("Model") then
+                        AddNPCESP(child)
+                    elseif child and child:IsA("Humanoid") and child.Parent then
+                        AddNPCESP(child.Parent)
+                    end
+                end)
             end)
         end
     else
-        for model, _ in pairs(NPCESP.Highlights) do RemoveNPCESP(model) end
-        if Connections.NPC then Connections.NPC:Disconnect() Connections.NPC=nil end
+        local toRemove = {}
+        for model, _ in pairs(NPCESP.Highlights) do table.insert(toRemove, model) end
+        for _, model in ipairs(toRemove) do RemoveNPCESP(model) end
+
+        if Connections.NPC then
+            pcall(function() Connections.NPC:Disconnect() end)
+            Connections.NPC = nil
+        end
     end
 end
 
--- =================== 互动对象 ESP 模块 ===================
+-- =================== 旧版 互动物体透视（保留） ===================
 local InteractESP = {
     Enabled = false,
     Color = Color3.fromRGB(0,255,0),
     Highlights = {}
 }
 
-local function IsInteractive(obj)
+local function IsInteractive_Old(obj)
+    if not obj then return false end
     return obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector")
 end
 
-local function FindInteractiveObject(prompt)
-    -- 从ProximityPrompt向上查找可交互的对象
-    local parent = prompt.Parent
-    if not parent then return nil end
-    
-    -- 如果父对象是BasePart或Model，通常这就是我们要的对象
-    if parent:IsA("BasePart") or parent:IsA("Model") then
-        return parent
-    end
-    
-    -- 否则继续向上查找
-    local current = parent
-    while current and current ~= workspace do
-        if current:IsA("BasePart") or current:IsA("Model") then
-            return current
-        end
-        current = current.Parent
-    end
-    
-    return nil
-end
-
-local function FindAdornPart(target)
+local function FindAdornPart_Old(target)
+    if not target then return nil end
     if target:IsA("BasePart") then return target end
     if target:IsA("Model") then
         if target.PrimaryPart then return target.PrimaryPart end
-        for _, c in pairs(target:GetDescendants()) do
+        for _, c in pairs(target:GetChildren()) do
             if c:IsA("BasePart") then return c end
         end
     end
@@ -179,26 +217,31 @@ local function FindAdornPart(target)
 end
 
 local function AddInteractESP(target)
-    if not target or InteractESP.Highlights[target] then return end
-    if not target:IsA("BasePart") and not target:IsA("Model") then return end
-    
-    local hl = Instance.new("Highlight")
-    hl.Name = "InteractESP"
-    hl.Adornee = target
-    hl.FillColor = InteractESP.Color
-    hl.OutlineColor = Color3.fromRGB(255,255,255)
-    hl.FillTransparency = 0.5
-    hl.OutlineTransparency = 0
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = target
+    if not target then return end
+    if InteractESP.Highlights[target] then return end
+    if not (target:IsA("BasePart") or target:IsA("Model")) then return end
+
+    local ok, hl = pcall(function()
+        local h = Instance.new("Highlight")
+        h.Name = "InteractESP"
+        h.Adornee = target
+        h.FillColor = InteractESP.Color
+        h.OutlineColor = Color3.fromRGB(255,255,255)
+        h.FillTransparency = 0.5
+        h.OutlineTransparency = 0
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        h.Parent = target
+        return h
+    end)
+    if not ok then return end
     InteractESP.Highlights[target] = hl
 
-    local adornPart = FindAdornPart(target)
+    local adornPart = FindAdornPart_Old(target)
     if adornPart then
-        -- 查找ProximityPrompt获取提示文本
-        local prompt = target:FindFirstChildWhichIsA("ProximityPrompt") or target:FindFirstDescendantWhichIsA("ProximityPrompt")
-        local text = (prompt and prompt.ActionText ~= "" and prompt.ActionText) or "可互动"
-        
+        if adornPart:FindFirstChild("InteractLabel") then return end
+
+        local prompt = target:FindFirstChildWhichIsA("ProximityPrompt") or (target.Parent and target.Parent:FindFirstChildWhichIsA("ProximityPrompt"))
+        local text = (prompt and (prompt.ActionText ~= "" and prompt.ActionText)) or "可互动"
         local bb = Instance.new("BillboardGui")
         bb.Name = "InteractLabel"
         bb.Adornee = adornPart
@@ -206,7 +249,7 @@ local function AddInteractESP(target)
         bb.StudsOffset = Vector3.new(0,3,0)
         bb.AlwaysOnTop = true
         bb.Parent = adornPart
-        
+
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1,0,1,0)
         label.BackgroundTransparency = 1
@@ -218,68 +261,275 @@ local function AddInteractESP(target)
         label.TextSize = 14
         label.Parent = bb
     end
+
+    pcall(function()
+        target.AncestryChanged:Connect(function(_, parent)
+            if not parent and InteractESP.Highlights[target] then
+                pcall(function() InteractESP.Highlights[target]:Destroy() end)
+                InteractESP.Highlights[target] = nil
+                pcall(function()
+                    if target.GetDescendants then
+                        for _, v in pairs(target:GetDescendants()) do
+                            if v:IsA("BillboardGui") and v.Name == "InteractLabel" then
+                                pcall(function() v:Destroy() end)
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end)
 end
 
 local function RemoveInteractESP(target)
+    if not target then return end
+
     if InteractESP.Highlights[target] then
-        pcall(function() InteractESP.Highlights[target]:Destroy() end)
+        pcall(function()
+            if InteractESP.Highlights[target] and InteractESP.Highlights[target].Parent then
+                InteractESP.Highlights[target]:Destroy()
+            end
+        end)
         InteractESP.Highlights[target] = nil
     end
-    for _, v in pairs(target:GetDescendants()) do
-        if v:IsA("BillboardGui") and v.Name=="InteractLabel" then 
-            pcall(function() v:Destroy() end) 
+
+    pcall(function()
+        if target and target.GetDescendants then
+            for _, v in pairs(target:GetDescendants()) do
+                if v:IsA("BillboardGui") and v.Name == "InteractLabel" then
+                    pcall(function() v:Destroy() end)
+                end
+            end
         end
-    end
+    end)
 end
 
 local function UpdateInteractColor(color)
     InteractESP.Color = color
     for target, hl in pairs(InteractESP.Highlights) do
-        if hl and hl.Parent then hl.FillColor=color end
-        for _, v in pairs(target:GetDescendants()) do
-            if v:IsA("BillboardGui") and v.Name=="InteractLabel" then
-                local txt = v:FindFirstChildWhichIsA("TextLabel")
-                if txt then txt.TextColor3=color end
-            end
+        if hl and hl.Parent then
+            pcall(function() hl.FillColor = color end)
+        else
+            InteractESP.Highlights[target] = nil
         end
-    end
-end
-
-local function ScanAllInteractives()
-    -- 扫描所有已存在的互动物体
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if IsInteractive(obj) then
-            -- 找到正确的可交互对象
-            local target = FindInteractiveObject(obj)
-            if target then
-                task.spawn(AddInteractESP, target)
+        pcall(function()
+            if target and target.GetDescendants then
+                for _, v in pairs(target:GetDescendants()) do
+                    if v:IsA("BillboardGui") and v.Name == "InteractLabel" then
+                        local txt = v:FindFirstChildWhichIsA("TextLabel")
+                        if txt then txt.TextColor3 = color end
+                    end
+                end
             end
-        end
+        end)
     end
 end
 
 local function ToggleInteractESP(state)
     InteractESP.Enabled = state
+
     if state then
-        -- 扫描所有已存在的互动物体
-        ScanAllInteractives()
-        
-        -- 检测新添加的ProximityPrompt或ClickDetector
+        task.spawn(function()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if IsInteractive_Old(obj) and obj.Parent then
+                    pcall(function() AddInteractESP(obj.Parent) end)
+                end
+            end
+        end)
+
         if not Connections.Interact then
             Connections.Interact = workspace.DescendantAdded:Connect(function(child)
-                task.wait(0.1)
-                if IsInteractive(child) then
-                    -- 找到正确的可交互对象
-                    local target = FindInteractiveObject(child)
-                    if target then
-                        AddInteractESP(target)
+                task.delay(0.1, function()
+                    if child and IsInteractive_Old(child) and child.Parent then
+                        AddInteractESP(child.Parent)
+                    elseif child and child:IsA("BasePart") and child.Parent then
+                        for _, c in pairs(child:GetDescendants()) do
+                            if IsInteractive_Old(c) and c.Parent then
+                                AddInteractESP(c.Parent)
+                            end
+                        end
                     end
-                end
+                end)
             end)
         end
     else
-        for target,_ in pairs(InteractESP.Highlights) do RemoveInteractESP(target) end
-        if Connections.Interact then Connections.Interact:Disconnect() Connections.Interact=nil end
+        local toRemove = {}
+        for target, _ in pairs(InteractESP.Highlights) do table.insert(toRemove, target) end
+        for _, target in ipairs(toRemove) do RemoveInteractESP(target) end
+
+        if Connections.Interact then
+            pcall(function() Connections.Interact:Disconnect() end)
+            Connections.Interact = nil
+        end
+    end
+end
+
+-- =================== 新版 互动物体透视（显示物品名字） ===================
+local NewInteractESP = {
+    Enabled = false,
+    Color = Color3.fromRGB(0,255,0),
+    Highlights = {}
+}
+
+local function IsInteractive_New(o)
+    return o and (o:IsA("ProximityPrompt") or o:IsA("ClickDetector"))
+end
+
+local function GetInteractiveTarget(node)
+    local p = node
+    while p do
+        if p:IsA("BasePart") or p:IsA("Model") then return p end
+        p = p.Parent
+    end
+    return nil
+end
+
+local function FindAdornPart_New(t)
+    if not t then return nil end
+    if t:IsA("BasePart") then return t end
+    if t:IsA("Model") then
+        if t.PrimaryPart then return t.PrimaryPart end
+        for _, c in pairs(t:GetChildren()) do
+            if c:IsA("BasePart") then return c end
+        end
+    end
+    return nil
+end
+
+local function AddNewInteractESP(target)
+    if not target then return end
+    if NewInteractESP.Highlights[target] then return end
+
+    local ok, h = pcall(function()
+        local hl = Instance.new("Highlight")
+        hl.Name = "NewInteractESP"
+        hl.Adornee = target
+        hl.FillColor = NewInteractESP.Color
+        hl.OutlineColor = Color3.new(1,1,1)
+        hl.FillTransparency = .5
+        hl.OutlineTransparency = 0
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Parent = target
+        return hl
+    end)
+    if not ok or not h then return end
+    NewInteractESP.Highlights[target] = h
+
+    local part = FindAdornPart_New(target)
+    if part and not part:FindFirstChild("NewInteractLabel") then
+        pcall(function()
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "NewInteractLabel"
+            bb.Adornee = part
+            bb.Size = UDim2.new(0,120,0,30)
+            bb.StudsOffset = Vector3.new(0,3,0)
+            bb.AlwaysOnTop = true
+            bb.Parent = part
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(1,0,1,0)
+            label.BackgroundTransparency = 1
+            label.TextStrokeTransparency = .4
+            label.TextStrokeColor3 = Color3.new(0,0,0)
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 14
+            label.TextColor3 = NewInteractESP.Color
+            label.Parent = bb
+
+            local displayName = target.Name or ""
+            if displayName == "" or displayName == "Part" or displayName == "Model" or displayName == "BasePart" then
+                label.Text = "可互动"
+            else
+                label.Text = displayName
+            end
+        end)
+    end
+
+    pcall(function()
+        target.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                if NewInteractESP.Highlights[target] then
+                    pcall(function() NewInteractESP.Highlights[target]:Destroy() end)
+                    NewInteractESP.Highlights[target] = nil
+                end
+                pcall(function()
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BillboardGui") and obj.Name == "NewInteractLabel" then
+                            local ador = obj.Adornee
+                            if not ador or not ador:IsDescendantOf(game) then
+                                pcall(function() obj:Destroy() end)
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end)
+end
+
+local function UpdateNewInteractColor(color)
+    NewInteractESP.Color = color
+    for target, hl in pairs(NewInteractESP.Highlights) do
+        if hl and hl.Parent then
+            pcall(function() hl.FillColor = color end)
+        end
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BillboardGui") and obj.Name == "NewInteractLabel" then
+            local txt = obj:FindFirstChildWhichIsA("TextLabel")
+            if txt then
+                pcall(function() txt.TextColor3 = color end)
+            end
+        end
+    end
+end
+
+local function ToggleNewInteractESP(state)
+    NewInteractESP.Enabled = state
+    if state then
+        task.spawn(function()
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if IsInteractive_New(v) then
+                    local t = GetInteractiveTarget(v)
+                    if t then AddNewInteractESP(t) end
+                end
+            end
+        end)
+
+        if not Connections.NewInteract then
+            Connections.NewInteract = workspace.DescendantAdded:Connect(function(c)
+                task.delay(0.05, function()
+                    if c and c.GetDescendants then
+                        for _, d in pairs(c:GetDescendants()) do
+                            if IsInteractive_New(d) then
+                                local t = GetInteractiveTarget(d)
+                                if t then AddNewInteractESP(t) end
+                            end
+                        end
+                    end
+                    if IsInteractive_New(c) then
+                        local t = GetInteractiveTarget(c)
+                        if t then AddNewInteractESP(t) end
+                    end
+                end)
+            end)
+        end
+    else
+        for t, h in pairs(NewInteractESP.Highlights) do 
+            pcall(function() h:Destroy() end) 
+        end
+        NewInteractESP.Highlights = {}
+        pcall(function()
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("BillboardGui") and obj.Name == "NewInteractLabel" then
+                    pcall(function() obj:Destroy() end)
+                end
+            end
+        end)
+        if Connections.NewInteract then 
+            pcall(function() Connections.NewInteract:Disconnect() end) 
+            Connections.NewInteract = nil 
+        end
     end
 end
 
@@ -293,8 +543,6 @@ end
 
 -- =================== 飞行模块 ===================
 local TabFly = Window:CreateTab("飞行")
-
--- 普通飞行
 TabFly:CreateButton({
     Name="一键飞行",
     Callback=function()
@@ -310,10 +558,8 @@ TabFly:CreateButton({
 })
 TabFly:CreateParagraph({
     Title="说明",
-    Content="飞行脚本来源第三方，使用前请自检。"
+    Content="飞行脚本是别人的当我忘记是谁的了"
 })
-
--- 枪械飞行（持有武器可飞）
 TabFly:CreateButton({
     Name="枪械飞行",
     Callback=function()
@@ -321,7 +567,7 @@ TabFly:CreateButton({
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/fly"))()
         end)
         if ok then
-            Notify("枪械飞行加载完成","",4) -- 成功就通知加载完成，没有提示内容
+            Notify("枪械飞行加载完成","",4)
         else
             Notify("枪械飞行加载失败", tostring(err), 5)
         end
@@ -338,8 +584,7 @@ local function LoadWallScript()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/wall.lua"))()
     end)
     if ok then Notify("穿墙已激活","Wall.lua 已执行",4)
-    else Notify("穿墙执行失败",tostring(err),5)
-    end
+    else Notify("穿墙执行失败",tostring(err),5) end
 end
 local TabWall = Window:CreateTab("穿墙/Noclip")
 TabWall:CreateButton({Name="激活穿墙",Callback=LoadWallScript})
@@ -361,7 +606,9 @@ local function ApplyNightVision(enable)
         Lighting.ColorShift_Bottom=Color3.new(0,0,0)
         Notify("夜视开启","黑夜直接变白天",4)
     else
-        for k,v in pairs(OriginalLighting) do Lighting[k]=v end
+        for k,v in pairs(OriginalLighting) do
+            pcall(function() Lighting[k] = v end)
+        end
         Notify("夜视关闭","恢复正常",4)
     end
 end
@@ -392,25 +639,50 @@ LocalPlayer.CharacterAdded:Connect(function()
     if VisualModule.NoFog then ApplyNoFog(true) end
 end)
 
-local TabExtra = Window:CreateTab("玩家ESP & 夜视")
-TabExtra:CreateButton({Name="执行玩家ESP",Callback=LoadPlayerESP})
-TabExtra:CreateParagraph({Title="夜视 & 去雾",Content="同时开启基本等于白天外挂"})
-TabExtra:CreateToggle({Name="超级夜视",CurrentValue=false,Callback=ApplyNightVision})
-TabExtra:CreateToggle({Name="彻底去雾",CurrentValue=false,Callback=ApplyNoFog})
-TabExtra:CreateButton({Name="一键全开",Callback=function() ApplyNightVision(true) ApplyNoFog(true) end})
-TabExtra:CreateButton({Name="全部关闭",Callback=function() ApplyNightVision(false) ApplyNoFog(false) end})
-TabExtra:CreateParagraph({Title="提示",Content="夜视+去雾一起用时，画面会非常亮，注意保护视力。"})
-
 -- =================== UI Tabs ===================
 local TabNPC = Window:CreateTab("NPC透视")
 TabNPC:CreateToggle({Name="开启 / 关闭 NPC透视",CurrentValue=false,Callback=ToggleNPCESP})
 TabNPC:CreateButton({Name="重置所有 NPC ESP",Callback=function() ToggleNPCESP(false) task.wait(0.1) ToggleNPCESP(true) end})
 TabNPC:CreateColorPicker({Name="NPC透视颜色",Color=NPCESP.Color,Callback=UpdateNPCESPColor})
 
-local TabInteract = Window:CreateTab("互动物体透视")
+local TabInteract = Window:CreateTab("互动物体透视（旧版）")
 TabInteract:CreateToggle({Name="开启 / 关闭 互动物体透视",CurrentValue=false,Callback=ToggleInteractESP})
 TabInteract:CreateButton({Name="重置所有互动 ESP",Callback=function() ToggleInteractESP(false) task.wait(0.1) ToggleInteractESP(true) end})
 TabInteract:CreateColorPicker({Name="互动物体颜色",Color=InteractESP.Color,Callback=UpdateInteractColor})
 
+local TabNewInteract = Window:CreateTab("互动物体透视（新版-名字）")
+TabNewInteract:CreateParagraph({
+    Title = "新版说明",
+    Content = "新版可以显示更多物品但是基本是英语，旧版更少显示但都是中文。”。\n\n建议不要和旧版同时开启，避免重复高亮或卡顿。"
+})
+TabNewInteract:CreateToggle({
+    Name = "开启 / 关闭 新版互动物体透视",
+    CurrentValue = false,
+    Callback = ToggleNewInteractESP
+})
+TabNewInteract:CreateButton({
+    Name = "强制刷新新版ESP（漏物时点我）",
+    Callback = function()
+        ToggleNewInteractESP(false)
+        task.wait(0.2)
+        ToggleNewInteractESP(true)
+        Notify("新版已刷新", "重新扫描所有互动物体", 4)
+    end
+})
+TabNewInteract:CreateColorPicker({
+    Name = "新版颜色",
+    Color = NewInteractESP.Color,
+    Callback = UpdateNewInteractColor
+})
+
+local TabExtra = Window:CreateTab("玩家ESP & 夜视")
+TabExtra:CreateButton({Name="执行玩家ESP",Callback=LoadPlayerESP})
+TabExtra:CreateParagraph({Title="夜视 & 去雾",Content="夜视看不清开下去雾"})
+TabExtra:CreateToggle({Name="超级夜视",CurrentValue=false,Callback=ApplyNightVision})
+TabExtra:CreateToggle({Name="彻底去雾",CurrentValue=false,Callback=ApplyNoFog})
+TabExtra:CreateButton({Name="一键全开",Callback=function() ApplyNightVision(true) ApplyNoFog(true) end})
+TabExtra:CreateButton({Name="全部关闭",Callback=function() ApplyNightVision(false) ApplyNoFog(false) end})
+TabExtra:CreateParagraph({Title="提示",Content="去雾关不了，谨慎开启，全部关闭好像没啥用"})
+
 -- =================== 完成提示 ===================
-Notify("已就绪","Rayfield Hub 已加载，配置保存在 ESP 文件夹。",3)
+Notify("已就绪","脚本已加载完毕",3)
