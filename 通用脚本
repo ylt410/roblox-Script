@@ -50,13 +50,15 @@ if not Rayfield then
 end
 
 -- 创建窗口
+-- 创建窗口（使用琥珀色发光主题）
 local Window = Rayfield:CreateWindow({
     Name = "解谜地图通用脚本｜环绕阴乐出品",
     LoadingTitle = "解谜地图通用脚本｜环绕阴乐出品",
     LoadingSubtitle = "by Grok&ChatGPT&Gemini",
     ConfigurationSaving = { Enabled = true, FolderName = "ESP", FileName = "RayfieldESP" },
     Discord = { Enabled = false },
-    KeySystem = false
+    KeySystem = false,
+    Theme = "Bloom" -- <- 已设置为琥珀色发光主题
 })
 
 -- =================== 全局变量 ===================
@@ -462,7 +464,7 @@ local VisualModule = { NormalNightVision=false, SuperNightVision=false, NoFog=fa
 local function ApplyNormalNightVision(enable)
     VisualModule.NormalNightVision = enable
     if enable then
-        Lighting.Brightness=12
+        Lighting.Brightness=10
         Lighting.Ambient=Color3.fromRGB(220,220,220)
         Lighting.OutdoorAmbient=Color3.fromRGB(220,220,220)
         Lighting.EnvironmentDiffuseScale=1
