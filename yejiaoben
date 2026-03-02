@@ -1,5 +1,5 @@
 -- Rayfield 版完整 Hub（模块化重构 + 枪械飞行） - 稳健加载修复版
--- by 环绕阴乐
+-- by 抖音夜
 
 -- --------- 稳健加载 Rayfield 与通用通知函数（保持不变） ----------
 local function tryLoadRayfield(retries, waitTime)
