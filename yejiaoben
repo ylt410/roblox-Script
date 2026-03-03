@@ -1,4 +1,4 @@
--- Rayfield 版完整 Hub（模块化重构 + 枪械飞行） - 稳健加载修复版
+-- 作者抖音58873829421
 -- by 夜
 
 -- --------- 稳健加载 Rayfield 与通用通知函数（保持不变） ----------
@@ -52,8 +52,8 @@ end
 -- 创建窗口
 -- 创建窗口（使用琥珀色发光主题）
 local Window = Rayfield:CreateWindow({
-    Name = "解谜地图通用脚本｜抖音夜出品",
-    LoadingTitle = "夜脚本加载中……",
+    Name = "夜脚本｜抖音夜出品",
+    LoadingTitle = "感谢使用夜脚本",
     LoadingSubtitle = "by Grok&ChatGPT&Gemini",
     ConfigurationSaving = { Enabled = true, FolderName = "ESP", FileName = "RayfieldESP" },
     Discord = { Enabled = false },
@@ -594,9 +594,9 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告 1", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作" })
-TabAnnounce:CreateParagraph({ Title="公告 2", Content="更新日志:增加了属性修改栏目，虽然快速跑步是抄的皮脚本代码" })
-TabAnnounce:CreateParagraph({ Title="公告 3", Content="暂时还没有东西" }) -- 这里是新增的公告3
+TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="增加了属性修改栏目，虽然快速跑步是抄的皮脚本代码" })
+TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告3
 
 -- 2. 属性修改 Tab 
 local TabAttr = Window:CreateTab("属性修改")
@@ -605,15 +605,15 @@ local TabAttr = Window:CreateTab("属性修改")
 TabAttr:CreateSection("常规速度修改")
 local TargetWalkSpeed = 16
 TabAttr:CreateInput({
-    Name = "1. 设置走路速度",
-    PlaceholderText = "输入数值 (回车生效)",
+    Name = "改速度(重启开关生效)",
+    PlaceholderText = "输入数值",
     Callback = function(Text)
         TargetWalkSpeed = tonumber(Text) or OriginalWalkSpeed
     end,
 })
 
 TabAttr:CreateToggle({
-    Name = "2. 开启/关闭速度修改",
+    Name = " 开启/关闭速度修改",
     CurrentValue = false,
     Callback = function(Value)
         local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -626,15 +626,15 @@ TabAttr:CreateToggle({
 -- --- 快速跑步 (TranslateBy 模式) ---
 TabAttr:CreateSection("高级快速跑步 (TranslateBy 模式)")
 TabAttr:CreateInput({
-    Name = "1. 设置快速跑步强度",
-    PlaceholderText = "输入强度 (回车生效)",
+    Name = "设置快速跑步强度",
+    PlaceholderText = "输入强度",
     Callback = function(speedValue)
         Speed = tonumber(speedValue) or 0
     end,
 })
 
 TabAttr:CreateToggle({
-    Name = "2. 开启/关闭快速跑步",
+    Name = " 开启/关闭快速跑步",
     CurrentValue = false,
     Callback = function(enabled)
         if enabled == true then
@@ -683,22 +683,22 @@ TabAttr:CreateToggle({
 })
 
 -- --- 无限跳 (新增部分) ---
-TabAttr:CreateSection("特殊能力")
+TabAttr:CreateSection("无限跳")
 TabAttr:CreateToggle({
     Name = "无限跳跃",
     CurrentValue = false,
     Callback = function(Value)
         InfiniteJumpEnabled = Value -- 切换全局变量状态
         if Value then
-            Notify("开启成功", "你现在可以在空中跳跃了", 2)
+            Notify("开启成功", "1", 2)
         else
-            Notify("已关闭", "无限跳跃已停用", 2)
+            Notify("已关闭", "1", 2)
         end
     end,
 })
 
 -- 2. 通用功能 Tab (飞行 + 穿墙)
-local TabUniversal = Window:CreateTab("通用功能")
+local TabUniversal = Window:CreateTab("飞行/穿墙")
 TabUniversal:CreateSection("飞行功能")
 TabUniversal:CreateButton({
     Name="一键飞行",
@@ -723,7 +723,7 @@ TabUniversal:CreateButton({Name="激活穿墙",Callback=LoadWallScript})
 TabUniversal:CreateParagraph({Title="说明",Content="开穿墙后角色可能抖动，请谨慎使用。"})
 
 -- 3. 视觉功能 Tab (NPC + 互动 + 玩家)
-local TabVisual = Window:CreateTab("视觉功能")
+local TabVisual = Window:CreateTab("透视功能")
 TabVisual:CreateParagraph({ Title="提示", Content="旧互动物品透视能看到的东西更少但是是中文，新版能看到的更多但都是英文" })
 
 -- NPC 部分
@@ -766,4 +766,4 @@ TabNight:CreateButton({Name="关闭所有夜视/去雾",Callback=function()
 end})
 
 -- =================== 完成提示 ===================
-Notify("已就绪","脚本已加载",3)
+Notify("脚本加载完成","作者抖音58873829421",3)
