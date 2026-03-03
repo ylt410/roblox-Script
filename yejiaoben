@@ -1,5 +1,5 @@
 -- Rayfield 版完整 Hub（模块化重构 + 枪械飞行） - 稳健加载修复版
--- by 抖音夜
+-- by 夜
 
 -- --------- 稳健加载 Rayfield 与通用通知函数（保持不变） ----------
 local function tryLoadRayfield(retries, waitTime)
@@ -61,15 +61,49 @@ local Window = Rayfield:CreateWindow({
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
 
--- =================== 全局变量 ===================
+-- =================== 全局变量与属性记录 (修改这里) ===================
 local Connections = {} 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService") -- 确保有这行
 local LocalPlayer = Players.LocalPlayer
 
 if not LocalPlayer then
     repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
 end
+
+-- --- 核心变量：记录原始数值与状态 ---
+local OriginalWalkSpeed = 16
+local OriginalJump = 50
+local InfiniteJumpEnabled = false
+local FastRunSpeed = 0
+local FastRunConnection = nil
+
+-- 自动记录服务器原本的速度和跳跃
+task.spawn(function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    OriginalWalkSpeed = hum.WalkSpeed
+    OriginalJump = (hum.JumpPower > 0) and hum.JumpPower or hum.JumpHeight
+end)
+
+-- 无限跳监听逻辑
+UserInputService.JumpRequest:Connect(function()
+    if InfiniteJumpEnabled then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChildOfClass("Humanoid") then
+            character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end
+end)
+-- ===============================================================
+
+-- --- 核心：快速跑步（位移模式）变量 ---
+local FastRunSpeed = 0
+local FastRunConnection = nil
+-- ===============================================
+-- ===============================================
 
 -- 保存原始 Lighting 设置
 local OriginalLighting = {
@@ -560,8 +594,108 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告 1", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬" })
-TabAnnounce:CreateParagraph({ Title="公告 2", Content="更新日志:更新了穿墙和飞行的UI但是穿墙抖动还是没解决" })
+TabAnnounce:CreateParagraph({ Title="公告 1", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作" })
+TabAnnounce:CreateParagraph({ Title="公告 2", Content="更新日志:增加了属性修改栏目，虽然快速跑步是抄的皮脚本代码" })
+TabAnnounce:CreateParagraph({ Title="公告 3", Content="暂时还没有东西" }) -- 这里是新增的公告3
+
+-- 2. 属性修改 Tab 
+local TabAttr = Window:CreateTab("属性修改")
+
+-- --- 走路速度修改 (WalkSpeed 模式) ---
+TabAttr:CreateSection("常规速度修改")
+local TargetWalkSpeed = 16
+TabAttr:CreateInput({
+    Name = "1. 设置走路速度",
+    PlaceholderText = "输入数值 (回车生效)",
+    Callback = function(Text)
+        TargetWalkSpeed = tonumber(Text) or OriginalWalkSpeed
+    end,
+})
+
+TabAttr:CreateToggle({
+    Name = "2. 开启/关闭速度修改",
+    CurrentValue = false,
+    Callback = function(Value)
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = Value and TargetWalkSpeed or OriginalWalkSpeed
+        end
+    end,
+})
+
+-- --- 快速跑步 (TranslateBy 模式) ---
+TabAttr:CreateSection("高级快速跑步 (TranslateBy 模式)")
+TabAttr:CreateInput({
+    Name = "1. 设置快速跑步强度",
+    PlaceholderText = "输入强度 (回车生效)",
+    Callback = function(speedValue)
+        Speed = tonumber(speedValue) or 0
+    end,
+})
+
+TabAttr:CreateToggle({
+    Name = "2. 开启/关闭快速跑步",
+    CurrentValue = false,
+    Callback = function(enabled)
+        if enabled == true then
+            if sudu then sudu:Disconnect() end
+            sudu = game:GetService("RunService").Heartbeat:Connect(function()
+                local lp = game:GetService("Players").LocalPlayer
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") and lp.Character.Humanoid.Parent and 0 < lp.Character.Humanoid.MoveDirection.Magnitude then
+                    lp.Character:TranslateBy(lp.Character.Humanoid.MoveDirection * Speed / 0.5)
+                end
+            end)
+            Notify("开启成功", "快速跑步已激活", 2)
+        elseif not enabled and sudu then
+            sudu:Disconnect()
+            sudu = nil
+            Notify("已关闭", "快速跑步已停止", 2)
+        end
+    end,
+})
+
+-- --- 跳跃修改 ---
+TabAttr:CreateSection("跳跃修改")
+local TargetJump = 50
+TabAttr:CreateInput({
+    Name = "设置跳跃强度",
+    PlaceholderText = "原始值: " .. OriginalJump,
+    Callback = function(Text)
+        TargetJump = tonumber(Text) or OriginalJump
+    end,
+})
+
+TabAttr:CreateToggle({
+    Name = "开启/关闭跳跃修改",
+    CurrentValue = false,
+    Callback = function(Value)
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if Value then
+                hum.JumpPower = TargetJump
+                hum.JumpHeight = TargetJump
+            else
+                hum.JumpPower = OriginalJump
+                hum.JumpHeight = OriginalJump
+            end
+        end
+    end,
+})
+
+-- --- 无限跳 (新增部分) ---
+TabAttr:CreateSection("特殊能力")
+TabAttr:CreateToggle({
+    Name = "无限跳跃",
+    CurrentValue = false,
+    Callback = function(Value)
+        InfiniteJumpEnabled = Value -- 切换全局变量状态
+        if Value then
+            Notify("开启成功", "你现在可以在空中跳跃了", 2)
+        else
+            Notify("已关闭", "无限跳跃已停用", 2)
+        end
+    end,
+})
 
 -- 2. 通用功能 Tab (飞行 + 穿墙)
 local TabUniversal = Window:CreateTab("通用功能")
