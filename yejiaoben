@@ -704,7 +704,7 @@ TabUniversal:CreateButton({
     Name="一键飞行",
     Callback=function()
         local ok, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/fly"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
         end)
         if ok then Notify("飞行脚本加载完成","感谢使用",4) else Notify("飞行脚本加载失败", tostring(err), 5) end
     end
