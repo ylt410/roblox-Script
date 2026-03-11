@@ -1,29 +1,7 @@
 -- 作者抖音58873829421
 -- by 夜
 
--- --------- 稳健加载 Rayfield 与通用通知函数（保持不变） ----------
-local function tryLoadRayfield(retries, waitTime)
-    retries = retries or 3
-    waitTime = waitTime or 0.5
-    local lastErr = nil
-    for i = 1, retries do
-        local ok, res = pcall(function()
-            return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-        end)
-        if ok and res then
-            return res
-        else
-            lastErr = res
-            task.wait(waitTime)
-        end
-    end
-    return nil, lastErr
-end
-
--- 尝试加载 Rayfield（3 次）
-local Rayfield, loadErr = tryLoadRayfield(3, 0.6)
-
--- 备用通知
+-- --------- 1. 预设通知工具（为了在加载网络库前就能弹出提示） ----------
 local StarterGui = game:GetService("StarterGui")
 local function FallbackNotify(title, content, duration)
     pcall(function()
@@ -35,7 +13,58 @@ local function FallbackNotify(title, content, duration)
     end)
 end
 
--- 统一 Notify
+-- [新增] 注入成功后的瞬间反馈
+FallbackNotify("夜脚本", "看到这个就说明基础脚本已经加载完毕，正在加载UI库", 3)
+FallbackNotify("加载中", "开始载入UI，剩余时间大约2秒如网络不佳可能延长", 3)
+task.wait(2)
+-- --------- 2. 优化后的快速加载 Rayfield (15秒超时控制) ----------
+local function tryLoadRayfield(retries, timeoutPerAttempt)
+    retries = retries or 3
+    timeoutPerAttempt = timeoutPerAttempt or 5 -- 每次尝试最长等待 5 秒
+    
+    for i = 1, retries do
+        print("正在尝试第 " .. i .. " 次加载 UI 库...")
+        local success = false
+        local content = nil
+        
+        -- 开启协程请求数据，避免下载时主线程死锁
+        task.spawn(function()
+            local ok, res = pcall(function()
+                return game:HttpGet('https://sirius.menu/rayfield')
+            end)
+            if ok and res then
+                content = res
+                success = true
+            end
+        end)
+
+        -- 计时器：如果 5 秒内没成功，直接进入下一次重试
+        local start = tick()
+        repeat task.wait(0.1) until success or (tick() - start) > timeoutPerAttempt
+
+        if success and content then
+            local runOk, Rayfield = pcall(function()
+                return loadstring(content)()
+            end)
+            if runOk and Rayfield then
+                return Rayfield
+            end
+        end
+        warn("第 " .. i .. " 次加载尝试超时或失败")
+    end
+    return nil, "网络连接超时 (15秒)"
+end
+
+-- 启动加载程序
+local Rayfield, loadErr = tryLoadRayfield(3, 5)
+
+-- --------- 3. 检查加载结果并定义统一通知函数 ----------
+if not Rayfield then
+    FallbackNotify("加载失败", "UI 库加载失败，请尝试更换加速器，错误：" .. tostring(loadErr), 10)
+    return -- 彻底停止脚本
+end
+
+-- 统一 Notify 函数（供 UI 加载成功后的后续代码调用）
 local function Notify(title, content, duration)
     if Rayfield and type(Rayfield.Notify) == "function" then
         pcall(function() Rayfield:Notify({ Title = title or "通知", Content = content or "", Duration = duration or 4 }) end)
@@ -43,13 +72,8 @@ local function Notify(title, content, duration)
         FallbackNotify(title, content, duration)
     end
 end
-
-if not Rayfield then
-    FallbackNotify("加载失败", "Rayfield 库加载失败，UI 无法创建（已尝试 3 次）。错误：" .. tostring(loadErr), 8)
-    return
-end
-
--- 创建窗口
+FallbackNotify("加载成功", "脚本即将运行", 3)
+-- ---------------------------------------------------------
 -- 创建窗口（使用琥珀色发光主题）
 local Window = Rayfield:CreateWindow({
     Name = "夜脚本｜抖音夜出品",
@@ -479,7 +503,7 @@ local function LoadPlayerESP()
     pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/player%20esp"))()
     end)
-    Notify("玩家ESP加载成功","感谢使用",5)
+    Notify("加载玩家透视","成功",5)
 end
 
 -- =================== 飞行/穿墙逻辑 (保持不变) ===================
@@ -487,7 +511,7 @@ local function LoadWallScript()
     local ok, err = pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/Through%20the%20wall"))()
     end)
-    if ok then Notify("穿墙已激活","Wall.lua 已执行",4)
+    if ok then Notify("加载穿墙","成功",2)
     else Notify("穿墙执行失败",tostring(err),5) end
 end
 
@@ -507,11 +531,11 @@ local function ApplyNormalNightVision(enable)
         Lighting.ClockTime=8
         Lighting.ColorShift_Top=Color3.new(0,0,0)
         Lighting.ColorShift_Bottom=Color3.new(0,0,0)
-        Notify("普通夜视开启","标准亮度 (Level 12)",4)
+        Notify("普通夜视开启","成功",2)
     else
         -- 恢复
         for k,v in pairs(OriginalLighting) do pcall(function() Lighting[k] = v end) end
-        Notify("普通夜视关闭","恢复正常",4)
+        Notify("普通夜视关闭","成功",2)
     end
 end
 
@@ -520,7 +544,7 @@ local function ApplySuperNightVision(enable)
     VisualModule.SuperNightVision = enable
     if enable then
         -- 亮度修改：普通是12，现在设为20 (约1.6倍)，配合全白环境光
-        Lighting.Brightness = 50
+        Lighting.Brightness = 70
         Lighting.Ambient = Color3.fromRGB(255,255,255)
         Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
         Lighting.GlobalShadows = false
@@ -528,11 +552,11 @@ local function ApplySuperNightVision(enable)
         Lighting.FogEnd = 100000 
         Lighting.EnvironmentDiffuseScale = 1
         -- 移除曝光补偿，仅靠高 Brightness 提升亮度，避免白屏
-        Notify("超级夜视开启","高亮模式 (1.5x 增强)",4)
+        Notify("超级夜视开启","成功",2)
     else
         -- 恢复
         for k,v in pairs(OriginalLighting) do pcall(function() Lighting[k] = v end) end
-        Notify("超级夜视关闭","恢复正常",4)
+        Notify("超级夜视关闭","成功",2)
     end
 end
 
@@ -558,7 +582,7 @@ local function ApplyNoFog(enable)
                 pcall(function() obj.Density=0 obj.Offset=0 obj.Glare=0 obj.Haze=0 end)
             end
         end
-        Notify("去雾开启","视野清晰",4)
+        Notify("去雾开启","成功",2)
     else
         -- 恢复 Legacy Fog
         Lighting.FogStart = OriginalLighting.FogStart
@@ -578,7 +602,7 @@ local function ApplyNoFog(enable)
         end
         OriginalAtmosphere = {} 
         
-        Notify("去雾关闭","雾气已恢复",4)
+        Notify("去雾关闭","成功",2)
     end
 end
 
@@ -595,8 +619,10 @@ end)
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
 TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
-TabAnnounce:CreateParagraph({ Title="更新日志", Content="增加了属性修改栏目，虽然快速跑步是抄的皮脚本代码" })
-TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告3
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="统一了开启/关闭成功通知的格式" })
+TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告
+TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
+
 
 -- 2. 属性修改 Tab 
 local TabAttr = Window:CreateTab("属性修改")
@@ -645,11 +671,11 @@ TabAttr:CreateToggle({
                     lp.Character:TranslateBy(lp.Character.Humanoid.MoveDirection * Speed / 0.5)
                 end
             end)
-            Notify("开启成功", "快速跑步已激活", 2)
+            Notify("开启快速跑步", "成功", 2)
         elseif not enabled and sudu then
             sudu:Disconnect()
             sudu = nil
-            Notify("已关闭", "快速跑步已停止", 2)
+            Notify("关闭快速跑步", "成功", 2)
         end
     end,
 })
@@ -690,9 +716,9 @@ TabAttr:CreateToggle({
     Callback = function(Value)
         InfiniteJumpEnabled = Value -- 切换全局变量状态
         if Value then
-            Notify("开启成功", "1", 2)
+            Notify("开启无限跳", "成功", 2)
         else
-            Notify("已关闭", "1", 2)
+            Notify("关闭无限跳", "成功", 2)
         end
     end,
 })
@@ -706,7 +732,7 @@ TabUniversal:CreateButton({
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
         end)
-        if ok then Notify("飞行脚本加载完成","感谢使用",4) else Notify("飞行脚本加载失败", tostring(err), 5) end
+        if ok then Notify("加载飞行脚本","成功",4) else Notify("飞行脚本加载失败", tostring(err), 5) end
     end
 })
 TabUniversal:CreateButton({
@@ -715,7 +741,7 @@ TabUniversal:CreateButton({
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/fly"))()
         end)
-        if ok then Notify("枪械飞行加载完成","",4) else Notify("枪械飞行加载失败", tostring(err), 5) end
+        if ok then Notify("枪械飞行加载","成功",4) else Notify("枪械飞行加载失败", tostring(err), 5) end
     end
 })
 TabUniversal:CreateSection("穿墙功能")
@@ -745,7 +771,7 @@ TabVisual:CreateButton({
         ToggleNewInteractESP(false)
         task.wait(0.2)
         ToggleNewInteractESP(true)
-        Notify("新版已刷新", "重新扫描所有互动物体", 4)
+        Notify("正在刷新", "成功", 4)
     end
 })
 TabVisual:CreateColorPicker({Name="新版颜色",Color=NewInteractESP.Color,Callback=UpdateNewInteractColor})
@@ -766,4 +792,5 @@ TabNight:CreateButton({Name="关闭所有夜视/去雾",Callback=function()
 end})
 
 -- =================== 完成提示 ===================
-Notify("脚本加载完成","作者抖音58873829421",3)
+Notify("脚本加载完成","by 夜",3)
+Notify("有bug可以进qq群说，群号在公告","求你们加个群吧😭😭",5)
