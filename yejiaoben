@@ -50,7 +50,7 @@ local function tryLoadRayfield(retries, timeoutPerAttempt)
                 return Rayfield
             end
         end
-        warn("第 " .. i .. " 次加载尝试超时或失败")
+        FallbackNotify("第 " .. i .. " 次加载UI库尝试超时或失败")
     end
     return nil, "网络连接超时 (15秒)"
 end
@@ -60,7 +60,7 @@ local Rayfield, loadErr = tryLoadRayfield(3, 5)
 
 -- --------- 3. 检查加载结果并定义统一通知函数 ----------
 if not Rayfield then
-    FallbackNotify("加载失败", "UI 库加载失败，请尝试更换加速器，错误：" .. tostring(loadErr), 10)
+    FallbackNotify("加载失败", "UI 库加载失败，请尝试更换加速器或再次注入，错误：" .. tostring(loadErr), 10)
     return -- 彻底停止脚本
 end
 
@@ -497,7 +497,6 @@ local function ToggleNewInteractESP(state)
         if Connections.NewInteract then pcall(function() Connections.NewInteract:Disconnect() end) Connections.NewInteract = nil end
     end
 end
-
 -- =================== 玩家 ESP 模块 (保持不变) ===================
 local function LoadPlayerESP()
     pcall(function()
@@ -505,16 +504,6 @@ local function LoadPlayerESP()
     end)
     Notify("加载玩家透视","成功",5)
 end
-
--- =================== 飞行/穿墙逻辑 (保持不变) ===================
-local function LoadWallScript()
-    local ok, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/Through%20the%20wall"))()
-    end)
-    if ok then Notify("加载穿墙","成功",2)
-    else Notify("穿墙执行失败",tostring(err),5) end
-end
-
 -- =================== 视觉/夜视增强模块 (亮度修正版) ===================
 local VisualModule = { NormalNightVision=false, SuperNightVision=false, NoFog=false }
 
@@ -619,7 +608,7 @@ end)
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
 TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
-TabAnnounce:CreateParagraph({ Title="更新日志", Content="统一了开启/关闭成功通知的格式 然后加了个没啥大用的卡服脚本" })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
 TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 
@@ -744,10 +733,57 @@ TabUniversal:CreateButton({
         if ok then Notify("枪械飞行加载","成功",4) else Notify("枪械飞行加载失败", tostring(err), 5) end
     end
 })
-TabUniversal:CreateSection("穿墙功能")
-TabUniversal:CreateButton({Name="激活穿墙",Callback=LoadWallScript})
-TabUniversal:CreateParagraph({Title="说明",Content="开穿墙后角色可能抖动，请谨慎使用。"})
+local NoclipConnection
+local OriginalCollision = {}
 
+TabUniversal:CreateToggle({
+    Name = "穿墙",
+    CurrentValue = false,
+    Callback = function(enabled)
+
+        local character = Players.LocalPlayer.Character
+
+        if enabled then
+
+            OriginalCollision = {}
+
+            NoclipConnection = RunService.Stepped:Connect(function()
+
+                character = Players.LocalPlayer.Character
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+
+                            if OriginalCollision[part] == nil then
+                                OriginalCollision[part] = part.CanCollide
+                            end
+
+                            part.CanCollide = false
+                        end
+                    end
+                end
+
+            end)
+
+        else
+
+            if NoclipConnection then
+                NoclipConnection:Disconnect()
+                NoclipConnection = nil
+            end
+
+            for part, state in pairs(OriginalCollision) do
+                if part and part.Parent then
+                    part.CanCollide = state
+                end
+            end
+
+            OriginalCollision = {}
+
+        end
+
+    end
+})
 -- 3. 视觉功能 Tab (NPC + 互动 + 玩家)
 local TabVisual = Window:CreateTab("透视功能")
 TabVisual:CreateParagraph({ Title="提示", Content="旧互动物品透视能看到的东西更少但是是中文，新版能看到的更多但都是英文" })
