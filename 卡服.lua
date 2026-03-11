@@ -20,7 +20,7 @@ local function showSplash(callback)
 	splashLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	splashLabel.Font = Enum.Font.SourceSansBold
 	splashLabel.TextSize = 20
-	splashLabel.Text = "感谢【"..playerName.."】使用压测脚本 by 抖音环绕阴乐"
+	splashLabel.Text = "感谢【"..playerName.."】使用卡服脚本 by 抖音夜"
 	splashLabel.TextScaled = true
 	splashLabel.Parent = splashGui
 
