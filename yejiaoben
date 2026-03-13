@@ -52,11 +52,11 @@ local function tryLoadRayfield(retries, timeoutPerAttempt)
         end
         FallbackNotify("第 " .. i .. " 次加载UI库尝试超时或失败")
     end
-    return nil, "网络连接超时 (15秒)"
+    return nil, "网络连接超时 (30秒)"
 end
 
 -- 启动加载程序
-local Rayfield, loadErr = tryLoadRayfield(3, 5)
+local Rayfield, loadErr = tryLoadRayfield(5, 6)
 
 -- --------- 3. 检查加载结果并定义统一通知函数 ----------
 if not Rayfield then
@@ -602,6 +602,74 @@ LocalPlayer.CharacterAdded:Connect(function()
     if VisualModule.SuperNightVision then ApplySuperNightVision(true) end
     if VisualModule.NoFog then ApplyNoFog(true) end
 end)
+-- =================== 防摔落伤害模块 ===================
+
+local AntiFallEnabled = false
+local AntiFallConnection = nil
+
+local function compensatedAntiFall(character)
+    local root = character:WaitForChild("HumanoidRootPart")
+    local lastY = root.Position.Y
+    local CHECK_INTERVAL = 14
+
+    if AntiFallConnection then
+        AntiFallConnection:Disconnect()
+        AntiFallConnection = nil
+    end
+
+    AntiFallConnection = game:GetService("RunService").Heartbeat:Connect(function()
+
+        if not AntiFallEnabled then return end
+        if not character.Parent then 
+            AntiFallConnection:Disconnect() 
+            AntiFallConnection = nil
+            return 
+        end
+
+        local currentPosition = root.Position
+        local fallDistance = lastY - currentPosition.Y
+
+        if fallDistance >= CHECK_INTERVAL then
+
+            local currentVel = root.AssemblyLinearVelocity
+
+            root.CFrame = root.CFrame * CFrame.new(0, -0.5, 0)
+
+            root.AssemblyLinearVelocity = Vector3.new(currentVel.X, -10, currentVel.Z)
+
+            lastY = root.Position.Y
+        end
+
+        if currentPosition.Y > lastY then
+            lastY = currentPosition.Y
+        end
+    end)
+end
+
+local function ToggleAntiFall(state)
+
+    AntiFallEnabled = state
+
+    if state then
+        local char = game:GetService("Players").LocalPlayer.Character
+        if char then
+            compensatedAntiFall(char)
+        end
+        Notify("防摔落伤害", "已开启", 3)
+    else
+        if AntiFallConnection then
+            AntiFallConnection:Disconnect()
+            AntiFallConnection = nil
+        end
+        Notify("防摔落伤害", "已关闭", 3)
+    end
+end
+
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(char)
+    if AntiFallEnabled then
+        compensatedAntiFall(char)
+    end
+end)
 
 -- =================== UI Tabs 构建 ===================
 
@@ -828,10 +896,16 @@ TabNight:CreateButton({Name="关闭所有夜视/去雾",Callback=function()
 end})
 
 local TabOther = Window:CreateTab("其他")
-TabOther:CreateSection("卡服脚本")
-
+TabOther:CreateSection("一些未归类的功能")
+TabOther:CreateToggle({
+    Name = "防摔落伤害",
+    CurrentValue = false,
+    Callback = function(Value)
+        ToggleAntiFall(Value)
+    end
+})
 TabOther:CreateButton({
-    Name = "执行",
+    Name = "卡服脚本",
     Callback = function()
         local ok, err = pcall(function()
             -- 注意：这里 loadstring 通常需要你的执行器支持
