@@ -59,11 +59,11 @@ FallbackNotify("加载成功","UI库加载完成",3)
 local Window = WindUI:CreateWindow({
 
     Title = "夜脚本｜抖音夜出品",
+    Size = UDim2.fromOffset(720,460),
 
-    Size = UDim2.fromOffset(720,460)
+    Transparent = true
 
 })
-
 ------------------------------------------------
 -- 公告 Tab
 ------------------------------------------------
@@ -74,64 +74,54 @@ local TabAnnounce = Window:Tab({
 
 })
 
-TabAnnounce:Button({
-
-    Title = "公告：脚本完全开源",
-
-    Callback = function()
-
-        FallbackNotify(
-            "公告",
-            "脚本完全开源，由 Grok ChatGPT Gemini 优化",
-            5
-        )
-
-    end
-
+-- 公告
+TabAnnounce:Paragraph({
+    Title = "公告",
+    Desc = "脚本完全开源\n由 Grok + ChatGPT + Gemini 优化"
 })
 
-TabAnnounce:Button({
-
+-- 更新日志
+TabAnnounce:Paragraph({
     Title = "更新日志",
+    Desc = "修复穿墙关闭抖动问题"
+})
+
+-- 夜脚本主群（复制）
+TabAnnounce:Button({
+
+    Title = "夜脚本主群 (点击复制群号)",
 
     Callback = function()
 
+        if setclipboard then
+            setclipboard("1081045774")
+        end
+
         FallbackNotify(
-            "更新日志",
-            "修复穿墙关闭抖动问题",
-            5
+            "复制成功",
+            "QQ群号已复制：1081045774",
+            3
         )
 
     end
 
 })
 
+-- 作者抖音号（复制）
 TabAnnounce:Button({
 
-    Title = "作者抖音 58873829421",
+    Title = "作者抖音号 (点击复制)",
 
     Callback = function()
 
-        FallbackNotify(
-            "作者",
-            "抖音号：58873829421",
-            5
-        )
-
-    end
-
-})
-
-TabAnnounce:Button({
-
-    Title = "夜脚本主群 1081045774",
-
-    Callback = function()
+        if setclipboard then
+            setclipboard("58873829421")
+        end
 
         FallbackNotify(
-            "QQ群",
-            "群号：1081045774",
-            5
+            "复制成功",
+            "抖音号已复制：58873829421",
+            3
         )
 
     end
@@ -780,258 +770,6 @@ TabVisual:Toggle({
 
 })
 ------------------------------------------------
--- 旧版互动物体透视
-------------------------------------------------
-
-local InteractESP = {
-
-    Enabled = false,
-    Color = Color3.fromRGB(0,255,0),
-    Highlights = {}
-
-}
-
-------------------------------------------------
--- 判断是否互动对象
-------------------------------------------------
-
-local function IsInteractive_Old(obj)
-
-    if not obj then return false end
-
-    return obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector")
-
-end
-
-------------------------------------------------
--- 找显示部件
-------------------------------------------------
-
-local function FindAdornPart_Old(target)
-
-    if not target then return nil end
-
-    if target:IsA("BasePart") then
-        return target
-    end
-
-    if target:IsA("Model") then
-
-        if target.PrimaryPart then
-            return target.PrimaryPart
-        end
-
-        for _,c in pairs(target:GetChildren()) do
-
-            if c:IsA("BasePart") then
-                return c
-            end
-
-        end
-
-    end
-
-    return nil
-
-end
-
-------------------------------------------------
--- 添加ESP
-------------------------------------------------
-
-local function AddInteractESP(target)
-
-    if not target then return end
-
-    if InteractESP.Highlights[target] then return end
-
-    if not (target:IsA("BasePart") or target:IsA("Model")) then return end
-
-    local ok,hl = pcall(function()
-
-        local h = Instance.new("Highlight")
-
-        h.Name = "InteractESP"
-
-        h.Adornee = target
-
-        h.FillColor = InteractESP.Color
-
-        h.OutlineColor = Color3.fromRGB(255,255,255)
-
-        h.FillTransparency = 0.5
-
-        h.OutlineTransparency = 0
-
-        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-        h.Parent = target
-
-        return h
-
-    end)
-
-    if not ok then return end
-
-    InteractESP.Highlights[target] = hl
-
-    local adornPart = FindAdornPart_Old(target)
-
-    if adornPart then
-
-        if adornPart:FindFirstChild("InteractLabel") then return end
-
-        local bb = Instance.new("BillboardGui")
-
-        bb.Name = "InteractLabel"
-
-        bb.Adornee = adornPart
-
-        bb.Size = UDim2.new(0,120,0,30)
-
-        bb.StudsOffset = Vector3.new(0,3,0)
-
-        bb.AlwaysOnTop = true
-
-        bb.Parent = adornPart
-
-        local label = Instance.new("TextLabel")
-
-        label.Size = UDim2.new(1,0,1,0)
-
-        label.BackgroundTransparency = 1
-
-        label.Text = "可互动"
-
-        label.TextColor3 = InteractESP.Color
-
-        label.TextStrokeTransparency = 0.5
-
-        label.TextStrokeColor3 = Color3.new(0,0,0)
-
-        label.Font = Enum.Font.SourceSansBold
-
-        label.TextSize = 14
-
-        label.Parent = bb
-
-    end
-
-end
-
-------------------------------------------------
--- 移除ESP
-------------------------------------------------
-
-local function RemoveInteractESP(target)
-
-    if not target then return end
-
-    if InteractESP.Highlights[target] then
-
-        if InteractESP.Highlights[target].Parent then
-            InteractESP.Highlights[target]:Destroy()
-        end
-
-        InteractESP.Highlights[target] = nil
-
-    end
-
-end
-
-------------------------------------------------
--- 更新颜色
-------------------------------------------------
-
-local function UpdateInteractColor(color)
-
-    InteractESP.Color = color
-
-    for target,hl in pairs(InteractESP.Highlights) do
-
-        if hl and hl.Parent then
-            hl.FillColor = color
-        end
-
-    end
-
-end
-
-------------------------------------------------
--- 开关
-------------------------------------------------
-
-local function ToggleInteractESP(state)
-
-    InteractESP.Enabled = state
-
-    if state then
-
-        task.spawn(function()
-
-            for _,obj in ipairs(workspace:GetDescendants()) do
-
-                if IsInteractive_Old(obj) and obj.Parent then
-                    AddInteractESP(obj.Parent)
-                end
-
-            end
-
-        end)
-
-        if not Connections.Interact then
-
-            Connections.Interact = workspace.DescendantAdded:Connect(function(child)
-
-                task.delay(0.1,function()
-
-                    if IsInteractive_Old(child) and child.Parent then
-                        AddInteractESP(child.Parent)
-                    end
-
-                end)
-
-            end)
-
-        end
-
-        FallbackNotify("旧版互动透视","开启成功",3)
-
-    else
-
-        for target,_ in pairs(InteractESP.Highlights) do
-            RemoveInteractESP(target)
-        end
-
-        if Connections.Interact then
-            Connections.Interact:Disconnect()
-            Connections.Interact = nil
-        end
-
-        FallbackNotify("旧版互动透视","关闭成功",3)
-
-    end
-
-end
-
-------------------------------------------------
--- UI
-------------------------------------------------
-
-TabVisual:Toggle({
-
-    Title = "旧版互动透视",
-
-    Value = false,
-
-    Callback = function(v)
-
-        ToggleInteractESP(v)
-
-    end
-
-})
-------------------------------------------------
 -- 新版互动物体透视
 ------------------------------------------------
 
@@ -1290,6 +1028,11 @@ local function ToggleNewInteractESP(state)
 
         end
 
+for _,obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("BillboardGui") and obj.Name == "NewInteractLabel" then
+        obj:Destroy()
+    end
+end
         NewInteractESP.Highlights = {}
 
         if Connections.NewInteract then
