@@ -1,0 +1,1441 @@
+-- 作者抖音58873829421
+-- by 夜
+
+------------------------------------------------
+-- 系统通知工具
+------------------------------------------------
+
+local StarterGui = game:GetService("StarterGui")
+
+local function FallbackNotify(title, content, duration)
+
+    pcall(function()
+
+        StarterGui:SetCore("SendNotification",{
+            Title = title or "通知",
+            Text = content or "",
+            Duration = duration or 4
+        })
+
+    end)
+
+end
+
+------------------------------------------------
+-- 注入提示
+------------------------------------------------
+
+FallbackNotify("夜脚本","看到这个说明基础脚本已经加载",3)
+
+FallbackNotify("加载中","开始载入 UI",3)
+
+task.wait(2)
+
+------------------------------------------------
+-- 加载 WindUI
+------------------------------------------------
+
+local success, WindUI = pcall(function()
+
+    return loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+    ))()
+
+end)
+
+if not success then
+
+    FallbackNotify("加载失败","UI库加载失败，请检查网络",8)
+    return
+
+end
+
+FallbackNotify("加载成功","UI库加载完成",3)
+
+------------------------------------------------
+-- 创建窗口
+------------------------------------------------
+
+local Window = WindUI:CreateWindow({
+
+    Title = "夜脚本｜抖音夜出品",
+    Size = UDim2.fromOffset(720,460),
+
+    Transparent = true
+
+})
+------------------------------------------------
+-- 公告 Tab
+------------------------------------------------
+
+local TabAnnounce = Window:Tab({
+
+    Title = "公告"
+
+})
+
+-- 公告
+TabAnnounce:Paragraph({
+    Title = "公告",
+    Desc = "脚本完全开源\n由 Grok + ChatGPT + Gemini 优化"
+})
+
+-- 更新日志
+TabAnnounce:Paragraph({
+    Title = "更新日志",
+    Desc = "修复穿墙关闭抖动问题"
+})
+
+-- 夜脚本主群（复制）
+TabAnnounce:Button({
+
+    Title = "夜脚本主群 (点击复制群号)",
+
+    Callback = function()
+
+        if setclipboard then
+            setclipboard("1081045774")
+        end
+
+        FallbackNotify(
+            "复制成功",
+            "QQ群号已复制：1081045774",
+            3
+        )
+
+    end
+
+})
+
+-- 作者抖音号（复制）
+TabAnnounce:Button({
+
+    Title = "作者抖音号 (点击复制)",
+
+    Callback = function()
+
+        if setclipboard then
+            setclipboard("58873829421")
+        end
+
+        FallbackNotify(
+            "复制成功",
+            "抖音号已复制：58873829421",
+            3
+        )
+
+    end
+
+})
+------------------------------------------------
+-- 全局变量
+------------------------------------------------
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local OriginalWalkSpeed = 16
+local OriginalJump = 50
+
+local InfiniteJumpEnabled = false
+
+------------------------------------------------
+-- 自动读取服务器原始速度
+------------------------------------------------
+
+task.spawn(function()
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+    local hum = char:WaitForChild("Humanoid")
+
+    OriginalWalkSpeed = hum.WalkSpeed
+
+    OriginalJump = hum.JumpPower > 0 and hum.JumpPower or hum.JumpHeight
+
+end)
+
+------------------------------------------------
+-- 属性修改 Tab
+------------------------------------------------
+
+local TabAttr = Window:Tab({
+
+    Title = "属性修改"
+
+})
+
+------------------------------------------------
+-- 速度修改
+------------------------------------------------
+
+local TargetWalkSpeed = 16
+
+TabAttr:Slider({
+
+    Title = "速度数值",
+
+    Min = 16,
+
+    Max = 200,
+
+    Default = 16,
+
+    Callback = function(value)
+
+        TargetWalkSpeed = value
+
+    end
+
+})
+
+TabAttr:Toggle({
+
+    Title = "开启速度修改",
+
+    Value = false,
+
+    Callback = function(v)
+
+        local char = LocalPlayer.Character
+
+        if not char then return end
+
+        local hum = char:FindFirstChildOfClass("Humanoid")
+
+        if hum then
+
+            if v then
+                hum.WalkSpeed = TargetWalkSpeed
+            else
+                hum.WalkSpeed = OriginalWalkSpeed
+            end
+
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 跳跃修改
+------------------------------------------------
+
+local TargetJump = 50
+
+TabAttr:Slider({
+
+    Title = "跳跃强度",
+
+    Min = 50,
+
+    Max = 200,
+
+    Default = 50,
+
+    Callback = function(value)
+
+        TargetJump = value
+
+    end
+
+})
+
+TabAttr:Toggle({
+
+    Title = "开启跳跃修改",
+
+    Value = false,
+
+    Callback = function(v)
+
+        local char = LocalPlayer.Character
+
+        if not char then return end
+
+        local hum = char:FindFirstChildOfClass("Humanoid")
+
+        if hum then
+
+            if v then
+
+                hum.JumpPower = TargetJump
+                hum.JumpHeight = TargetJump
+
+            else
+
+                hum.JumpPower = OriginalJump
+                hum.JumpHeight = OriginalJump
+
+            end
+
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 无限跳
+------------------------------------------------
+
+TabAttr:Toggle({
+
+    Title = "无限跳跃",
+
+    Value = false,
+
+    Callback = function(v)
+
+        InfiniteJumpEnabled = v
+
+        if v then
+            FallbackNotify("无限跳","开启成功",2)
+        else
+            FallbackNotify("无限跳","关闭成功",2)
+        end
+
+    end
+
+})
+
+UserInputService.JumpRequest:Connect(function()
+
+    if InfiniteJumpEnabled then
+
+        local char = LocalPlayer.Character
+
+        if char then
+
+            local hum = char:FindFirstChildOfClass("Humanoid")
+
+            if hum then
+
+                hum:ChangeState("Jumping")
+
+            end
+
+        end
+
+    end
+
+end)
+------------------------------------------------
+-- 飞行 / 穿墙 Tab
+------------------------------------------------
+
+local RunService = game:GetService("RunService")
+
+local TabUniversal = Window:Tab({
+
+    Title = "飞行/穿墙"
+
+})
+
+------------------------------------------------
+-- 一键飞行
+------------------------------------------------
+
+TabUniversal:Button({
+
+    Title = "一键飞行",
+
+    Callback = function()
+
+        local ok, err = pcall(function()
+
+            loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"
+            ))()
+
+        end)
+
+        if ok then
+            FallbackNotify("飞行脚本","加载成功",3)
+        else
+            FallbackNotify("飞行脚本","加载失败",5)
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 枪械飞行
+------------------------------------------------
+
+TabUniversal:Button({
+
+    Title = "枪械飞行",
+
+    Callback = function()
+
+        local ok, err = pcall(function()
+
+            loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/fly"
+            ))()
+
+        end)
+
+        if ok then
+            FallbackNotify("枪械飞行","加载成功",3)
+        else
+            FallbackNotify("枪械飞行","加载失败",5)
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 穿墙
+------------------------------------------------
+
+local NoclipConnection
+local OriginalCollision = {}
+
+TabUniversal:Toggle({
+
+    Title = "穿墙",
+
+    Value = false,
+
+    Callback = function(enabled)
+
+        local character = Players.LocalPlayer.Character
+
+        if enabled then
+
+            OriginalCollision = {}
+
+            NoclipConnection = RunService.Stepped:Connect(function()
+
+                character = Players.LocalPlayer.Character
+
+                if character then
+
+                    for _, part in ipairs(character:GetDescendants()) do
+
+                        if part:IsA("BasePart") then
+
+                            if OriginalCollision[part] == nil then
+                                OriginalCollision[part] = part.CanCollide
+                            end
+
+                            part.CanCollide = false
+
+                        end
+
+                    end
+
+                end
+
+            end)
+
+        else
+
+            if NoclipConnection then
+                NoclipConnection:Disconnect()
+                NoclipConnection = nil
+            end
+
+            for part, state in pairs(OriginalCollision) do
+
+                if part and part.Parent then
+                    part.CanCollide = state
+                end
+
+            end
+
+            OriginalCollision = {}
+
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 快速跑步 (TranslateBy)
+------------------------------------------------
+
+local Speed = 0
+local sudu
+
+TabUniversal:Slider({
+
+    Title = "快速跑步强度",
+
+    Min = 0,
+
+    Max = 200,
+
+    Default = 0,
+
+    Callback = function(v)
+
+        Speed = v
+
+    end
+
+})
+
+TabUniversal:Toggle({
+
+    Title = "开启快速跑步",
+
+    Value = false,
+
+    Callback = function(enabled)
+
+        if enabled then
+
+            if sudu then
+                sudu:Disconnect()
+            end
+
+            sudu = RunService.Heartbeat:Connect(function()
+
+                local lp = Players.LocalPlayer
+
+                if lp.Character and
+                   lp.Character:FindFirstChild("Humanoid") and
+                   lp.Character.Humanoid.MoveDirection.Magnitude > 0 then
+
+                    lp.Character:TranslateBy(
+                        lp.Character.Humanoid.MoveDirection * Speed / 0.5
+                    )
+
+                end
+
+            end)
+
+            FallbackNotify("快速跑步","开启成功",2)
+
+        else
+
+            if sudu then
+                sudu:Disconnect()
+                sudu = nil
+            end
+
+            FallbackNotify("快速跑步","关闭成功",2)
+
+        end
+
+    end
+
+})
+------------------------------------------------
+-- 透视功能 Tab
+------------------------------------------------
+
+local TabVisual = Window:Tab({
+
+    Title = "透视功能"
+
+})
+
+------------------------------------------------
+-- NPC ESP
+------------------------------------------------
+
+local NPCESP = {
+
+    Enabled = false,
+    Color = Color3.fromRGB(0,162,255),
+    Highlights = {}
+
+}
+
+local Connections = Connections or {}
+
+------------------------------------------------
+-- 获取NPC部件
+------------------------------------------------
+
+local function GetNPCPart(model)
+
+    if not model then return nil end
+
+    if model:FindFirstChild("HumanoidRootPart") then
+        return model.HumanoidRootPart
+    end
+
+    for _, part in pairs(model:GetDescendants()) do
+
+        if part:IsA("BasePart") then
+            return part
+        end
+
+    end
+
+    return nil
+
+end
+
+------------------------------------------------
+-- 添加NPC ESP
+------------------------------------------------
+
+local function AddNPCESP(model)
+
+    if not model then return end
+
+    if NPCESP.Highlights[model] then return end
+
+    if not model:FindFirstChildWhichIsA("Humanoid") then return end
+
+    if game.Players:GetPlayerFromCharacter(model) then return end
+
+    local part = GetNPCPart(model)
+
+    if not part then return end
+
+    local success, hl = pcall(function()
+
+        local h = Instance.new("Highlight")
+
+        h.Name = "NPCESP"
+
+        h.Adornee = model
+
+        h.FillColor = NPCESP.Color
+
+        h.OutlineColor = Color3.fromRGB(255,255,255)
+
+        h.FillTransparency = 0.4
+
+        h.OutlineTransparency = 0
+
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+        h.Parent = model
+
+        return h
+
+    end)
+
+    if success and hl then
+
+        NPCESP.Highlights[model] = hl
+
+        pcall(function()
+
+            hl.AncestryChanged:Connect(function(_, parent)
+
+                if not parent then
+
+                    pcall(function() hl:Destroy() end)
+
+                    NPCESP.Highlights[model] = nil
+
+                end
+
+            end)
+
+        end)
+
+    end
+
+end
+
+------------------------------------------------
+-- 移除NPC ESP
+------------------------------------------------
+
+local function RemoveNPCESP(model)
+
+    if not model then return end
+
+    if NPCESP.Highlights[model] then
+
+        pcall(function()
+
+            if NPCESP.Highlights[model].Parent then
+                NPCESP.Highlights[model]:Destroy()
+            end
+
+        end)
+
+        NPCESP.Highlights[model] = nil
+
+    end
+
+end
+
+------------------------------------------------
+-- 更新颜色
+------------------------------------------------
+
+local function UpdateNPCESPColor(color)
+
+    NPCESP.Color = color
+
+    for model, hl in pairs(NPCESP.Highlights) do
+
+        if hl and hl.Parent then
+            hl.FillColor = color
+        end
+
+    end
+
+end
+
+------------------------------------------------
+-- 开关NPC ESP
+------------------------------------------------
+
+local function ToggleNPCESP(state)
+
+    NPCESP.Enabled = state
+
+    if state then
+
+        task.spawn(function()
+
+            for _, obj in ipairs(workspace:GetDescendants()) do
+
+                if obj:IsA("Model") then
+                    task.spawn(AddNPCESP, obj)
+                end
+
+            end
+
+        end)
+
+        if not Connections.NPC then
+
+            Connections.NPC = workspace.DescendantAdded:Connect(function(child)
+
+                task.delay(0.1,function()
+
+                    if child:IsA("Model") then
+                        AddNPCESP(child)
+                    end
+
+                    if child:IsA("Humanoid") and child.Parent then
+                        AddNPCESP(child.Parent)
+                    end
+
+                end)
+
+            end)
+
+        end
+
+        FallbackNotify("NPC透视","开启成功",3)
+
+    else
+
+        local toRemove = {}
+
+        for model,_ in pairs(NPCESP.Highlights) do
+            table.insert(toRemove,model)
+        end
+
+        for _,model in ipairs(toRemove) do
+            RemoveNPCESP(model)
+        end
+
+        if Connections.NPC then
+            Connections.NPC:Disconnect()
+            Connections.NPC = nil
+        end
+
+        FallbackNotify("NPC透视","关闭成功",3)
+
+    end
+
+end
+
+------------------------------------------------
+-- UI
+------------------------------------------------
+
+TabVisual:Toggle({
+
+    Title = "NPC透视",
+
+    Value = false,
+
+    Callback = function(v)
+
+        ToggleNPCESP(v)
+
+    end
+
+})
+------------------------------------------------
+-- 新版互动物体透视
+------------------------------------------------
+
+local NewInteractESP = {
+
+    Enabled = false,
+    Color = Color3.fromRGB(0,255,0),
+    Highlights = {}
+
+}
+
+------------------------------------------------
+-- 判断互动
+------------------------------------------------
+
+local function IsInteractive_New(o)
+
+    return o and (o:IsA("ProximityPrompt") or o:IsA("ClickDetector"))
+
+end
+
+------------------------------------------------
+-- 找到目标
+------------------------------------------------
+
+local function GetInteractiveTarget(node)
+
+    local p = node
+
+    while p do
+
+        if p:IsA("BasePart") or p:IsA("Model") then
+            return p
+        end
+
+        p = p.Parent
+
+    end
+
+    return nil
+
+end
+
+------------------------------------------------
+-- 找显示部件
+------------------------------------------------
+
+local function FindAdornPart_New(t)
+
+    if not t then return nil end
+
+    if t:IsA("BasePart") then
+        return t
+    end
+
+    if t:IsA("Model") then
+
+        if t.PrimaryPart then
+            return t.PrimaryPart
+        end
+
+        for _,c in pairs(t:GetChildren()) do
+
+            if c:IsA("BasePart") then
+                return c
+            end
+
+        end
+
+    end
+
+    return nil
+
+end
+
+------------------------------------------------
+-- 添加ESP
+------------------------------------------------
+
+local function AddNewInteractESP(target)
+
+    if not target then return end
+
+    if NewInteractESP.Highlights[target] then return end
+
+    local ok,h = pcall(function()
+
+        local hl = Instance.new("Highlight")
+
+        hl.Name = "NewInteractESP"
+
+        hl.Adornee = target
+
+        hl.FillColor = NewInteractESP.Color
+
+        hl.OutlineColor = Color3.new(1,1,1)
+
+        hl.FillTransparency = .5
+
+        hl.OutlineTransparency = 0
+
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+        hl.Parent = target
+
+        return hl
+
+    end)
+
+    if not ok or not h then return end
+
+    NewInteractESP.Highlights[target] = h
+
+    local part = FindAdornPart_New(target)
+
+    if part and not part:FindFirstChild("NewInteractLabel") then
+
+        local bb = Instance.new("BillboardGui")
+
+        bb.Name = "NewInteractLabel"
+
+        bb.Adornee = part
+
+        bb.Size = UDim2.new(0,120,0,30)
+
+        bb.StudsOffset = Vector3.new(0,3,0)
+
+        bb.AlwaysOnTop = true
+
+        bb.Parent = part
+
+        local label = Instance.new("TextLabel")
+
+        label.Size = UDim2.new(1,0,1,0)
+
+        label.BackgroundTransparency = 1
+
+        label.TextStrokeTransparency = .4
+
+        label.TextStrokeColor3 = Color3.new(0,0,0)
+
+        label.Font = Enum.Font.SourceSansBold
+
+        label.TextSize = 14
+
+        label.TextColor3 = NewInteractESP.Color
+
+        label.Parent = bb
+
+        local displayName = target.Name or ""
+
+        if displayName == "" or
+           displayName == "Part" or
+           displayName == "Model" or
+           displayName == "BasePart" then
+
+            label.Text = "可互动"
+
+        else
+
+            label.Text = displayName
+
+        end
+
+    end
+
+end
+
+------------------------------------------------
+-- 更新颜色
+------------------------------------------------
+
+local function UpdateNewInteractColor(color)
+
+    NewInteractESP.Color = color
+
+    for target,hl in pairs(NewInteractESP.Highlights) do
+
+        if hl and hl.Parent then
+            hl.FillColor = color
+        end
+
+    end
+
+end
+
+------------------------------------------------
+-- 开关
+------------------------------------------------
+
+local function ToggleNewInteractESP(state)
+
+    NewInteractESP.Enabled = state
+
+    if state then
+
+        task.spawn(function()
+
+            for _,v in ipairs(workspace:GetDescendants()) do
+
+                if IsInteractive_New(v) then
+
+                    local t = GetInteractiveTarget(v)
+
+                    if t then
+                        AddNewInteractESP(t)
+                    end
+
+                end
+
+            end
+
+        end)
+
+        if not Connections.NewInteract then
+
+            Connections.NewInteract =
+            workspace.DescendantAdded:Connect(function(c)
+
+                task.delay(0.05,function()
+
+                    -- 修复这里
+                    if c and c.GetDescendants then
+
+                        local descendants = c:GetDescendants()
+
+                        for _,d in ipairs(descendants) do
+
+                            if IsInteractive_New(d) then
+
+                                local t = GetInteractiveTarget(d)
+
+                                if t then
+                                    AddNewInteractESP(t)
+                                end
+
+                            end
+
+                        end
+
+                    end
+
+                end)
+
+            end)
+
+        end
+
+    else
+
+        for t,h in pairs(NewInteractESP.Highlights) do
+
+            if h and h.Parent then
+                h:Destroy()
+            end
+
+        end
+
+for _,obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("BillboardGui") and obj.Name == "NewInteractLabel" then
+        obj:Destroy()
+    end
+end
+        NewInteractESP.Highlights = {}
+
+        if Connections.NewInteract then
+            Connections.NewInteract:Disconnect()
+            Connections.NewInteract = nil
+        end
+
+        FallbackNotify("新版互动透视","关闭成功",3)
+
+    end
+
+end
+
+------------------------------------------------
+-- UI
+------------------------------------------------
+
+TabVisual:Toggle({
+
+    Title = "新版互动透视",
+
+    Value = false,
+
+    Callback = function(v)
+
+        ToggleNewInteractESP(v)
+
+    end
+
+})
+
+TabVisual:Button({
+
+    Title = "强制刷新新版ESP",
+
+    Callback = function()
+
+        ToggleNewInteractESP(false)
+
+        task.wait(0.2)
+
+        ToggleNewInteractESP(true)
+
+        FallbackNotify("新版ESP","刷新完成",3)
+
+    end
+
+})
+------------------------------------------------
+-- 玩家 ESP
+------------------------------------------------
+
+local function LoadPlayerESP()
+
+    pcall(function()
+
+        loadstring(game:HttpGet(
+        "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/player%20esp"
+        ))()
+
+    end)
+
+    FallbackNotify("玩家透视","加载成功",4)
+
+end
+
+TabVisual:Button({
+
+    Title = "执行玩家ESP",
+
+    Callback = function()
+
+        LoadPlayerESP()
+
+    end
+
+})
+
+------------------------------------------------
+-- 夜视模块
+------------------------------------------------
+
+local Lighting = game:GetService("Lighting")
+
+local VisualModule = {
+
+    NormalNightVision = false,
+    SuperNightVision = false,
+    NoFog = false
+
+}
+
+------------------------------------------------
+-- 普通夜视
+------------------------------------------------
+
+local function ApplyNormalNightVision(enable)
+
+    VisualModule.NormalNightVision = enable
+
+    if enable then
+
+        Lighting.Brightness = 10
+
+        Lighting.Ambient = Color3.fromRGB(220,220,220)
+
+        Lighting.OutdoorAmbient = Color3.fromRGB(220,220,220)
+
+        Lighting.GlobalShadows = false
+
+        Lighting.ClockTime = 8
+
+        Lighting.ColorShift_Top = Color3.new(0,0,0)
+
+        Lighting.ColorShift_Bottom = Color3.new(0,0,0)
+
+        FallbackNotify("普通夜视","开启成功",2)
+
+    else
+
+        Lighting.Brightness = 2
+
+        Lighting.GlobalShadows = true
+
+        FallbackNotify("普通夜视","关闭成功",2)
+
+    end
+
+end
+
+------------------------------------------------
+-- 超级夜视
+------------------------------------------------
+
+local function ApplySuperNightVision(enable)
+
+    VisualModule.SuperNightVision = enable
+
+    if enable then
+
+        Lighting.Brightness = 70
+
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+
+        Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+
+        Lighting.GlobalShadows = false
+
+        Lighting.ClockTime = 12
+
+        Lighting.FogEnd = 100000
+
+        FallbackNotify("超级夜视","开启成功",2)
+
+    else
+
+        Lighting.Brightness = 2
+
+        Lighting.GlobalShadows = true
+
+        FallbackNotify("超级夜视","关闭成功",2)
+
+    end
+
+end
+
+------------------------------------------------
+-- 去雾
+------------------------------------------------
+
+local function ApplyNoFog(enable)
+
+    VisualModule.NoFog = enable
+
+    if enable then
+
+        Lighting.FogStart = 0
+
+        Lighting.FogEnd = math.huge
+
+        Lighting.FogColor = Color3.fromRGB(200,200,220)
+
+        for _,obj in pairs(Lighting:GetChildren()) do
+
+            if obj:IsA("Atmosphere") then
+
+                obj.Density = 0
+                obj.Offset = 0
+                obj.Glare = 0
+                obj.Haze = 0
+
+            end
+
+        end
+
+        FallbackNotify("去雾","开启成功",2)
+
+    else
+
+        Lighting.FogEnd = 1000
+
+        FallbackNotify("去雾","关闭成功",2)
+
+    end
+
+end
+
+------------------------------------------------
+-- 夜视 Tab
+------------------------------------------------
+
+local TabNight = Window:Tab({
+
+    Title = "夜视功能"
+
+})
+
+TabNight:Toggle({
+
+    Title = "普通夜视",
+
+    Value = false,
+
+    Callback = function(v)
+
+        ApplyNormalNightVision(v)
+
+    end
+
+})
+
+TabNight:Toggle({
+
+    Title = "超级夜视",
+
+    Value = false,
+
+    Callback = function(v)
+
+        ApplySuperNightVision(v)
+
+    end
+
+})
+
+TabNight:Toggle({
+
+    Title = "彻底去雾",
+
+    Value = false,
+
+    Callback = function(v)
+
+        ApplyNoFog(v)
+
+    end
+
+})
+
+TabNight:Button({
+
+    Title = "关闭所有夜视",
+
+    Callback = function()
+
+        ApplyNormalNightVision(false)
+        ApplySuperNightVision(false)
+        ApplyNoFog(false)
+
+    end
+
+})
+------------------------------------------------
+-- 其他 Tab
+------------------------------------------------
+
+local TabOther = Window:Tab({
+
+    Title = "其他"
+
+})
+
+------------------------------------------------
+-- 防摔落伤害
+------------------------------------------------
+
+local RunService = game:GetService("RunService")
+
+local AntiFallEnabled = false
+local AntiFallConnection
+
+local function AntiFall(character)
+
+    local root = character:WaitForChild("HumanoidRootPart")
+
+    local lastY = root.Position.Y
+
+    AntiFallConnection = RunService.Heartbeat:Connect(function()
+
+        if not AntiFallEnabled then return end
+
+        local current = root.Position
+
+        local fall = lastY - current.Y
+
+        if fall >= 14 then
+
+            local vel = root.AssemblyLinearVelocity
+
+            root.CFrame = root.CFrame * CFrame.new(0,-0.5,0)
+
+            root.AssemblyLinearVelocity = Vector3.new(
+                vel.X,
+                -10,
+                vel.Z
+            )
+
+            lastY = root.Position.Y
+
+        end
+
+        if current.Y > lastY then
+            lastY = current.Y
+        end
+
+    end)
+
+end
+
+TabOther:Toggle({
+
+    Title = "防摔落伤害",
+
+    Value = false,
+
+    Callback = function(v)
+
+        AntiFallEnabled = v
+
+        if v then
+
+            local char = game.Players.LocalPlayer.Character
+
+            if char then
+                AntiFall(char)
+            end
+
+            FallbackNotify("防摔","开启成功",3)
+
+        else
+
+            if AntiFallConnection then
+                AntiFallConnection:Disconnect()
+            end
+
+            FallbackNotify("防摔","关闭成功",3)
+
+        end
+
+    end
+
+})
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+
+    if AntiFallEnabled then
+        AntiFall(char)
+    end
+
+end)
+
+------------------------------------------------
+-- 卡服脚本
+------------------------------------------------
+
+TabOther:Button({
+
+    Title = "执行卡服脚本",
+
+    Callback = function()
+
+        local ok,err = pcall(function()
+
+            loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/卡服.lua"
+            ))()
+
+        end)
+
+        if ok then
+            FallbackNotify("卡服脚本","加载成功",4)
+        else
+            FallbackNotify("卡服脚本","加载失败",5)
+        end
+
+    end
+
+})
+
+------------------------------------------------
+-- 完成提示
+------------------------------------------------
+
+FallbackNotify("脚本加载完成","by 夜",4)
+
+FallbackNotify("有BUG可以进群反馈","QQ群1081045774",5)
