@@ -1253,9 +1253,12 @@ local function ToggleNewInteractESP(state)
 
                 task.delay(0.05,function()
 
-                    if c:GetDescendants then
+                    -- 修复这里
+                    if c and c.GetDescendants then
 
-                        for _,d in pairs(c:GetDescendants()) do
+                        local descendants = c:GetDescendants()
+
+                        for _,d in ipairs(descendants) do
 
                             if IsInteractive_New(d) then
 
@@ -1276,8 +1279,6 @@ local function ToggleNewInteractESP(state)
             end)
 
         end
-
-        FallbackNotify("新版互动透视","开启成功",3)
 
     else
 
