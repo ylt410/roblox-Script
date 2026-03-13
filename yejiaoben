@@ -1,6 +1,52 @@
 -- 作者抖音58873829421
 -- by 夜
+-- Roblox 错误捕获器
+-- 运行一次即可
 
+local LogService = game:GetService("LogService")
+local StarterGui = game:GetService("StarterGui")
+
+local function copy(text)
+
+    if setclipboard then
+        pcall(function()
+            setclipboard(text)
+        end)
+    elseif toclipboard then
+        pcall(function()
+            toclipboard(text)
+        end)
+    end
+
+end
+
+LogService.MessageOut:Connect(function(message, messageType)
+
+    if messageType == Enum.MessageType.MessageError then
+
+        local text = "Roblox脚本报错:\n\n"..message
+
+        print(text)
+
+        copy(text)
+
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title = "脚本报错",
+                Text = "错误已复制到剪贴板",
+                Duration = 6
+           })
+        end)
+   end
+
+end)
+
+StarterGui:SetCore("SendNotification",{
+                Title = "报错捕获已启动",
+                Text = "如果有报错会自动复制，可反馈给作者",
+                Duration = 6
+})
+task.wait(3)
 -- --------- 1. 预设通知工具（为了在加载网络库前就能弹出提示） ----------
 local StarterGui = game:GetService("StarterGui")
 local function FallbackNotify(title, content, duration)
@@ -84,7 +130,13 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
-
+local logo = Instance.new("ImageLabel")
+logo.Parent = game.CoreGui
+logo.Size = UDim2.new(0,40,0,40)
+logo.Position = UDim2.new(0,15,0,15)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://你的图片ID"
+logo.ZIndex = 999
 -- =================== 全局变量与属性记录 (修改这里) ===================
 local Connections = {} 
 local Lighting = game:GetService("Lighting")
@@ -602,72 +654,62 @@ LocalPlayer.CharacterAdded:Connect(function()
     if VisualModule.SuperNightVision then ApplySuperNightVision(true) end
     if VisualModule.NoFog then ApplyNoFog(true) end
 end)
--- =================== 防摔落伤害模块 ===================
+-- =================== 防摔落伤害模块 (新逻辑) ===================
 
 local AntiFallEnabled = false
 local AntiFallConnection = nil
 
-local function compensatedAntiFall(character)
+local function StartAntiFall(character)
+
     local root = character:WaitForChild("HumanoidRootPart")
-    local lastY = root.Position.Y
-    local CHECK_INTERVAL = 14
 
     if AntiFallConnection then
         AntiFallConnection:Disconnect()
         AntiFallConnection = nil
     end
 
-    AntiFallConnection = game:GetService("RunService").Heartbeat:Connect(function()
+    AntiFallConnection = RunService.Heartbeat:Connect(function()
 
         if not AntiFallEnabled then return end
-        if not character.Parent then 
-            AntiFallConnection:Disconnect() 
-            AntiFallConnection = nil
-            return 
-        end
+        if not root or not root.Parent then return end
 
-        local currentPosition = root.Position
-        local fallDistance = lastY - currentPosition.Y
+        local velocity = root.AssemblyLinearVelocity
 
-        if fallDistance >= CHECK_INTERVAL then
+        root.AssemblyLinearVelocity = Vector3.zero
 
-            local currentVel = root.AssemblyLinearVelocity
+        RunService.RenderStepped:Wait()
 
-            root.CFrame = root.CFrame * CFrame.new(0, -0.5, 0)
+        root.AssemblyLinearVelocity = velocity
 
-            root.AssemblyLinearVelocity = Vector3.new(currentVel.X, -10, currentVel.Z)
-
-            lastY = root.Position.Y
-        end
-
-        if currentPosition.Y > lastY then
-            lastY = currentPosition.Y
-        end
     end)
+
 end
+
 
 local function ToggleAntiFall(state)
 
     AntiFallEnabled = state
 
     if state then
-        local char = game:GetService("Players").LocalPlayer.Character
+        local char = LocalPlayer.Character
         if char then
-            compensatedAntiFall(char)
+            StartAntiFall(char)
         end
-        Notify("防摔落伤害", "已开启", 3)
+        Notify("防摔落伤害","已开启",3)
     else
         if AntiFallConnection then
             AntiFallConnection:Disconnect()
             AntiFallConnection = nil
         end
-        Notify("防摔落伤害", "已关闭", 3)
+        Notify("防摔落伤害","已关闭",3)
     end
+
 end
 
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(char)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
     if AntiFallEnabled then
-        compensatedAntiFall(char)
+        StartAntiFall(char)
     end
 end)
 
@@ -676,10 +718,10 @@ end)
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
 TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
-TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
 TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
-
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="借鉴了一下皮脚本代码，使得防摔落伤害更好用了" })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
 
 -- 2. 属性修改 Tab 
 local TabAttr = Window:CreateTab("属性修改")
