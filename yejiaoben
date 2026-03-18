@@ -56,11 +56,11 @@ local function tryLoadRayfield(retries, timeoutPerAttempt)
     3
 )
     end
-    return nil, "网络连接超时 (30秒)"
+    return nil, "网络连接超时 (35秒)"
 end
 
 -- 启动加载程序
-local Rayfield, loadErr = tryLoadRayfield(5, 6)
+local Rayfield, loadErr = tryLoadRayfield(5, 7)
 
 -- --------- 3. 检查加载结果并定义统一通知函数 ----------
 if not Rayfield then
@@ -525,14 +525,16 @@ local function RainbowColor(t)
 end
 
 local function AddDevESP(player)
+    -- 👇 加在这里
+    if player == game.Players.LocalPlayer then return end
+
     if not DevESP.Enabled then return end
     if not DevESP.Targets[player.Name] then return end
-
     -- ✅ 加这一行（关键）
     local function apply(character)
         if not character then return end
 
-        local head = character:FindFirstChild("Head")
+        local head = character:WaitForChild("Head", 5)
 if not head then return end
 
 -- ✅ 就加在这里
@@ -541,7 +543,10 @@ if head:FindFirstChild("DevTag") then
 end
         -- 防重复
 if DevESP.Objects[player] then
-    pcall(function() DevESP.Objects[player].Billboard:Destroy() end)
+    pcall(function()
+        DevESP.Objects[player].Billboard:Destroy()
+    end)
+    DevESP.Objects[player] = nil
 end
         -- 🏷 标签
         local bb = Instance.new("BillboardGui")
@@ -611,7 +616,10 @@ txt.Parent = bg
         apply(player.Character)
     end
 
-    player.CharacterAdded:Connect(apply)
+    player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    apply(char)
+end)
 end
 
 -- 初始化
