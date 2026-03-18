@@ -17,7 +17,7 @@ end
 FallbackNotify("夜脚本", "看到这个就说明基础脚本已经加载完毕，正在加载UI库", 3)
 FallbackNotify("加载中", "开始载入UI，剩余时间大约2秒如网络不佳可能延长", 3)
 task.wait(2)
--- --------- 2. 优化后的快速加载 Rayfield (15秒超时控制) ----------
+
 local function tryLoadRayfield(retries, timeoutPerAttempt)
     retries = retries or 3
     timeoutPerAttempt = timeoutPerAttempt or 5 -- 每次尝试最长等待 5 秒
@@ -152,7 +152,7 @@ local OriginalLighting = {
 -- 保存原始 Atmosphere 设置 (用于完美修复去雾无法关闭的问题)
 local OriginalAtmosphere = {}
 
--- =================== NPC ESP 模块 (保持不变) ===================
+-- npc透视
 local NPCESP = { Enabled = false, Color = Color3.fromRGB(0,162,255), Highlights = {} }
 
 local function GetNPCPart(model)
@@ -243,7 +243,7 @@ local function ToggleNPCESP(state)
     end
 end
 
--- =================== 旧版 互动物体透视 (保持不变) ===================
+--旧互动物体透视
 local InteractESP = { Enabled = false, Color = Color3.fromRGB(0,255,0), Highlights = {} }
 
 local function IsInteractive_Old(obj)
@@ -379,7 +379,7 @@ local function ToggleInteractESP(state)
     end
 end
 
--- =================== 新版 互动物体透视 (保持不变) ===================
+--新互动物体透视
 local NewInteractESP = { Enabled = false, Color = Color3.fromRGB(0,255,0), Highlights = {} }
 
 local function IsInteractive_New(o) return o and (o:IsA("ProximityPrompt") or o:IsA("ClickDetector")) end
@@ -500,7 +500,7 @@ local function ToggleNewInteractESP(state)
         if Connections.NewInteract then pcall(function() Connections.NewInteract:Disconnect() end) Connections.NewInteract = nil end
     end
 end
--- =================== 玩家 ESP 模块 (保持不变) ===================
+--玩家esp
 local function LoadPlayerESP()
     pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/player%20esp"))()
@@ -628,7 +628,7 @@ for _, plr in ipairs(game.Players:GetPlayers()) do
 end
 
 game.Players.PlayerAdded:Connect(AddDevESP)
--- =================== 视觉/夜视增强模块 (亮度修正版) ===================
+--夜视
 local VisualModule = { NormalNightVision=false, SuperNightVision=false, NoFog=false }
 
 -- 普通夜视 (Brightness=12)
@@ -652,11 +652,11 @@ local function ApplyNormalNightVision(enable)
     end
 end
 
--- 超级夜视 (修正版：Brightness=20)
+-- 超级夜视 
 local function ApplySuperNightVision(enable)
     VisualModule.SuperNightVision = enable
     if enable then
-        -- 亮度修改：普通是12，现在设为20 (约1.6倍)，配合全白环境光
+
         Lighting.Brightness = 70
         Lighting.Ambient = Color3.fromRGB(255,255,255)
         Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
@@ -785,8 +785,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
--- =================== UI Tabs 构建 ===================
-
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
 TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
@@ -794,6 +792,8 @@ TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="借鉴了一下皮脚本代码，使得防摔落伤害更好用了" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="删除了无用的注释，并且增加了静默自瞄" })
+
 
 -- 2. 属性修改 Tab 
 local TabAttr = Window:CreateTab("属性修改")
@@ -1022,8 +1022,7 @@ TabOther:CreateButton({
     Name = "卡服脚本",
     Callback = function()
         local ok, err = pcall(function()
-            -- 注意：这里 loadstring 通常需要你的执行器支持
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/卡服.lua"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/卡服.lua"))()
         end)
         
         if ok then 
@@ -1031,14 +1030,13 @@ TabOther:CreateButton({
         else 
             Notify("卡服脚本加载失败", tostring(err), 5) 
         end
-    end -- 这个 end 对应的是 Callback = function()
-}) -- 这个 }) 对应的是 CreateButton({
+    end 
+}) 
 TabOther:CreateButton({
     Name = "静默自瞄",
     Callback = function()
         local ok, err = pcall(function()
-            -- 注意：这里 loadstring 通常需要你的执行器支持
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/odhdshhe/bu/refs/heads/main/%E6%9C%88%E4%BA%AE%E5%8A%A0%E5%AF%86%E8%BF%87%E7%9A%84%E6%9E%97%E7%9A%84%E8%87%AA%E7%9E%84.lua"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/odhdshhe/bu/refs/heads/main/%E6%9C%88%E4%BA%AE%E5%8A%A0%E5%AF%86%E8%BF%87%E7%9A%84%E6%9E%97%E7%9A%84%E8%87%AA%E7%9E%84.lua"))()
         end)
         
         if ok then 
@@ -1046,10 +1044,8 @@ TabOther:CreateButton({
         else 
             Notify("静默自瞄加载失败", tostring(err), 5) 
         end
-    end -- 这个 end 对应的是 Callback = function()
-}) -- 这个 }) 对应的是 CreateButton({
+    end
+})
 
-
--- =================== 完成提示 ===================
 Notify("脚本加载完成","by 夜",3)
 Notify("有bug可以进qq群说，群号在公告","求你们加个群吧😭😭",5)
