@@ -50,7 +50,11 @@ local function tryLoadRayfield(retries, timeoutPerAttempt)
                 return Rayfield
             end
         end
-        FallbackNotify("第 " .. i .. " 次加载UI库尝试超时或失败")
+        FallbackNotify(
+    "加载重试",
+    "第 "..i.." 次加载 UI 库失败",
+    3
+)
     end
     return nil, "网络连接超时 (30秒)"
 end
@@ -84,13 +88,6 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
-local logo = Instance.new("ImageLabel")
-logo.Parent = game.CoreGui
-logo.Size = UDim2.new(0,40,0,40)
-logo.Position = UDim2.new(0,15,0,15)
-logo.BackgroundTransparency = 1
-logo.Image = "rbxassetid://你的图片ID"
-logo.ZIndex = 999
 -- =================== 全局变量与属性记录 (修改这里) ===================
 local Connections = {} 
 local Lighting = game:GetService("Lighting")
@@ -510,6 +507,119 @@ local function LoadPlayerESP()
     end)
     Notify("加载玩家透视","成功",5)
 end
+-- =================== 作者检测模块 ===================
+
+local DevESP = {
+    Enabled = true,
+    Targets = { -- 这里填作者用户名
+        ["ylt351"] = true,
+        ["78lwq23"] = true,
+["ylt410"] = true
+    },
+    Objects = {}
+}
+
+-- 彩虹循环
+local function RainbowColor(t)
+    return Color3.fromHSV((tick()*0.2 + t) % 1, 1, 1)
+end
+
+local function AddDevESP(player)
+    if not DevESP.Enabled then return end
+    if not DevESP.Targets[player.Name] then return end
+
+    -- ✅ 加这一行（关键）
+    local function apply(character)
+        if not character then return end
+
+        local head = character:FindFirstChild("Head")
+if not head then return end
+
+-- ✅ 就加在这里
+if head:FindFirstChild("DevTag") then
+    head:FindFirstChild("DevTag"):Destroy()
+end
+        -- 防重复
+if DevESP.Objects[player] then
+    pcall(function() DevESP.Objects[player].Billboard:Destroy() end)
+end
+        -- 🏷 标签
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "DevTag"
+        bb.Adornee = head
+        bb.Size = UDim2.new(0,140,0,28)
+        bb.StudsOffset = Vector3.new(0,3,0)
+        bb.AlwaysOnTop = true
+        bb.Parent = head
+
+        -- 🌈 背景
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(1,0,1,0)
+bg.BackgroundTransparency = 0.2
+bg.BorderSizePixel = 0
+bg.Parent = bb
+
+-- 圆角（更好看）
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0,8)
+corner.Parent = bg
+
+-- 🌈 渐变
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
+    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,255,0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0,255,0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,255)),
+    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,0,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))
+})
+gradient.Parent = bg
+
+-- ✏️ 文字（变小一点）
+local txt = Instance.new("TextLabel")
+txt.Size = UDim2.new(1,-10,1,-6)
+txt.Position = UDim2.new(0,5,0,3)
+txt.BackgroundTransparency = 1
+txt.Text = "夜脚本开发者"
+txt.TextScaled = false
+txt.TextSize = 13
+txt.Font = Enum.Font.SourceSansBold
+txt.TextStrokeTransparency = 0.4
+txt.TextColor3 = Color3.new(1,1,1)
+txt.Parent = bg
+        -- 保存
+        DevESP.Objects[player] = {
+            Billboard = bb,
+            Text = txt
+        }
+
+        -- 🌈 彩虹循环
+        task.spawn(function()
+            while DevESP.Objects[player] and txt.Parent do
+                local c = RainbowColor(0)
+                pcall(function()
+                   txt.TextColor3 = c
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+
+    -- 角色加载
+    if player.Character then
+        apply(player.Character)
+    end
+
+    player.CharacterAdded:Connect(apply)
+end
+
+-- 初始化
+for _, plr in ipairs(game.Players:GetPlayers()) do
+    AddDevESP(plr)
+end
+
+game.Players.PlayerAdded:Connect(AddDevESP)
 -- =================== 视觉/夜视增强模块 (亮度修正版) ===================
 local VisualModule = { NormalNightVision=false, SuperNightVision=false, NoFog=false }
 
