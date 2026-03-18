@@ -787,9 +787,19 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的 源码我没加密，想做缝合的可以搬 后续我会基本用Gemini制作 如果右下角有弹窗那个是UI库的弹窗" })
-TabAnnounce:CreateParagraph({ Title="作者抖音", Content="58873829421" }) -- 这里是新增的公告
+TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的   作者原本想优化所有的逻辑之类的使代码变得更加规整，但是作者战胜不了屎山被屎山打败了" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
+TabAnnounce:CreateButton({
+    Name = "复制QQ群",
+    Callback = function()
+        if setclipboard then
+            setclipboard("1081045774")
+            Notify("复制成功", "QQ群号已复制到剪贴板", 3)
+        else
+            Notify("复制失败", "当前环境不支持复制", 3)
+        end
+    end
+})
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="借鉴了一下皮脚本代码，使得防摔落伤害更好用了" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="删除了无用的注释，并且增加了静默自瞄" })
