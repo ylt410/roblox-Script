@@ -100,6 +100,188 @@ if not LocalPlayer then
     repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
 end
 
+-- =================== Freecam模块（终极稳定版） ===================
+
+local Freecam = {
+Speed = 2,
+Sensitivity = 0.01,
+    Enabled = false,
+    Rig = nil,
+    Loop = nil,
+    Yaw = 0,
+    Pitch = 0,
+    MoveInput = Vector2.zero,
+    Connections = {},
+    Touch = {
+        Move = nil,
+        Look = nil,
+        MoveStart = nil
+    }
+}
+
+-- ✅ 初始化输入（只执行一次！）
+local function InitFreecamInput()
+
+    if Freecam._InputInited then return end
+    Freecam._InputInited = true
+
+    table.insert(Freecam.Connections,
+        UserInputService.TouchStarted:Connect(function(t)
+
+            if not Freecam.Enabled then return end
+
+            if t.Position.X < workspace.CurrentCamera.ViewportSize.X/2 then
+                Freecam.Touch.Move = t
+                Freecam.Touch.MoveStart = t.Position
+            else
+                Freecam.Touch.Look = t
+            end
+        end)
+    )
+
+    table.insert(Freecam.Connections,
+        UserInputService.TouchMoved:Connect(function(t)
+
+            if not Freecam.Enabled then return end
+
+            if t == Freecam.Touch.Move and Freecam.Touch.MoveStart then
+                local delta = t.Position - Freecam.Touch.MoveStart
+
+                Freecam.MoveInput = Vector2.new(
+                    math.clamp(delta.X/80, -1, 1),
+                    math.clamp(-delta.Y/80, -1, 1)
+                )
+
+            elseif t == Freecam.Touch.Look then
+                local d = t.Delta
+                Freecam.Yaw -= d.X * Freecam.Sensitivity
+Freecam.Pitch = math.clamp(
+    Freecam.Pitch - d.Y * Freecam.Sensitivity,                    math.rad(-85),
+                    math.rad(85)
+                )
+            end
+        end)
+    )
+
+    table.insert(Freecam.Connections,
+        UserInputService.TouchEnded:Connect(function(t)
+
+            if t == Freecam.Touch.Move then
+                Freecam.Touch.Move = nil
+                Freecam.Touch.MoveStart = nil
+                Freecam.MoveInput = Vector2.zero
+            end
+
+            if t == Freecam.Touch.Look then
+                Freecam.Touch.Look = nil
+            end
+        end)
+    )
+end
+
+local function StartFreecam()
+
+    if Freecam.Enabled then return end
+    Freecam.Enabled = true
+
+    InitFreecamInput()
+
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+
+    -- 创建Rig
+    if not Freecam.Rig then
+        Freecam.Rig = Instance.new("Part")
+        Freecam.Rig.Anchored = true
+        Freecam.Rig.CanCollide = false
+        Freecam.Rig.Transparency = 1
+        Freecam.Rig.Size = Vector3.new(1,1,1)
+        Freecam.Rig.Parent = workspace
+    end
+
+    Freecam.Rig.CFrame = workspace.CurrentCamera.CFrame
+
+    -- 锁人物
+    root.Anchored = true
+    hum.AutoRotate = false
+    hum.PlatformStand = true
+
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+
+    local x,y = workspace.CurrentCamera.CFrame:ToEulerAnglesYXZ()
+    Freecam.Yaw = y
+    Freecam.Pitch = x
+
+    -- 主循环
+    Freecam.Loop = RunService.RenderStepped:Connect(function()
+
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+
+        local rotCF =
+            CFrame.Angles(0, Freecam.Yaw, 0) *
+            CFrame.Angles(Freecam.Pitch, 0, 0)
+
+        local cf = CFrame.new(Freecam.Rig.Position) * rotCF
+
+        local move =
+            (cf.RightVector * Freecam.MoveInput.X) +
+            (cf.LookVector * Freecam.MoveInput.Y)
+
+        Freecam.Rig.CFrame =
+    CFrame.new(Freecam.Rig.Position + move * Freecam.Speed) * rotCF
+
+        workspace.CurrentCamera.CFrame = Freecam.Rig.CFrame
+    end)
+end
+
+local function StopFreecam()
+
+    if not Freecam.Enabled then return end
+    Freecam.Enabled = false
+
+    -- ✅ 断开主循环
+    if Freecam.Loop then
+        Freecam.Loop:Disconnect()
+        Freecam.Loop = nil
+    end
+
+    -- ✅ ⭐关键：断开所有触控监听（防止叠加）
+    for _, conn in pairs(Freecam.Connections) do
+        pcall(function()
+            conn:Disconnect()
+        end)
+    end
+
+    Freecam.Connections = {}
+    Freecam._InputInited = false
+
+    -- 重置输入
+    Freecam.MoveInput = Vector2.zero
+    Freecam.Touch.Move = nil
+    Freecam.Touch.Look = nil
+
+    local char = LocalPlayer.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+
+        if root then root.Anchored = false end
+        if hum then
+            hum.AutoRotate = true
+            hum.PlatformStand = false
+        end
+    end
+
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+end
 -- --- 核心变量：记录原始数值与状态 ---
 local OriginalWalkSpeed = 16
 local OriginalJump = 50
@@ -800,6 +982,8 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自由视角" })
+
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="借鉴了一下皮脚本代码，使得防摔落伤害更好用了" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="GPT帮助我修复了100年前就存在的穿墙关闭会抖动的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="删除了无用的注释，并且增加了静默自瞄" })
@@ -925,7 +1109,8 @@ TabUniversal:CreateButton({
         if ok then Notify("枪械飞行加载","成功",4) else Notify("枪械飞行加载失败", tostring(err), 5) end
     end
 })
-local NoclipConnection
+local NoclipConnection = nil
+local CharacterConnection = nil
 local OriginalCollision = {}
 
 TabUniversal:CreateToggle({
@@ -933,25 +1118,38 @@ TabUniversal:CreateToggle({
     CurrentValue = false,
     Callback = function(enabled)
 
-        local character = Players.LocalPlayer.Character
-
         if enabled then
 
             OriginalCollision = {}
 
+            -- ✅ 监听重生（关键修复）
+            if CharacterConnection then
+                CharacterConnection:Disconnect()
+            end
+
+            CharacterConnection = Players.LocalPlayer.CharacterAdded:Connect(function()
+                OriginalCollision = {}
+            end)
+
+            -- 防止重复连接
+            if NoclipConnection then
+                NoclipConnection:Disconnect()
+            end
+
             NoclipConnection = RunService.Stepped:Connect(function()
 
-                character = Players.LocalPlayer.Character
-                if character then
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
+                local character = Players.LocalPlayer.Character
+                if not character then return end
 
-                            if OriginalCollision[part] == nil then
-                                OriginalCollision[part] = part.CanCollide
-                            end
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
 
-                            part.CanCollide = false
+                        -- ✅ 只记录一次（保留你原逻辑）
+                        if OriginalCollision[part] == nil then
+                            OriginalCollision[part] = part.CanCollide
                         end
+
+                        part.CanCollide = false
                     end
                 end
 
@@ -959,13 +1157,20 @@ TabUniversal:CreateToggle({
 
         else
 
+            -- 关闭穿墙
             if NoclipConnection then
                 NoclipConnection:Disconnect()
                 NoclipConnection = nil
             end
 
+            if CharacterConnection then
+                CharacterConnection:Disconnect()
+                CharacterConnection = nil
+            end
+
+            -- ✅ 安全恢复
             for part, state in pairs(OriginalCollision) do
-                if part and part.Parent then
+                if typeof(part) == "Instance" and part.Parent then
                     part.CanCollide = state
                 end
             end
@@ -1019,8 +1224,47 @@ TabNight:CreateButton({Name="关闭所有夜视/去雾",Callback=function()
     ApplyNoFog(false) 
 end})
 
-local TabOther = Window:CreateTab("其他")
-TabOther:CreateSection("一些未归类的功能")
+local TabOther = Window:CreateTab("通用")
+TabOther:CreateSection("自由视角说明：请勿在正在飞行时打开自由视角，这可能导致冲突并使得本体移动，如果输入时键盘卡住就切后台再切回来")
+TabOther:CreateToggle({
+    Name = "自由视角",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            StartFreecam()
+            Notify("Freecam","已开启",2)
+        else
+            StopFreecam()
+            Notify("Freecam","已关闭",2)
+        end
+    end
+})
+TabOther:CreateInput({
+    Name = "Freecam速度（建议1-5）",
+    PlaceholderText = "默认2",
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            Freecam.Speed = math.clamp(num, 0.5, 20)
+            Notify("Freecam速度", "设置成功", 2)
+        else
+            Notify("输入错误", "请输入数字", 2)
+        end
+    end,
+})
+TabOther:CreateInput({
+    Name = "视角灵敏度（建议0.005-0.02）",
+    PlaceholderText = "默认0.01",
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            Freecam.Sensitivity = math.clamp(num, 0.001, 0.05)
+            Notify("灵敏度", "调节成功", 2)
+        else
+            Notify("输入错误", "请输入数字", 2)
+        end
+    end,
+})
 TabOther:CreateToggle({
     Name = "防摔落伤害",
     CurrentValue = false,
