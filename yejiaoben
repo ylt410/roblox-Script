@@ -1056,6 +1056,8 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="加入黑洞和无敌少侠飞行" })
+
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了npc透视的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自由视角" })
 
@@ -1639,6 +1641,43 @@ TabOther:CreateButton({
         end
     end
 })
+TabOther:CreateButton({
+    Name = "无敌少侠飞行",
+    Callback = function()
+        local ok, err = pcall(function()
+           local UserInputService = game:GetService("UserInputService")
+
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+if isMobile then
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/396abc/Script/refs/heads/main/MobileFly.lua"))()
+else
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/396abc/Script/refs/heads/main/FlyR15.lua"))()
+end
+end)        
+        if ok then 
+            Notify("加载无敌少侠飞行", "成功", 4) 
+        else 
+            Notify("无敌少侠飞行加载失败", tostring(err), 5) 
+        end
+    end
+})
+TabOther:CreateButton({
+    Name = "黑洞（所有游戏只要有散落的碎片就可以用）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/黑洞"))()
+        end)
+        
+        if ok then 
+            Notify("加载黑洞", "成功", 4) 
+        else 
+            Notify("黑洞加载失败", tostring(err), 5) 
+        end
+    end
+})
+
+
 
 
 Notify("脚本加载完成","by 夜",3)
