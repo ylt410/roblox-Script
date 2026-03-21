@@ -125,44 +125,54 @@ local function InitFreecamInput()
     if Freecam._InputInited then return end
     Freecam._InputInited = true
 
+
     table.insert(Freecam.Connections,
-        UserInputService.TouchStarted:Connect(function(t)
+    UserInputService.TouchStarted:Connect(function(t)
 
-            if not Freecam.Enabled then return end
+        if not Freecam.Enabled then return end
 
-            if t.Position.X < workspace.CurrentCamera.ViewportSize.X/2 then
+        local half = workspace.CurrentCamera.ViewportSize.X / 2
+
+        if t.Position.X < half then
+            -- ✅ 防止被抢控制权
+            if not Freecam.Touch.Move then
                 Freecam.Touch.Move = t
                 Freecam.Touch.MoveStart = t.Position
-            else
+                Freecam.MoveInput = Vector2.zero
+            end
+        else
+            if not Freecam.Touch.Look then
                 Freecam.Touch.Look = t
             end
-        end)
-    )
+        end
 
-    table.insert(Freecam.Connections,
-        UserInputService.TouchMoved:Connect(function(t)
+    end)
+)
+table.insert(Freecam.Connections,
+    UserInputService.TouchMoved:Connect(function(t)
 
-            if not Freecam.Enabled then return end
+        if not Freecam.Enabled then return end
 
-            if t == Freecam.Touch.Move and Freecam.Touch.MoveStart then
-                local delta = t.Position - Freecam.Touch.MoveStart
+        if t == Freecam.Touch.Move and Freecam.Touch.MoveStart then
+            local delta = t.Position - Freecam.Touch.MoveStart
 
-                Freecam.MoveInput = Vector2.new(
-                    math.clamp(delta.X/80, -1, 1),
-                    math.clamp(-delta.Y/80, -1, 1)
-                )
+            Freecam.MoveInput = Vector2.new(
+                math.clamp(delta.X/80, -1, 1),
+                math.clamp(-delta.Y/80, -1, 1)
+            )
 
-            elseif t == Freecam.Touch.Look then
-                local d = t.Delta
-                Freecam.Yaw -= d.X * Freecam.Sensitivity
-Freecam.Pitch = math.clamp(
-    Freecam.Pitch - d.Y * Freecam.Sensitivity,                    math.rad(-85),
-                    math.rad(85)
-                )
-            end
-        end)
-    )
+        elseif t == Freecam.Touch.Look then
+            local d = t.Delta
+            Freecam.Yaw -= d.X * Freecam.Sensitivity
+            Freecam.Pitch = math.clamp(
+                Freecam.Pitch - d.Y * Freecam.Sensitivity,
+                math.rad(-85),
+                math.rad(85)
+            )
+        end
 
+    end)
+)
     table.insert(Freecam.Connections,
         UserInputService.TouchEnded:Connect(function(t)
 
@@ -348,7 +358,15 @@ end
 
 local function AddNPCESP(model)
     if not model then return end
-    if NPCESP.Highlights[model] then return end
+    local existing = NPCESP.Highlights[model]
+
+if existing then
+    if existing.Parent then
+        return -- 正常才跳过
+    else
+        NPCESP.Highlights[model] = nil -- 已失效，清掉
+    end
+end
     if not model:FindFirstChildWhichIsA("Humanoid") then return end
     if game.Players:GetPlayerFromCharacter(model) then return end
     local part = GetNPCPart(model)
@@ -356,28 +374,42 @@ local function AddNPCESP(model)
     local success, hl = pcall(function()
         local h = Instance.new("Highlight")
         h.Name = "NPCESP"
+        task.defer(function()
+    if model and model.Parent then
         h.Adornee = model
+    end
+end)
         h.FillColor = NPCESP.Color
         h.OutlineColor = Color3.fromRGB(255,255,255)
         h.FillTransparency = 0.4
         h.OutlineTransparency = 0
         h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        h.Parent = model
+        h.Parent = game.CoreGui
         return h
     end)
     if success and hl then
-        NPCESP.Highlights[model] = hl
-        pcall(function()
-            hl.AncestryChanged:Connect(function(_, parent)
-                if not parent then
-                    pcall(function() hl:Destroy() end)
-                    NPCESP.Highlights[model] = nil
-                end
-            end)
-        end)
-    end
-end
+    NPCESP.Highlights[model] = hl
 
+    -- 🔥 延迟补绑定
+    task.delay(1, function()
+        if hl and hl.Parent and (not hl.Adornee or hl.Adornee ~= model) then
+            pcall(function()
+                hl.Adornee = model
+            end)
+        end
+    end)
+
+    -- 原本的销毁监听（保留！）
+    pcall(function()
+        hl.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                pcall(function() hl:Destroy() end)
+                NPCESP.Highlights[model] = nil
+            end
+        end)
+    end)
+end
+end
 local function RemoveNPCESP(model)
     if not model then return end
     if NPCESP.Highlights[model] then
@@ -403,28 +435,70 @@ end
 
 local function ToggleNPCESP(state)
     NPCESP.Enabled = state
+
     if state then
+
+        -- ✅ 初次扫描
         task.spawn(function()
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") then task.spawn(AddNPCESP, obj) end
+                if obj:IsA("Model") then
+                    task.spawn(AddNPCESP, obj)
+                end
             end
         end)
+
+        -- ✅ 监听新NPC
         if not Connections.NPC then
             Connections.NPC = workspace.DescendantAdded:Connect(function(child)
-                task.delay(0.1, function()
-                    if child and child:IsA("Model") then AddNPCESP(child)
-                    elseif child and child:IsA("Humanoid") and child.Parent then AddNPCESP(child.Parent) end
+                task.delay(0.5, function() -- 延迟加大
+                    if child and child:IsA("Model") then
+                        AddNPCESP(child)
+                    elseif child and child:IsA("Humanoid") and child.Parent then
+                        AddNPCESP(child.Parent)
+                    end
                 end)
             end)
         end
+
+        -- 🔥🔥🔥 核心：补扫循环（解决漏透视）
+        task.spawn(function()
+            while NPCESP.Enabled do
+
+                -- 清理失效的
+                for model, hl in pairs(NPCESP.Highlights) do
+                    if not model or not model.Parent or not hl or not hl.Parent then
+                        NPCESP.Highlights[model] = nil
+                    end
+                end
+
+                -- 补扫
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("Model") then
+                        AddNPCESP(obj)
+                    end
+                end
+
+                task.wait(2)
+            end
+        end)
+
     else
+        -- ❌ 关闭时清理
         local toRemove = {}
-        for model, _ in pairs(NPCESP.Highlights) do table.insert(toRemove, model) end
-        for _, model in ipairs(toRemove) do RemoveNPCESP(model) end
-        if Connections.NPC then pcall(function() Connections.NPC:Disconnect() end) Connections.NPC = nil end
+        for model, _ in pairs(NPCESP.Highlights) do
+            table.insert(toRemove, model)
+        end
+
+        for _, model in ipairs(toRemove) do
+            RemoveNPCESP(model)
+        end
+
+        if Connections.NPC then
+            pcall(function() Connections.NPC:Disconnect() end)
+            Connections.NPC = nil
+        end
     end
 end
-
 --旧互动物体透视
 local InteractESP = { Enabled = false, Color = Color3.fromRGB(0,255,0), Highlights = {} }
 
@@ -543,7 +617,7 @@ local function ToggleInteractESP(state)
         end)
         if not Connections.Interact then
             Connections.Interact = workspace.DescendantAdded:Connect(function(child)
-                task.delay(0.1, function()
+                task.delay(1, function()
                     if child and IsInteractive_Old(child) and child.Parent then AddInteractESP(child.Parent)
                     elseif child and child:IsA("BasePart") and child.Parent then
                         for _, c in pairs(child:GetDescendants()) do
@@ -982,6 +1056,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了npc透视的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自由视角" })
 
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="借鉴了一下皮脚本代码，使得防摔落伤害更好用了" })
