@@ -1,6 +1,32 @@
 -- 作者抖音58873829421
 -- by 夜
+-- =================== UI版FOV圈 ===================
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FOVCircle_UI"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game.CoreGui
+
+local circle = Instance.new("Frame")
+circle.Name = "FOVCircle"
+circle.AnchorPoint = Vector2.new(0.5, 0.5)
+circle.Position = UDim2.new(0.5, 0, 0.5, 0)
+circle.Size = UDim2.new(0, 240, 0, 240)
+circle.BackgroundTransparency = 1
+circle.Parent = screenGui
+circle.Visible = false -- ⭐关键：初始化隐藏
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(128, 0, 128)
+stroke.Parent = circle
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = circle
 -- --------- 1. 预设通知工具（为了在加载网络库前就能弹出提示） ----------
 local StarterGui = game:GetService("StarterGui")
 local function FallbackNotify(title, content, duration)
@@ -88,8 +114,33 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
+-- =================== 自瞄系统变量（必须放最上面） ===================
+
+
+-- 自瞄总开关状态
+local ESP_SETTINGS = {
+    HighlightEnabled = false, -- 自瞄开关
+    TeamCheck = false,         -- 队伍检测
+    SmoothAim = false,         -- 平滑自瞄
+    DistanceCheck = false,     -- 距离限制
+    WallCheck = false          -- 墙体检测
+}
+
+-- 自瞄参数
+local FOV = 120              -- 自瞄范围（和圈同步）
+local Smoothness = 0.18      -- 平滑程度
+local AimPart = "Head"       -- 锁定部位
+local MaxDistance = 1000     -- 最大距离
+
+-- 自瞄连接（防重复）
+local AimbotConnection = nil
+
 -- =================== 全局变量与属性记录 (修改这里) ===================
 local Connections = {} 
+local Camera = workspace.CurrentCamera -- ⭐加这里
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = workspace.CurrentCamera
+end)
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -1043,7 +1094,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="我真没招了，有些链接失效，原来是因为我忘记在后面加一个（）了" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="妈的加个自瞄加了一个世纪   依旧他为什么不能运行呢？他为什么可以运行呢？为什么在别的脚本可以运行在这里又不可以运行了呢？" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -1056,6 +1107,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了一个世纪，总算是把自瞄集成到主脚本里了不过那个以前的小窗自瞄也可以用" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了个新的自瞄脚本还可以的" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="加入黑洞和无敌少侠飞行" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了npc透视的bug" })
@@ -1467,9 +1519,174 @@ TabOther:CreateButton({
         end
     end
 })
+local TabAimbot = Window:CreateTab("自瞄")
+TabAimbot:CreateToggle({
+    Name = "自瞄开关",
+    CurrentValue = false,
+    Callback = function(Value)
+        ESP_SETTINGS.HighlightEnabled = Value
 
+        -- ⭐立即控制圈
+        if circle then
+            circle.Visible = Value
+        end
+    end
+})
+-- ================= 队伍检测 =================
+TabAimbot:CreateToggle({
+    Name = "队伍检测",
+    CurrentValue = ESP_SETTINGS.TeamCheck,
+    Callback = function(Value)
+        ESP_SETTINGS.TeamCheck = Value
+    end
+})
 
+-- ================= 墙体检测 =================
+TabAimbot:CreateToggle({
+    Name = "墙体检测",
+    CurrentValue = ESP_SETTINGS.WallCheck,
+    Callback = function(Value)
+        ESP_SETTINGS.WallCheck = Value
+    end
+})
+TabAimbot:CreateInput({
+    Name = "自瞄范围(FOV)",
+    PlaceholderText = "默认120",
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            FOV = math.clamp(num, 10, 1000)
+            Notify("FOV已修改", tostring(FOV), 2)
+        else
+            Notify("输入错误", "请输入数字", 2)
+        end
+    end
+})
+
+-- ================= 自瞄距离 =================
+TabAimbot:CreateSlider({
+    Name = "自瞄最大距离",
+    Range = {50, 2000},
+    Increment = 50,
+    CurrentValue = MaxDistance,
+    Callback = function(Value)
+        MaxDistance = Value
+    end
+})
+TabAimbot:CreateToggle({
+    Name = "平滑自瞄",
+    CurrentValue = ESP_SETTINGS.SmoothAim,
+    Callback = function(Value)
+        ESP_SETTINGS.SmoothAim = Value
+    end
+})
+local function isVisible(p, part)
+
+    if not Camera then return false end  -- ⭐防炸
+
+    if not ESP_SETTINGS.WallCheck then return true end
+
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+    local result = workspace:Raycast(
+        Camera.CFrame.Position,
+        (part.Position - Camera.CFrame.Position),
+        rayParams
+    )
+
+    return result and result.Instance and result.Instance:IsDescendantOf(p.Character)
+end
+local function isAlive(p)
+    local c = p.Character
+    local h = c and c:FindFirstChild("Humanoid")
+    return h and h.Health > 0
+end
+local function getTarget()
+    local closest = nil
+    local shortest = FOV -- 🔥 只在FOV内找
+    local center = Camera.ViewportSize / 2
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and isAlive(p) then
+
+            -- 队伍检测
+            if ESP_SETTINGS.TeamCheck and p.Team == LocalPlayer.Team then
+                continue
+            end
+
+            local part = p.Character and p.Character:FindFirstChild(AimPart)
+            if part then
+                
+                local camPos = Camera.CFrame.Position
+                local offset = part.Position - camPos
+                local distance = offset.Magnitude
+
+                -- 距离限制
+                if distance > MaxDistance then
+    continue
+end
+                -- 背后检测（保留你原逻辑）
+                local directionUnit = distance > 0 and offset.Unit or Vector3.zero
+                local dot = Camera.CFrame.LookVector:Dot(directionUnit)
+                
+               local pos, visible = Camera:WorldToViewportPoint(part.Position)
+                if not visible then continue end
+
+                local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+
+                -- 🔥 FOV + 最近优先
+                if dist < shortest and isVisible(p, part) then
+                    shortest = dist
+                    closest = p
+                end
+            end
+        end
+    end
+
+    return closest
+end
 
 
 Notify("脚本加载完成","by 夜",3)
 Notify("有bug可以进qq群说，群号在公告","求你们加个群吧😭😭",5)
+AimbotConnection = RunService.RenderStepped:Connect(function()
+
+    -- UI FOV圈更新
+    if circle then
+        local size = FOV * 2
+        circle.Size = UDim2.new(0, size, 0, size)
+
+        -- ⭐只在变化时更新（防闪）
+        if circle.Visible ~= ESP_SETTINGS.HighlightEnabled then
+            circle.Visible = ESP_SETTINGS.HighlightEnabled
+        end
+    end
+    
+if not Camera then return end
+
+
+
+    if not ESP_SETTINGS.HighlightEnabled then return end
+
+    local target = getTarget()
+
+    if target and target.Character then
+        local part = target.Character:FindFirstChild(AimPart)
+        if part then
+
+            local camPos = Camera.CFrame.Position
+            local direction = (part.Position - camPos).Unit
+            local newCF = CFrame.new(camPos, camPos + direction)
+
+            if ESP_SETTINGS.SmoothAim then
+                Camera.CFrame = Camera.CFrame:Lerp(newCF, Smoothness)
+            else
+                Camera.CFrame = newCF
+            end
+
+        end
+    end
+
+end)
