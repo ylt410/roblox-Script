@@ -213,6 +213,7 @@ end)
 local FOV = 120
 local Smoothness = 0.18
 local AimPart = "Head"
+local MaxDistance = 1000 -- 👉 最大锁定距离（单位：stud）
 
 local circle = Drawing.new("Circle")
 circle.Thickness = 2
@@ -255,7 +256,22 @@ local function getTarget()
             end
 
             local part = p.Character and p.Character:FindFirstChild(AimPart)
-            if part then
+if part then
+    
+    local camPos = Camera.CFrame.Position
+    local offset = part.Position - camPos
+    local distance = offset.Magnitude
+
+    -- ✅ 距离限制
+    if distance > MaxDistance then
+        continue
+    end
+
+    -- ✅ 👉 默认开启：背后不锁（视角方向检测）
+    local dot = Camera.CFrame.LookVector:Dot(offset.Unit)
+    if dot < 0.2 then
+        continue
+    end
                 local pos, visible = Camera:WorldToViewportPoint(part.Position)
                 local dist = (Vector2.new(pos.X,pos.Y) - center).Magnitude
 
@@ -269,7 +285,6 @@ local function getTarget()
 
     return closest
 end
-
 RunService.RenderStepped:Connect(function()
     circle.Position = Camera.ViewportSize / 2
     circle.Visible = ESP_SETTINGS.HighlightEnabled
