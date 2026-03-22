@@ -1043,7 +1043,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="此脚本完全开源因为它是由grok编写ChatGPT和Gemini优化的   作者原本想优化所有的逻辑之类的使代码变得更加规整，但是作者战胜不了屎山被屎山打败了" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="想加个点击物品透视代码直接给我灵魂三板斧为什么他能运行呢？为什么它不能运行呢？为什么之前能运行现在运行不了呢？所以说我他妈不加了" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
