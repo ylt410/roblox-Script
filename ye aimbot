@@ -19,6 +19,7 @@ local ESP_SETTINGS = {
     ShowDist = false,
     Minimized = false,
 SmoothAim = true,
+DistanceCheck = true, -- 👉 距离检测开关（默认开）
     WallCheck = true -- 👉 新增墙壁检测
 }
 
@@ -262,11 +263,10 @@ if part then
     local offset = part.Position - camPos
     local distance = offset.Magnitude
 
-    -- ✅ 距离限制
-    if distance > MaxDistance then
-        continue
-    end
-
+-- 👉 距离检测开关
+if ESP_SETTINGS.DistanceCheck and distance > MaxDistance then
+    continue
+end
     -- ✅ 👉 默认开启：背后不锁（视角方向检测）
     local dot = Camera.CFrame.LookVector:Dot(offset.Unit)
     if dot < 0.2 then
