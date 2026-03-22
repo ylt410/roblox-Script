@@ -269,7 +269,8 @@ if ESP_SETTINGS.DistanceCheck and distance > MaxDistance then
     continue
 end
     -- ✅ 👉 默认开启：背后不锁（视角方向检测）
-    local dot = Camera.CFrame.LookVector:Dot(offset.Unit)
+    local directionUnit = distance > 0 and offset.Unit or Vector3.zero
+local dot = Camera.CFrame.LookVector:Dot(directionUnit)
     if dot < 0.2 then
         continue
     end
