@@ -1,0 +1,278 @@
+-- ======================================================
+-- Gemini UI + 自瞄版（保留原UI结构）
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+
+-- --- 全局状态 ---
+local ESP_SETTINGS = {
+    HighlightEnabled = false, -- 👉 作为自瞄开关
+    BoxEnabled = false,
+    TeamCheck = true,
+    ShowName = false,
+    ShowHealth = false,
+    ShowDist = false,
+    Minimized = false,
+SmoothAim = true,
+    WallCheck = true -- 👉 新增墙壁检测
+}
+
+-- ==========================================
+-- 1. UI 架构（完全保留）
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Gemini_Final_ESP"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "Main"
+mainFrame.Size = UDim2.new(0, 230, 0, 290)
+mainFrame.Position = UDim2.new(0.5, -115, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BackgroundTransparency = 0.5
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true 
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner", mainFrame)
+uiCorner.CornerRadius = UDim.new(0, 24)
+
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Transparency = 0.7
+stroke.Thickness = 1.2
+
+local titleBar = Instance.new("TextLabel")
+titleBar.Size = UDim2.new(1, 0, 0, 50)
+titleBar.BackgroundTransparency = 1
+titleBar.Text = "夜自瞄"
+titleBar.TextColor3 = Color3.new(1, 1, 1)
+titleBar.Font = Enum.Font.GothamBold
+titleBar.TextSize = 16
+titleBar.Parent = mainFrame
+
+local miniBtn = Instance.new("TextButton")
+miniBtn.Size = UDim2.new(0, 28, 0, 28)
+miniBtn.Position = UDim2.new(1, -38, 0, 11)
+miniBtn.BackgroundColor3 = Color3.new(1, 1, 1)
+miniBtn.BackgroundTransparency = 0.9
+miniBtn.Text = "−"
+miniBtn.TextColor3 = Color3.new(1, 1, 1)
+miniBtn.Parent = mainFrame
+Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(1, 0)
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, 0, 1, -60)
+contentFrame.Position = UDim2.new(0, 0, 0, 55)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout", contentFrame)
+layout.Padding = UDim.new(0, 5)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local function createToggle(text, settingKey)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.88, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BackgroundTransparency = 0.94
+    btn.Text = "  " .. text
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = contentFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+
+    local indicator = Instance.new("Frame", btn)
+    indicator.Size = UDim2.new(0, 30, 0, 16)
+    indicator.Position = UDim2.new(1, -38, 0.5, -8)
+    indicator.BackgroundColor3 = ESP_SETTINGS[settingKey] and Color3.fromRGB(48, 209, 88) or Color3.fromRGB(90, 90, 90)
+    Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
+    
+    local dot = Instance.new("Frame", indicator)
+    dot.Size = UDim2.new(0, 12, 0, 12)
+    dot.Position = ESP_SETTINGS[settingKey] and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+    dot.BackgroundColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+    btn.MouseButton1Click:Connect(function()
+        ESP_SETTINGS[settingKey] = not ESP_SETTINGS[settingKey]
+        TweenService:Create(indicator, TweenInfo.new(0.3), {
+            BackgroundColor3 = ESP_SETTINGS[settingKey] and Color3.fromRGB(48, 209, 88) or Color3.fromRGB(90, 90, 90)
+        }):Play()
+        dot:TweenPosition(
+            ESP_SETTINGS[settingKey] and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6),
+            "Out", "Back", 0.3, true
+        )
+    end)
+end
+
+-- 👉 UI按钮（保留 + 利用）
+createToggle("自瞄开关", "HighlightEnabled")
+createToggle("队伍检测", "TeamCheck")
+createToggle("墙壁检测", "WallCheck")
+createToggle("平滑自瞄", "SmoothAim")
+-- ==========================================
+-- 2. 原拖拽 + 果冻（完整保留）
+-- ==========================================
+local isDragging = false
+local dragStart, startPos
+local activeTouch = nil
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+or (input.UserInputType == Enum.UserInputType.Touch and not activeTouch) then
+
+        isDragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        if input.UserInputType == Enum.UserInputType.Touch then
+            activeTouch = input
+        end
+
+        local baseWidth = 230
+        local baseHeight = ESP_SETTINGS.Minimized and 50 or 290
+        TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, baseWidth + 15, 0, baseHeight + 15),
+            BackgroundTransparency = 0.35
+        }):Play()
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                
+                if input.UserInputType == Enum.UserInputType.Touch then
+                    if input == activeTouch then
+                        activeTouch = nil
+                        isDragging = false
+                    end
+                else
+                    isDragging = false
+                end
+
+                local finalHeight = ESP_SETTINGS.Minimized and 50 or 290
+                TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(0, 230, 0, finalHeight),
+                    BackgroundTransparency = 0.5
+                }):Play()
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not isDragging then return end
+
+    local delta = input.Position - dragStart
+
+    mainFrame.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end)
+
+miniBtn.MouseButton1Click:Connect(function()
+    ESP_SETTINGS.Minimized = not ESP_SETTINGS.Minimized
+    contentFrame.Visible = not ESP_SETTINGS.Minimized
+    local targetSize = ESP_SETTINGS.Minimized and UDim2.new(0, 230, 0, 50) or UDim2.new(0, 230, 0, 290)
+    TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Elastic), {Size = targetSize}):Play()
+    miniBtn.Text = ESP_SETTINGS.Minimized and "+" or "−"
+end)
+
+-- ==========================================
+-- 3. 自瞄系统
+-- ==========================================
+
+local FOV = 120
+local Smoothness = 0.18
+local AimPart = "Head"
+
+local circle = Drawing.new("Circle")
+circle.Thickness = 2
+circle.Color = Color3.fromRGB(128,0,128)
+circle.Filled = false
+circle.Radius = FOV
+
+local function isAlive(p)
+    local c = p.Character
+    local h = c and c:FindFirstChild("Humanoid")
+    return h and h.Health > 0
+end
+
+local function isVisible(p, part)
+    if not ESP_SETTINGS.WallCheck then return true end
+
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {localPlayer.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+    local result = workspace:Raycast(
+        Camera.CFrame.Position,
+        (part.Position - Camera.CFrame.Position),
+        rayParams
+    )
+
+    return result and result.Instance:IsDescendantOf(p.Character)
+end
+
+local function getTarget()
+    local closest = nil
+    local shortest = math.huge
+    local center = Camera.ViewportSize / 2
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer and isAlive(p) then
+
+            if ESP_SETTINGS.TeamCheck and p.Team == localPlayer.Team then
+                continue
+            end
+
+            local part = p.Character and p.Character:FindFirstChild(AimPart)
+            if part then
+                local pos, visible = Camera:WorldToViewportPoint(part.Position)
+                local dist = (Vector2.new(pos.X,pos.Y) - center).Magnitude
+
+                if visible and dist < FOV and dist < shortest and isVisible(p, part) then
+                    shortest = dist
+                    closest = p
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    circle.Position = Camera.ViewportSize / 2
+    circle.Visible = ESP_SETTINGS.HighlightEnabled
+
+    if not ESP_SETTINGS.HighlightEnabled then return end
+
+    local target = getTarget()
+    if target and target.Character then
+        local part = target.Character:FindFirstChild(AimPart)
+        if part then
+            local direction = (part.Position - Camera.CFrame.Position).Unit
+            local newCF = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
+
+            if ESP_SETTINGS.SmoothAim then
+    -- 平滑锁（现在的效果）
+    Camera.CFrame = Camera.CFrame:Lerp(newCF, Smoothness)
+else
+    -- 硬锁（瞬间锁头）
+    Camera.CFrame = newCF
+end
+        end
+    end
+end)
