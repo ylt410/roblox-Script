@@ -1043,7 +1043,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="想加个点击物品透视代码直接给我灵魂三板斧为什么他能运行呢？为什么它不能运行呢？为什么之前能运行现在运行不了呢？所以说我他妈不加了" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="我真没招了，有些链接失效，原来是因为我忘记在后面加一个（）了" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -1056,6 +1056,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了个新的自瞄脚本还可以的" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="加入黑洞和无敌少侠飞行" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了npc透视的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自由视角" })
