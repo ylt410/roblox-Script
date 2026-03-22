@@ -19,7 +19,7 @@ local ESP_SETTINGS = {
     ShowDist = false,
     Minimized = false,
 SmoothAim = true,
-DistanceCheck = true, -- 👉 距离检测开关（默认开）
+DistanceCheck = true, -- 👉距离检测
     WallCheck = true -- 👉 新增墙壁检测
 }
 
@@ -121,6 +121,7 @@ createToggle("自瞄开关", "HighlightEnabled")
 createToggle("队伍检测", "TeamCheck")
 createToggle("墙壁检测", "WallCheck")
 createToggle("平滑自瞄", "SmoothAim")
+createToggle("距离限制", "DistanceCheck")
 -- ==========================================
 -- 拖拽（修复多指抽搐版）
 -- ==========================================
