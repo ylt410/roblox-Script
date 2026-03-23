@@ -114,10 +114,12 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
--- =================== 功能显示系统 ===================
+-- =================== 功能显示系统（终极修复版） ===================
 
 local FeatureDisplayEnabled = true
 local EnabledFeatures = {}
+local FeatureItems = {} -- ⭐缓存UI（核心修复）
+
 local FeatureGui = Instance.new("ScreenGui")
 FeatureGui.Name = "FeatureDisplay"
 FeatureGui.Parent = game.CoreGui
@@ -135,84 +137,159 @@ UIList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 UIList.Parent = Container
 
 local TextService = game:GetService("TextService")
+local TweenService = game:GetService("TweenService")
 
 local function Rainbow()
     return Color3.fromHSV((tick()*0.25)%1,1,1)
 end
 
+-- =================== 功能显示系统（终极进阶版） ===================
+
+local FeatureDisplayEnabled = true
+local EnabledFeatures = {}
+local FeatureItems = {}
+
+local FeatureGui = Instance.new("ScreenGui")
+FeatureGui.Name = "FeatureDisplay"
+FeatureGui.Parent = game.CoreGui
+
+local Container = Instance.new("Frame")
+Container.AnchorPoint = Vector2.new(1, 0)
+Container.Position = UDim2.new(1, -10, 0, 10)
+Container.Size = UDim2.new(0, 200, 0, 300)
+Container.BackgroundTransparency = 1
+Container.Parent = FeatureGui
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 4)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+UIList.Parent = Container
+
+local TextService = game:GetService("TextService")
+local TweenService = game:GetService("TweenService")
+
+local function Rainbow()
+    return Color3.fromHSV((tick()*0.25)%1,1,1)
+end
+
+-- =================== 刷新 ===================
 local function RefreshFeatureUI()
 
     Container.Visible = FeatureDisplayEnabled
+    if not FeatureDisplayEnabled then return end
 
-    for _, v in pairs(Container:GetChildren()) do
-        if v:IsA("Frame") then
-            v:Destroy()
+    -- 删除旧的（带动画）
+    for name, item in pairs(FeatureItems) do
+        if not table.find(EnabledFeatures, name) then
+
+if item then
+
+    TweenService:Create(item, TweenInfo.new(
+        0.25,
+        Enum.EasingStyle.Quad,
+        Enum.EasingDirection.In
+    ), {
+        Size = UDim2.new(0, item.Size.X.Offset, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
+
+    for _, v in pairs(item:GetChildren()) do
+        if v:IsA("TextLabel") then
+            TweenService:Create(v, TweenInfo.new(0.2), {
+                TextTransparency = 1,
+                TextStrokeTransparency = 1
+            }):Play()
         end
     end
 
-    if not FeatureDisplayEnabled then return end
+    task.delay(0.25, function()
+        if item then item:Destroy() end
+    end)
+end
+            FeatureItems[name] = nil
+        end
+    end
 
+    -- 添加新UI
     for _, name in ipairs(EnabledFeatures) do
 
+        if FeatureItems[name] then continue end
+
         local textSize = TextService:GetTextSize(
-            name,
-            14,
-            Enum.Font.SourceSansBold,
-            Vector2.new(1000, 20)
+            name, 14, Enum.Font.SourceSansBold, Vector2.new(1000,20)
         )
 
         local width = textSize.X + 10
 
         local item = Instance.new("Frame")
-        item.Size = UDim2.new(0, width, 0, 20)
+        item.Size = UDim2.new(0, 0, 0, 16)
+        item.BackgroundTransparency = 1
         item.BackgroundColor3 = Color3.new(0,0,0)
-        item.BackgroundTransparency = 0.5
         item.BorderSizePixel = 0
         item.Parent = Container
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 10)
-        corner.Parent = item
+        Instance.new("UICorner", item).CornerRadius = UDim.new(0,10)
 
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -6, 1, 0)
-        label.Position = UDim2.new(0, 3, 0, 0)
+        label.Size = UDim2.new(1,-6,1,0)
+        label.Position = UDim2.new(0,3,0,0)
         label.BackgroundTransparency = 1
         label.Text = name
         label.Font = Enum.Font.SourceSansBold
         label.TextSize = 14
         label.TextXAlignment = Enum.TextXAlignment.Center
-        label.TextStrokeTransparency = 0.3
+        label.TextTransparency = 1
+        label.TextStrokeTransparency = 1
         label.TextStrokeColor3 = Color3.new(0,0,0)
         label.Parent = item
 
+        -- 🌈 彩虹
         task.spawn(function()
-            while label and label.Parent do
+            while label.Parent do
                 label.TextColor3 = Rainbow()
-                task.wait(0.08)
+                task.wait(0.05)
             end
         end)
+
+        -- 飞入动画
+        task.spawn(function()
+
+            task.wait()
+
+            TweenService:Create(item, TweenInfo.new(
+                0.4,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            ), {
+                Size = UDim2.new(0, width, 0, 20),
+                BackgroundTransparency = 0.5
+            }):Play()
+
+            task.wait(0.1)
+
+            TweenService:Create(label, TweenInfo.new(0.3), {
+                TextTransparency = 0,
+                TextStrokeTransparency = 0.3
+            }):Play()
+
+        end)
+
+        FeatureItems[name] = item
     end
 end
 
+-- =================== 添加 ===================
 local function AddFeature(name)
 
-    -- ⭐如果是“夜脚本”
     if name == "夜脚本" then
-
-        -- 先删除旧位置（防止重复）
         for i, v in ipairs(EnabledFeatures) do
             if v == "夜脚本" then
                 table.remove(EnabledFeatures, i)
                 break
             end
         end
-
-        -- ⭐插入到第一位（核心）
-        table.insert(EnabledFeatures, 1, "夜脚本")
-
+        table.insert(EnabledFeatures, 1, name)
     else
-        -- 普通功能照旧
         if not table.find(EnabledFeatures, name) then
             table.insert(EnabledFeatures, name)
         end
@@ -220,6 +297,8 @@ local function AddFeature(name)
 
     RefreshFeatureUI()
 end
+
+-- =================== 删除 ===================
 local function RemoveFeature(name)
     for i, v in ipairs(EnabledFeatures) do
         if v == name then
@@ -1837,16 +1916,32 @@ TabNight:CreateToggle({
         FeatureDisplayEnabled = Value
 
         if Value then
+            -- ⭐关键：清空缓存 → 强制所有UI重新动画
+            for _, item in pairs(FeatureItems) do
+                if item then item:Destroy() end
+            end
+            FeatureItems = {}
+
+            task.wait(0.05)
+
             AddFeature("夜脚本")
+            RefreshFeatureUI()
+
         else
             RemoveFeature("夜脚本")
+            RefreshFeatureUI()
         end
-
-        RefreshFeatureUI()
     end
 })
 
--- ⭐关键：初始化（解决默认不显示）
+-- ⭐初始化（也要用同样逻辑）
+for _, item in pairs(FeatureItems) do
+    if item then item:Destroy() end
+end
+FeatureItems = {}
+
+task.wait(0.05)
+
 AddFeature("夜脚本")
 RefreshFeatureUI()
 local TabOther = Window:CreateTab("通用")
