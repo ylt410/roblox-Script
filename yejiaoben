@@ -1519,6 +1519,7 @@ TabOther:CreateButton({
         end
     end
 })
+
 local TabAimbot = Window:CreateTab("自瞄")
 TabAimbot:CreateToggle({
     Name = "自瞄开关",
@@ -1647,6 +1648,22 @@ end
 
     return closest
 end
+local TabStop = Window:CreateTab("终止")
+TabStop:CreateButton({
+    Name = "强制退出",
+    Callback = function()
+        local ok, err = pcall(function()
+           game:Shutdown()
+        end)
+        
+        if ok then 
+            Notify("退出", "成功", 4) 
+        else 
+            Notify("踢出失败", tostring(err), 5) 
+        end
+    end
+})
+
 
 
 Notify("脚本加载完成","by 夜",3)
