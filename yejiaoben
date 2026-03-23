@@ -136,6 +136,9 @@ local MaxDistance = 1000     -- 最大距离
 local AimbotConnection = nil
 
 -- =================== 全局变量与属性记录 (修改这里) ===================
+-- 新增：自定义跳跃状态和数值
+local CustomJumpEnabled = false
+local CustomJumpValue = 50
 local Connections = {} 
 local Camera = workspace.CurrentCamera -- ⭐加这里
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
@@ -150,7 +153,23 @@ local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then
     repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
 end
-
+-- ===================
+-- 新增：强制锁定跳跃高度（解决重生失效 & 服务器限制）
+RunService.RenderStepped:Connect(function()
+    if CustomJumpEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                -- 核心修复：同时接管两种跳跃模式，强制系统听你的
+                hum.UseJumpPower = true 
+                hum.JumpPower = CustomJumpValue
+                -- 为了防止个别极端防作弊检测，顺便把 JumpHeight 也按比例改了 (通常 Power 50 对应 Height 7.2)
+                hum.JumpHeight = CustomJumpValue * (7.2 / 50) 
+            end
+        end
+    end
+end)
 -- =================== Freecam模块（终极稳定版） ===================
 
 local Freecam = {
@@ -1107,6 +1126,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了修改跳跃重生后失效的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了一个世纪，总算是把自瞄集成到主脚本里了不过那个以前的小窗自瞄也可以用" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了个新的自瞄脚本还可以的" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="加入黑洞和无敌少侠飞行" })
@@ -1173,14 +1193,21 @@ TabAttr:CreateToggle({
     end,
 })
 
--- --- 跳跃修改 ---
+-- --- 跳跃修改 (修复版) ---
+local TargetJump = OriginalJump
 TabAttr:CreateSection("跳跃修改")
-local TargetJump = 50
+
 TabAttr:CreateInput({
     Name = "设置跳跃强度",
-    PlaceholderText = "原始值: " .. OriginalJump,
+    PlaceholderText = "默认50",
     Callback = function(Text)
-        TargetJump = tonumber(Text) or OriginalJump
+        local num = tonumber(Text)
+        if num then
+            CustomJumpValue = num
+            Notify("跳跃已设置", tostring(num), 2)
+        else
+            Notify("错误", "请输入数字", 2)
+        end
     end,
 })
 
@@ -1188,19 +1215,17 @@ TabAttr:CreateToggle({
     Name = "开启/关闭跳跃修改",
     CurrentValue = false,
     Callback = function(Value)
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            if Value then
-                hum.JumpPower = TargetJump
-                hum.JumpHeight = TargetJump
-            else
+        CustomJumpEnabled = Value
+
+        if not Value then
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.UseJumpPower = true
                 hum.JumpPower = OriginalJump
-                hum.JumpHeight = OriginalJump
             end
         end
     end,
 })
-
 -- --- 无限跳 (新增部分) ---
 TabAttr:CreateSection("无限跳")
 TabAttr:CreateToggle({
