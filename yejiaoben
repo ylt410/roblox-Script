@@ -114,35 +114,6 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
--- =================== 功能显示系统（终极修复版） ===================
-
-local FeatureDisplayEnabled = true
-local EnabledFeatures = {}
-local FeatureItems = {} -- ⭐缓存UI（核心修复）
-
-local FeatureGui = Instance.new("ScreenGui")
-FeatureGui.Name = "FeatureDisplay"
-FeatureGui.Parent = game.CoreGui
-
-local Container = Instance.new("Frame")
-Container.AnchorPoint = Vector2.new(1, 0)
-Container.Position = UDim2.new(1, -10, 0, 10)
-Container.Size = UDim2.new(0, 200, 0, 300)
-Container.BackgroundTransparency = 1
-Container.Parent = FeatureGui
-
-local UIList = Instance.new("UIListLayout")
-UIList.Padding = UDim.new(0, 4)
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-UIList.Parent = Container
-
-local TextService = game:GetService("TextService")
-local TweenService = game:GetService("TweenService")
-
-local function Rainbow()
-    return Color3.fromHSV((tick()*0.25)%1,1,1)
-end
-
 -- =================== 功能显示系统（终极进阶版） ===================
 
 local FeatureDisplayEnabled = true
