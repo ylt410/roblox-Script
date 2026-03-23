@@ -114,6 +114,121 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
+-- =================== 功能显示系统 ===================
+
+local FeatureDisplayEnabled = true
+local EnabledFeatures = {}
+local FeatureGui = Instance.new("ScreenGui")
+FeatureGui.Name = "FeatureDisplay"
+FeatureGui.Parent = game.CoreGui
+
+local Container = Instance.new("Frame")
+Container.AnchorPoint = Vector2.new(1, 0)
+Container.Position = UDim2.new(1, -10, 0, 10)
+Container.Size = UDim2.new(0, 200, 0, 300)
+Container.BackgroundTransparency = 1
+Container.Parent = FeatureGui
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 4)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+UIList.Parent = Container
+
+local TextService = game:GetService("TextService")
+
+local function Rainbow()
+    return Color3.fromHSV((tick()*0.25)%1,1,1)
+end
+
+local function RefreshFeatureUI()
+
+    Container.Visible = FeatureDisplayEnabled
+
+    for _, v in pairs(Container:GetChildren()) do
+        if v:IsA("Frame") then
+            v:Destroy()
+        end
+    end
+
+    if not FeatureDisplayEnabled then return end
+
+    for _, name in ipairs(EnabledFeatures) do
+
+        local textSize = TextService:GetTextSize(
+            name,
+            14,
+            Enum.Font.SourceSansBold,
+            Vector2.new(1000, 20)
+        )
+
+        local width = textSize.X + 10
+
+        local item = Instance.new("Frame")
+        item.Size = UDim2.new(0, width, 0, 20)
+        item.BackgroundColor3 = Color3.new(0,0,0)
+        item.BackgroundTransparency = 0.5
+        item.BorderSizePixel = 0
+        item.Parent = Container
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 10)
+        corner.Parent = item
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -6, 1, 0)
+        label.Position = UDim2.new(0, 3, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = name
+        label.Font = Enum.Font.SourceSansBold
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Center
+        label.TextStrokeTransparency = 0.3
+        label.TextStrokeColor3 = Color3.new(0,0,0)
+        label.Parent = item
+
+        task.spawn(function()
+            while label and label.Parent do
+                label.TextColor3 = Rainbow()
+                task.wait(0.08)
+            end
+        end)
+    end
+end
+
+local function AddFeature(name)
+
+    -- ⭐如果是“夜脚本”
+    if name == "夜脚本" then
+
+        -- 先删除旧位置（防止重复）
+        for i, v in ipairs(EnabledFeatures) do
+            if v == "夜脚本" then
+                table.remove(EnabledFeatures, i)
+                break
+            end
+        end
+
+        -- ⭐插入到第一位（核心）
+        table.insert(EnabledFeatures, 1, "夜脚本")
+
+    else
+        -- 普通功能照旧
+        if not table.find(EnabledFeatures, name) then
+            table.insert(EnabledFeatures, name)
+        end
+    end
+
+    RefreshFeatureUI()
+end
+local function RemoveFeature(name)
+    for i, v in ipairs(EnabledFeatures) do
+        if v == name then
+            table.remove(EnabledFeatures, i)
+            break
+        end
+    end
+    RefreshFeatureUI()
+end
 -- =================== 自瞄系统变量（必须放最上面） ===================
 
 
@@ -124,6 +239,16 @@ local ESP_SETTINGS = {
     SmoothAim = false,         -- 平滑自瞄
     DistanceCheck = false,     -- 距离限制
     WallCheck = false          -- 墙体检测
+}
+-- ================= 玩家透视专用变量 =================
+local PLAYER_ESP = {
+    Enabled = false,        -- 总开关（⭐核心）
+    HighlightEnabled = true,
+    BoxEnabled = true,
+    TeamCheck = true,
+    ShowName = true,
+    ShowHealth = true,
+    ShowDist = true
 }
 
 -- 自瞄参数
@@ -569,6 +694,122 @@ local function ToggleNPCESP(state)
         end
     end
 end
+local function ClearPlayerESP()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "PlayerESP_Highlight" or obj.Name == "PlayerESP_Info" or obj.Name == "PlayerESP_Box" then
+            obj:Destroy()
+        end
+    end
+end
+
+local function UpdatePlayerESP()
+
+    if not PLAYER_ESP.Enabled then return end -- ⭐核心
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+
+            local char = p.Character
+            local hum = char:FindFirstChild("Humanoid")
+            local head = char:FindFirstChild("Head")
+            local root = char:FindFirstChild("HumanoidRootPart")
+
+            if hum and head and root and hum.Health > 0 then
+
+                local isTeam = (p.Team == LocalPlayer.Team)
+                local filtered = PLAYER_ESP.TeamCheck and isTeam
+                local color = p.TeamColor.Color
+
+                -- ===== 高亮 =====
+                local high = char:FindFirstChild("PlayerESP_Highlight")
+
+                if PLAYER_ESP.HighlightEnabled then
+                    if not high then
+                        high = Instance.new("Highlight", char)
+                        high.Name = "PlayerESP_Highlight"
+                    end
+                    high.FillColor = color
+                    high.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                elseif high then
+                    high:Destroy()
+                end
+
+                -- ===== 方框 =====
+                local box = char:FindFirstChild("PlayerESP_Box")
+
+                if PLAYER_ESP.BoxEnabled and not filtered then
+                    if not box then
+                        box = Instance.new("BillboardGui", char)
+                        box.Name = "PlayerESP_Box"
+                        box.Size = UDim2.new(4.5,0,6,0)
+                        box.AlwaysOnTop = true
+                        box.Adornee = root
+
+                        local f = Instance.new("Frame", box)
+                        f.Size = UDim2.new(1,0,1,0)
+                        f.BackgroundTransparency = 1
+
+                        local s = Instance.new("UIStroke", f)
+                        s.Thickness = 1.5
+                    end
+
+                    box.Frame.UIStroke.Color = color
+                elseif box then
+                    box:Destroy()
+                end
+
+                -- ===== 信息 =====
+                local info = char:FindFirstChild("PlayerESP_Info")
+
+                if not filtered then
+                    if not info then
+                        info = Instance.new("BillboardGui", char)
+                        info.Name = "PlayerESP_Info"
+                        info.Size = UDim2.new(0,200,0,50)
+                        info.AlwaysOnTop = true
+                        info.Adornee = head
+                        info.ExtentsOffset = Vector3.new(0,3.5,0)
+
+                        local txt = Instance.new("TextLabel", info)
+                        txt.Name = "Label"
+                        txt.Size = UDim2.new(1,0,1,0)
+                        txt.BackgroundTransparency = 1
+                        txt.RichText = true
+                        txt.TextStrokeTransparency = 0.5
+                        txt.Font = Enum.Font.GothamMedium
+                    end
+
+                    local text = ""
+
+-- ⭐ 名字（白色加粗）
+if PLAYER_ESP.ShowName then
+    text = "<font color='#ffffff'><b>"..p.DisplayName.."</b></font>\n"
+end
+
+-- ⭐ 血量（你原来的红绿）
+if PLAYER_ESP.ShowHealth then
+    local hp = math.floor(hum.Health)
+
+    local hpColor = (hp > 50 and "#55ff55" or "#ff5555")
+
+    text = text .. "<font color='"..hpColor.."'>HP: "..hp.."</font> "
+end
+
+-- ⭐ 距离（白色）
+if PLAYER_ESP.ShowDist then
+    local dist = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
+
+    text = text .. "<font color='#ffffff'>| "..dist.."m</font>"
+end
+
+info.Label.Text = text
+                elseif info then
+                    info:Destroy()
+                end
+            end
+        end
+    end
+end
 --旧互动物体透视
 local InteractESP = { Enabled = false, Color = Color3.fromRGB(0,255,0), Highlights = {} }
 
@@ -825,13 +1066,6 @@ local function ToggleNewInteractESP(state)
         end)
         if Connections.NewInteract then pcall(function() Connections.NewInteract:Disconnect() end) Connections.NewInteract = nil end
     end
-end
---玩家esp
-local function LoadPlayerESP()
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/player%20esp"))()
-    end)
-    Notify("加载玩家透视","成功",2)
 end
 -- =================== 作者检测模块 ===================
 
@@ -1113,7 +1347,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="妈的加个自瞄加了一个世纪   依旧他为什么不能运行呢？他为什么可以运行呢？为什么在别的脚本可以运行在这里又不可以运行了呢？" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="功能显示我默认开了，不想要的去视觉功能里面关闭" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -1126,6 +1360,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="把玩家透视集成进了脚本，并且还加入了开启功能显示" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了修改跳跃重生后失效的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了一个世纪，总算是把自瞄集成到主脚本里了不过那个以前的小窗自瞄也可以用" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="做了个新的自瞄脚本还可以的" })
@@ -1142,7 +1377,9 @@ local TabAttr = Window:CreateTab("属性修改")
 
 -- --- 走路速度修改 (WalkSpeed 模式) ---
 TabAttr:CreateSection("常规速度修改")
+
 local TargetWalkSpeed = 16
+
 TabAttr:CreateInput({
     Name = "改速度(重启开关生效)",
     PlaceholderText = "输入数值",
@@ -1152,18 +1389,27 @@ TabAttr:CreateInput({
 })
 
 TabAttr:CreateToggle({
-    Name = " 开启/关闭速度修改",
+    Name = "开启/关闭速度修改",
     CurrentValue = false,
     Callback = function(Value)
+
         local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then
             hum.WalkSpeed = Value and TargetWalkSpeed or OriginalWalkSpeed
         end
+
+        if Value then
+            AddFeature("速度修改")
+        else
+            RemoveFeature("速度修改")
+        end
+
     end,
 })
 
--- --- 快速跑步 (TranslateBy 模式) ---
+-- --- 快速跑步 ---
 TabAttr:CreateSection("高级快速跑步 (TranslateBy 模式)")
+
 TabAttr:CreateInput({
     Name = "设置快速跑步强度",
     PlaceholderText = "输入强度",
@@ -1173,10 +1419,11 @@ TabAttr:CreateInput({
 })
 
 TabAttr:CreateToggle({
-    Name = " 开启/关闭快速跑步",
+    Name = "开启/关闭快速跑步",
     CurrentValue = false,
     Callback = function(enabled)
-        if enabled == true then
+
+        if enabled then
             if sudu then sudu:Disconnect() end
             sudu = game:GetService("RunService").Heartbeat:Connect(function()
                 local lp = game:GetService("Players").LocalPlayer
@@ -1185,16 +1432,24 @@ TabAttr:CreateToggle({
                 end
             end)
             Notify("开启快速跑步", "成功", 2)
-        elseif not enabled and sudu then
+        elseif sudu then
             sudu:Disconnect()
             sudu = nil
             Notify("关闭快速跑步", "成功", 2)
         end
+
+        if enabled then
+            AddFeature("快速跑步")
+        else
+            RemoveFeature("快速跑步")
+        end
+
     end,
 })
 
--- --- 跳跃修改 (修复版) ---
+-- --- 跳跃修改 ---
 local TargetJump = OriginalJump
+
 TabAttr:CreateSection("跳跃修改")
 
 TabAttr:CreateInput({
@@ -1215,6 +1470,7 @@ TabAttr:CreateToggle({
     Name = "开启/关闭跳跃修改",
     CurrentValue = false,
     Callback = function(Value)
+
         CustomJumpEnabled = Value
 
         if not Value then
@@ -1224,23 +1480,36 @@ TabAttr:CreateToggle({
                 hum.JumpPower = OriginalJump
             end
         end
+
+        if Value then
+            AddFeature("跳跃修改")
+        else
+            RemoveFeature("跳跃修改")
+        end
+
     end,
 })
--- --- 无限跳 (新增部分) ---
+
+-- --- 无限跳 ---
 TabAttr:CreateSection("无限跳")
+
 TabAttr:CreateToggle({
     Name = "无限跳跃",
     CurrentValue = false,
     Callback = function(Value)
-        InfiniteJumpEnabled = Value -- 切换全局变量状态
+
+        InfiniteJumpEnabled = Value
+
         if Value then
             Notify("开启无限跳", "成功", 1)
+            AddFeature("无限跳")
         else
             Notify("关闭无限跳", "成功", 1)
+            RemoveFeature("无限跳")
         end
+
     end,
 })
-
 -- 2. 通用功能 Tab (飞行 + 穿墙)
 local TabUniversal = Window:CreateTab("飞行/穿墙")
 TabUniversal:CreateSection("飞行功能")
@@ -1297,7 +1566,7 @@ TabUniversal:CreateToggle({
                 for _, part in ipairs(character:GetDescendants()) do
                     if part:IsA("BasePart") then
 
-                        -- ✅ 只记录一次（保留你原逻辑）
+                        -- 只记录一次
                         if OriginalCollision[part] == nil then
                             OriginalCollision[part] = part.CanCollide
                         end
@@ -1321,7 +1590,7 @@ TabUniversal:CreateToggle({
                 CharacterConnection = nil
             end
 
-            -- ✅ 安全恢复
+            -- 恢复碰撞
             for part, state in pairs(OriginalCollision) do
                 if typeof(part) == "Instance" and part.Parent then
                     part.CanCollide = state
@@ -1332,6 +1601,13 @@ TabUniversal:CreateToggle({
 
         end
 
+        -- ⭐ 功能显示（重点）
+        if enabled then
+            AddFeature("穿墙")
+        else
+            RemoveFeature("穿墙")
+        end
+
     end
 })
 -- 3. 视觉功能 Tab (NPC + 互动 + 玩家)
@@ -1340,17 +1616,73 @@ TabVisual:CreateParagraph({ Title="提示", Content="旧互动物品透视能看
 
 -- NPC 部分
 TabVisual:CreateSection("NPC 透视")
-TabVisual:CreateToggle({Name="开启 / 关闭 NPC透视",CurrentValue=false,Callback=ToggleNPCESP})
-TabVisual:CreateColorPicker({Name="NPC透视颜色",Color=NPCESP.Color,Callback=UpdateNPCESPColor})
+TabVisual:CreateToggle({
+    Name = "开启 / 关闭 NPC透视",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能
+        ToggleNPCESP(Value)
+
+        -- 功能显示
+        if Value then
+            AddFeature("NPC透视")
+        else
+            RemoveFeature("NPC透视")
+        end
+
+    end
+})
+TabVisual:CreateColorPicker({
+    Name = "NPC透视颜色",
+    Color = NPCESP.Color,
+    Callback = UpdateNPCESPColor
+})
 
 -- 旧版互动 部分
 TabVisual:CreateSection("互动物体 (旧版-稳定)")
-TabVisual:CreateToggle({Name="开启 / 关闭 旧版互动透视",CurrentValue=false,Callback=ToggleInteractESP})
-TabVisual:CreateColorPicker({Name="互动物体颜色",Color=InteractESP.Color,Callback=UpdateInteractColor})
+TabVisual:CreateToggle({
+    Name = "开启 / 关闭 旧版互动透视",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能
+        ToggleInteractESP(Value)
+
+        -- 功能显示
+        if Value then
+            AddFeature("互动透视")
+        else
+            RemoveFeature("互动透视")
+        end
+
+    end
+})
+TabVisual:CreateColorPicker({
+    Name = "互动物体颜色",
+    Color = InteractESP.Color,
+    Callback = UpdateInteractColor
+})
 
 -- 新版互动 部分
 TabVisual:CreateSection("互动物体 (新版-显名)")
-TabVisual:CreateToggle({Name="开启 / 关闭 新版互动透视",CurrentValue=false,Callback=ToggleNewInteractESP})
+TabVisual:CreateToggle({
+    Name = "开启 / 关闭 新版互动透视",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能
+        ToggleNewInteractESP(Value)
+
+        -- 功能显示
+        if Value then
+            AddFeature("新版互动透视")
+        else
+            RemoveFeature("新版互动透视")
+        end
+
+    end
+})
 TabVisual:CreateButton({
     Name="强制刷新新版ESP",
     Callback=function()
@@ -1362,27 +1694,169 @@ TabVisual:CreateButton({
 })
 TabVisual:CreateColorPicker({Name="新版颜色",Color=NewInteractESP.Color,Callback=UpdateNewInteractColor})
 
--- 玩家 ESP 部分
 TabVisual:CreateSection("玩家 ESP")
-TabVisual:CreateButton({Name="执行玩家ESP",Callback=LoadPlayerESP})
+
+-- ================= 总开关 =================
+TabVisual:CreateToggle({
+    Name = "玩家透视总开关",
+    CurrentValue = false,
+    Callback = function(v)
+
+        PLAYER_ESP.Enabled = v
+
+        if not v then
+            ClearPlayerESP()
+        end
+
+        if v then
+            AddFeature("玩家透视")
+        else
+            RemoveFeature("玩家透视")
+        end
+
+    end
+})
+
+-- ================= 高亮 =================
+TabVisual:CreateToggle({
+    Name = "高亮透视",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.HighlightEnabled = v
+    end
+})
+
+-- ================= 方框 =================
+TabVisual:CreateToggle({
+    Name = "人物方框",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.BoxEnabled = v
+    end
+})
+
+-- ================= 名字 =================
+TabVisual:CreateToggle({
+    Name = "名字显示",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.ShowName = v
+    end
+})
+
+-- ================= 血量 =================
+TabVisual:CreateToggle({
+    Name = "血量显示",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.ShowHealth = v
+    end
+})
+
+-- ================= 距离 =================
+TabVisual:CreateToggle({
+    Name = "距离显示",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.ShowDist = v
+    end
+})
+
+-- ================= 队伍检测 =================
+TabVisual:CreateToggle({
+    Name = "队伍检测",
+    CurrentValue = true,
+    Callback = function(v)
+        PLAYER_ESP.TeamCheck = v
+    end
+})
 
 -- 4. 夜视功能 Tab
-local TabNight = Window:CreateTab("夜视功能")
-TabNight:CreateToggle({Name="普通夜视",CurrentValue=false,Callback=ApplyNormalNightVision})
-TabNight:CreateToggle({Name="超级夜视 (1.5x 增强)",CurrentValue=false,Callback=ApplySuperNightVision})
-TabNight:CreateToggle({Name="彻底去雾",CurrentValue=false,Callback=ApplyNoFog})
+local TabNight = Window:CreateTab("视觉功能")
+TabNight:CreateToggle({
+    Name = "普通夜视",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能
+        ApplyNormalNightVision(Value)
+
+        -- 功能显示
+        if Value then
+            AddFeature("夜视")
+        else
+            RemoveFeature("夜视")
+        end
+
+    end
+})
+TabNight:CreateToggle({
+    Name = "超级夜视 (1.5x 增强)",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能
+        ApplySuperNightVision(Value)
+
+        -- 功能显示
+        if Value then
+            AddFeature("超级夜视")
+        else
+            RemoveFeature("超级夜视")
+        end
+
+    end
+})
+TabNight:CreateToggle({
+    Name = "彻底去雾",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        -- 原功能（必须保留）
+        ApplyNoFog(Value)
+
+        -- ⭐功能显示（你要加的）
+        if Value then
+            AddFeature("去雾")
+        else
+            RemoveFeature("去雾")
+        end
+
+    end
+})
 TabNight:CreateButton({Name="关闭所有夜视/去雾",Callback=function() 
     ApplyNormalNightVision(false) 
     ApplySuperNightVision(false) 
     ApplyNoFog(false) 
 end})
+TabNight:CreateToggle({
+    Name = "功能列表显示",
+    CurrentValue = true,
+    Callback = function(Value)
 
+        FeatureDisplayEnabled = Value
+
+        if Value then
+            AddFeature("夜脚本")
+        else
+            RemoveFeature("夜脚本")
+        end
+
+        RefreshFeatureUI()
+    end
+})
+
+-- ⭐关键：初始化（解决默认不显示）
+AddFeature("夜脚本")
+RefreshFeatureUI()
 local TabOther = Window:CreateTab("通用")
 TabOther:CreateSection("自由视角说明：请勿在正在飞行时打开自由视角，这可能导致冲突并使得本体移动，如果输入时键盘卡住就切后台再切回来")
+-- 自由视角
 TabOther:CreateToggle({
     Name = "自由视角",
     CurrentValue = false,
     Callback = function(Value)
+
         if Value then
             StartFreecam()
             Notify("Freecam","已开启",2)
@@ -1390,8 +1864,18 @@ TabOther:CreateToggle({
             StopFreecam()
             Notify("Freecam","已关闭",2)
         end
+
+        -- ⭐功能显示
+        if Value then
+            AddFeature("自由视角")
+        else
+            RemoveFeature("自由视角")
+        end
+
     end
 })
+
+-- ⚠️ 输入框保持不变（不加显示）
 TabOther:CreateInput({
     Name = "Freecam速度（建议1-5）",
     PlaceholderText = "默认2",
@@ -1405,6 +1889,7 @@ TabOther:CreateInput({
         end
     end,
 })
+
 TabOther:CreateInput({
     Name = "视角灵敏度（建议0.005-0.02）",
     PlaceholderText = "默认0.01",
@@ -1418,11 +1903,22 @@ TabOther:CreateInput({
         end
     end,
 })
+
+-- 防摔落伤害
 TabOther:CreateToggle({
     Name = "防摔落伤害",
     CurrentValue = false,
     Callback = function(Value)
+
         ToggleAntiFall(Value)
+
+        -- ⭐功能显示
+        if Value then
+            AddFeature("防摔")
+        else
+            RemoveFeature("防摔")
+        end
+
     end
 })
 TabOther:CreateButton({
@@ -1550,12 +2046,21 @@ TabAimbot:CreateToggle({
     Name = "自瞄开关",
     CurrentValue = false,
     Callback = function(Value)
+
+        -- 原逻辑（保持不动）
         ESP_SETTINGS.HighlightEnabled = Value
 
-        -- ⭐立即控制圈
         if circle then
             circle.Visible = Value
         end
+
+        -- ⭐加这里（就完事）
+        if Value then
+            AddFeature("自瞄")
+        else
+            RemoveFeature("自瞄")
+        end
+
     end
 })
 -- ================= 队伍检测 =================
@@ -1729,6 +2234,13 @@ if not Camera then return end
             end
 
         end
+    end
+
+end)
+RunService.Heartbeat:Connect(function()
+
+    if PLAYER_ESP.Enabled then
+        UpdatePlayerESP()
     end
 
 end)
