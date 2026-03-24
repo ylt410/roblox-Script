@@ -114,6 +114,96 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
     Theme = "Serenity" -- <- 已设置为琥珀色发光主题
 })
+-- =================== 完美修复版·流光彩虹 ===================
+task.wait(0.01)
+
+local RayfieldScreen = game:GetService("CoreGui"):FindFirstChild("Rayfield") 
+                 or (gethui and gethui():FindFirstChild("Rayfield"))
+
+if not RayfieldScreen or not RayfieldScreen:FindFirstChild("Main") then return end
+
+local Main = RayfieldScreen.Main
+
+-- 1. 清理旧逻辑
+for _, v in ipairs(Main:GetDescendants()) do
+    if v:IsA("UIStroke") and v.Name == "RainbowBorder" then
+        v:Destroy()
+    end
+end
+
+-- 2. 创建持久的描边对象
+local Stroke = Instance.new("UIStroke")
+Stroke.Name = "RainbowBorder"
+Stroke.Thickness = 3.5
+Stroke.Color = Color3.new(1, 1, 1)
+Stroke.LineJoinMode = Enum.LineJoinMode.Round
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke.Parent = Main
+
+local Gradient = Instance.new("UIGradient")
+Gradient.Name = "RainbowGradient"
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(0.16, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(0, 255, 255)),
+    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 0, 255)),
+    ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(255, 0, 0))
+})
+Gradient.Parent = Stroke
+
+-- 3. 动画逻辑 (保持常驻)
+local RunService = game:GetService("RunService")
+local currentAngle = 0
+local rotSpeed = 150 
+
+RunService.RenderStepped:Connect(function(dt)
+    if Stroke and Stroke.Parent then
+        currentAngle = (currentAngle + dt * rotSpeed) % 360
+        Gradient.Rotation = currentAngle
+    end
+end)
+
+-- 4. ⭐ 解决“变白”和“先关闭”的核心逻辑 ⭐
+-- 我们不销毁它，而是直接让它消失，这样二次打开时配置依然在
+local function ToggleBorder(show)
+    if show then
+        Stroke.Enabled = true
+        -- 如果 Rayfield 重置了透明度，强制设回 0
+        Stroke.Transparency = 0 
+    else
+        -- 关闭时：立即让描边失效
+        Stroke.Enabled = false 
+    end
+end
+
+-- 监听可见性
+Main:GetPropertyChangedSignal("Visible"):Connect(function()
+    ToggleBorder(Main.Visible)
+end)
+
+-- 监听大小（处理缩放关闭动画）
+Main:GetPropertyChangedSignal("Size"):Connect(function()
+    if Main.Size.X.Offset < 50 or Main.Size.Y.Offset < 50 then
+        ToggleBorder(false)
+    else
+        ToggleBorder(true)
+    end
+end)
+
+-- 初始状态同步
+ToggleBorder(Main.Visible)
+
+-- 圆角同步
+local Corner = Main:FindFirstChildOfClass("UICorner")
+if not Corner then
+    Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 12)
+    Corner.Parent = Main
+end
+
+print("Rainbow Border Fixed: No more white screen!")
 -- =================== 功能显示系统（终极进阶版） ===================
 
 local FeatureDisplayEnabled = true
