@@ -2418,6 +2418,23 @@ TabStop:CreateButton({
         end
     end
 })
+TabStop:CreateButton({
+    Name = "自杀（重生）",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.Health = 0
+                Notify("已自杀", "角色已重生", 2)
+            else
+                Notify("失败", "未找到Humanoid", 2)
+            end
+        else
+            Notify("失败", "角色未加载", 2)
+        end
+    end
+})
 
 
 
