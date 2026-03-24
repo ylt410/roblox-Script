@@ -394,8 +394,30 @@ local PLAYER_ESP = {
 -- 自瞄参数
 local FOV = 120              -- 自瞄范围（和圈同步）
 local Smoothness = 0.18      -- 平滑程度
-local AimPart = "Head"       -- 锁定部位
+local AimPart = "Head"
+
+-- ⭐可选部位列表（顺便做容错）
+local AimPartsList = {
+    "Head",
+    "HumanoidRootPart",
+    "UpperTorso",
+    "Torso"
+}
 local MaxDistance = 1000     -- 最大距离
+-- ⭐统一获取瞄准部位（必须放全局）
+local function GetAimPart(char)
+
+    if not char then return nil end
+
+    local part = char:FindFirstChild(AimPart)
+
+    if not part then
+        part = char:FindFirstChild("Head")
+            or char:FindFirstChild("HumanoidRootPart")
+    end
+
+    return part
+end
 
 -- 自瞄连接（防重复）
 local AimbotConnection = nil
@@ -1533,6 +1555,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="自瞄更新了选择瞄准位置" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="给UI加了彩虹描边，并且修复了修改走路速度重生后异常的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="把玩家透视集成进了脚本，并且还加入了开启功能显示" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了修改跳跃重生后失效的bug" })
@@ -2301,6 +2324,19 @@ TabAimbot:CreateToggle({
         ESP_SETTINGS.SmoothAim = Value
     end
 })
+TabAimbot:CreateDropdown({
+    Name = "瞄准部位",
+    Options = AimPartsList,
+    CurrentOption = {"Head"},
+    MultipleOptions = false,
+    Callback = function(Option)
+
+        AimPart = Option[1]
+
+        Notify("瞄准部位", AimPart, 2)
+
+    end
+})
 local function isVisible(p, part)
 
     if not Camera then return false end  -- ⭐防炸
@@ -2336,9 +2372,8 @@ local function getTarget()
             if ESP_SETTINGS.TeamCheck and p.Team == LocalPlayer.Team then
                 continue
             end
-
-            local part = p.Character and p.Character:FindFirstChild(AimPart)
-            if part then
+local part = GetAimPart(p.Character)
+                       if part then
                 
                 local camPos = Camera.CFrame.Position
                 local offset = part.Position - camPos
@@ -2410,7 +2445,7 @@ if not Camera then return end
     local target = getTarget()
 
     if target and target.Character then
-        local part = target.Character:FindFirstChild(AimPart)
+        local part = GetAimPart(target.Character)
         if part then
 
             local camPos = Camera.CFrame.Position
