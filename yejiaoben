@@ -151,13 +151,7 @@ local function CheckAdmin(player)
         end
     end)
 
-    -- 2️⃣ 名字检测
-    local name = player.Name:lower()
-    if name:find("admin") or name:find("owner") or name:find("mod") then
-        suspicious = true
-        reason = "名称疑似管理员"
-    end
-   -- ===== 触发 =====
+  -- ===== 触发 =====
     if suspicious then
         flaggedAdmins[player] = true
 
