@@ -27,6 +27,20 @@ stroke.Parent = circle
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = circle
+-- =================== 主题配置系统 ===================
+
+local ThemeFile = "NightScriptTheme.txt"
+local CurrentTheme = "Serenity" -- 默认
+
+-- 读取配置
+pcall(function()
+    if isfile and isfile(ThemeFile) then
+        local saved = readfile(ThemeFile)
+        if saved and saved ~= "" then
+            CurrentTheme = saved
+        end
+    end
+end)
 -- --------- 1. 预设通知工具（为了在加载网络库前就能弹出提示） ----------
 local StarterGui = game:GetService("StarterGui")
 local function FallbackNotify(title, content, duration)
@@ -112,8 +126,74 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = true, FolderName = "ESP", FileName = "RayfieldESP" },
     Discord = { Enabled = false },
     KeySystem = false,
-    Theme = "Serenity" -- <- 已设置为琥珀色发光主题
+    Theme = CurrentTheme
 })
+-- =================== 管理员检测系统 ===================
+
+local AdminDetectEnabled = true
+local flaggedAdmins = {}
+
+local function CheckAdmin(player)
+    if not AdminDetectEnabled then return end
+    if flaggedAdmins[player] then return end
+    if not player or not player.Parent then return end
+
+    local suspicious = false
+    local reason = ""
+
+    -- 1️⃣ Group检测
+    pcall(function()
+        for _, g in ipairs(player:GetGroups()) do
+            if g.Rank >= 200 then
+                suspicious = true
+                reason = "高Rank玩家"
+            end
+        end
+    end)
+
+    -- 2️⃣ 名字检测
+    local name = player.Name:lower()
+    if name:find("admin") or name:find("owner") or name:find("mod") then
+        suspicious = true
+        reason = "名称疑似管理员"
+    end
+   -- ===== 触发 =====
+    if suspicious then
+        flaggedAdmins[player] = true
+
+        Notify("⚠️ 管理员警告", player.Name .. " - " .. reason, 5)
+    end
+end
+
+-- 玩家加入检测
+Players.PlayerAdded:Connect(function(p)
+    task.wait(1)
+    CheckAdmin(p)
+end)
+
+-- 初始化检测
+for _, p in ipairs(Players:GetPlayers()) do
+    task.spawn(function()
+        CheckAdmin(p)
+    end)
+end
+
+-- 循环检测
+task.spawn(function()
+    while true do
+        if AdminDetectEnabled then
+            for _, p in ipairs(Players:GetPlayers()) do
+                CheckAdmin(p)
+            end
+        end
+        task.wait(2)
+    end
+end)
+
+-- 清理缓存
+Players.PlayerRemoving:Connect(function(p)
+    flaggedAdmins[p] = nil
+end)
 -- =================== 完美修复版·流光彩虹 ===================
 task.wait(0.01)
 
@@ -1555,6 +1635,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自定义UI主题" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="自瞄更新了选择瞄准位置" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="给UI加了彩虹描边，并且修复了修改走路速度重生后异常的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="把玩家透视集成进了脚本，并且还加入了开启功能显示" })
@@ -2435,7 +2516,82 @@ TabStop:CreateButton({
         end
     end
 })
+local TabConfig = Window:CreateTab("配置")
+TabConfig:CreateToggle({
+    Name = "管理员检测",
+    CurrentValue = true, -- 默认开启
+    Callback = function(Value)
+        AdminDetectEnabled = Value
+        -- ❌ 不要 Notify
+        -- ❌ 不要 AddFeature
+    end
+})
+TabConfig:CreateDropdown({
+    Name = "UI主题",
+    Options = {
+        "Default",
+        "AmberGlow",
+        "Amethyst",
+        "Bloom",
+        "DarkBlue",
+        "Green",
+        "Light",
+        "Ocean",
+        "Serenity"
+    },
+    CurrentOption = {CurrentTheme},
+    MultipleOptions = false,
 
+    Callback = function(Option)
+
+        local theme = Option[1]
+        CurrentTheme = theme
+
+        -- 切换主题
+        pcall(function()
+            Window:ModifyTheme(theme)
+        end)
+
+        -- 保存配置
+        pcall(function()
+            if writefile then
+                writefile(ThemeFile, theme)
+            end
+        end)
+
+        -- ⭐新增：提示重新进入
+        FallbackNotify("主题已更改", "请重新加入服务器并重新注入以完全生效", 5)
+
+    end
+})
+TabConfig:CreateButton({
+    Name = "重新进入服务器",
+    Callback = function()
+
+        Notify("正在重进", "请稍候...", 3)
+
+        local TeleportService = game:GetService("TeleportService")
+        local Players = game:GetService("Players")
+
+        local player = Players.LocalPlayer
+
+        -- ⭐重新加入当前Place
+        TeleportService:Teleport(game.PlaceId, player)
+
+    end
+})
+TabConfig:CreateParagraph({ Title="查看配置图例", Content="https://docs.sirius.menu/rayfield/configuration/themes" })
+TabConfig:CreateButton({
+    Name = "复制网址",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://docs.sirius.menu/rayfield/configuration/themes")
+            Notify("复制成功", "网址已复制到剪贴板", 3)
+        else
+            Notify("复制失败", "当前环境不支持复制", 3)
+        end
+    end
+})
 
 
 Notify("脚本加载完成","by 夜",3)
