@@ -443,6 +443,135 @@ local function RemoveFeature(name)
     end
     RefreshFeatureUI()
 end
+-- =================== 自身血量显示（极简稳定版·全游戏开启） ===================
+
+local HealthPosFile = "NightHealthPos.txt"
+
+local HealthDisplay = {
+    Enabled = true, -- ⭐永远默认开启
+    Position = "LeftTop", -- ⭐默认左上角
+    Label = nil
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ================= 读取保存位置 =================
+pcall(function()
+    if isfile and isfile(HealthPosFile) then
+        local saved = readfile(HealthPosFile)
+        if saved and saved ~= "" then
+            HealthDisplay.Position = saved
+        end
+    end
+end)
+
+-- ================= UI =================
+local HealthGui = Instance.new("ScreenGui")
+HealthGui.Name = "SelfHealthDisplay"
+HealthGui.ResetOnSpawn = false
+HealthGui.Parent = game.CoreGui
+
+local function CreateHealthUI()
+
+    if HealthDisplay.Label then
+        HealthDisplay.Label:Destroy()
+    end
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 140, 0, 20)
+    label.BackgroundTransparency = 1
+    label.TextStrokeTransparency = 0.5
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 14
+    label.Text = "HP: -- / --"
+    label.Parent = HealthGui
+
+    HealthDisplay.Label = label
+end
+
+-- ================= 位置 =================
+local function UpdatePosition()
+
+    local label = HealthDisplay.Label
+    if not label then return end
+
+    if HealthDisplay.Position == "LeftTop" then
+        label.Position = UDim2.new(0, 10, 0, 10)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+    elseif HealthDisplay.Position == "RightTop" then
+        label.Position = UDim2.new(1, -150, 0, 10)
+        label.TextXAlignment = Enum.TextXAlignment.Right
+
+    elseif HealthDisplay.Position == "LeftBottom" then
+        label.Position = UDim2.new(0, 10, 1, -30)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+    elseif HealthDisplay.Position == "RightBottom" then
+        label.Position = UDim2.new(1, -150, 1, -30)
+        label.TextXAlignment = Enum.TextXAlignment.Right
+    end
+end
+
+-- ================= 初始化 =================
+CreateHealthUI()
+UpdatePosition()
+
+-- ================= 血量更新 =================
+task.spawn(function()
+
+    while true do
+
+        if HealthDisplay.Enabled then
+
+            local label = HealthDisplay.Label
+            if not label then task.wait(0.1) continue end
+
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+
+                if hum then
+                    local current = math.floor(hum.Health)
+                    local max = math.floor(hum.MaxHealth)
+
+                    if max <= 0 then max = 1 end
+
+                    local percent = current / max
+
+                    local color
+                    if percent > 0.6 then
+                        color = Color3.fromRGB(0,255,0)
+                    elseif percent > 0.3 then
+                        color = Color3.fromRGB(255,170,0)
+                    else
+                        color = Color3.fromRGB(255,0,0)
+                    end
+
+                    label.TextColor3 = color
+                    label.Text = "HP: " .. current .. " / " .. max
+                    label.Visible = true
+                end
+            end
+
+        else
+            if HealthDisplay.Label then
+                HealthDisplay.Label.Visible = false
+            end
+        end
+
+        task.wait(0.08)
+    end
+
+end)
+
+-- ================= 重生 =================
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    CreateHealthUI()
+    UpdatePosition()
+end)
 -- =================== 自瞄系统变量（必须放最上面） ===================
 
 
@@ -1629,6 +1758,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自身血量显示" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自定义UI主题" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="自瞄更新了选择瞄准位置" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="给UI加了彩虹描边，并且修复了修改走路速度重生后异常的bug" })
@@ -2137,7 +2267,40 @@ task.wait(0.05)
 
 AddFeature("夜脚本")
 RefreshFeatureUI()
-local TabOther = Window:CreateTab("通用")
+TabNight:CreateToggle({
+    Name = "自身血量显示",
+    CurrentValue = true, -- ⭐直接默认开
+    Callback = function(v)
+
+        HealthDisplay.Enabled = v
+
+        if HealthDisplay.Label then
+            HealthDisplay.Label.Visible = v
+        end
+
+    end
+})
+TabNight:CreateDropdown({
+    Name = "显示位置",
+    Options = {"LeftTop","RightTop","LeftBottom","RightBottom"},
+    CurrentOption = {HealthDisplay.Position},
+    MultipleOptions = false,
+    Callback = function(opt)
+
+        local pos = opt[1]
+        HealthDisplay.Position = pos
+
+        -- ⭐保存
+        pcall(function()
+            if writefile then
+                writefile(HealthPosFile, pos)
+            end
+        end)
+
+        UpdatePosition() -- ⭐直接刷新
+
+    end
+})local TabOther = Window:CreateTab("通用")
 TabOther:CreateSection("自由视角说明：请勿在正在飞行时打开自由视角，这可能导致冲突并使得本体移动，如果输入时键盘卡住就切后台再切回来")
 -- 自由视角
 TabOther:CreateToggle({
