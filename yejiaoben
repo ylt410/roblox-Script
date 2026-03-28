@@ -55,8 +55,7 @@ end
 
 -- [新增] 注入成功后的瞬间反馈
 FallbackNotify("夜脚本", "看到这个就说明基础脚本已经加载完毕，正在加载UI库", 3)
-FallbackNotify("加载中", "开始载入UI，剩余时间大约2秒如网络不佳可能延长", 3)
-task.wait(2)
+FallbackNotify("加载中", "开始载入UI，剩余时间大约1秒如网络不佳可能延长", 3)
 
 local function tryLoadRayfield(retries, timeoutPerAttempt)
     retries = retries or 3
@@ -624,6 +623,10 @@ end
 
 -- 自瞄连接（防重复）
 local AimbotConnection = nil
+-- ================= 指定自瞄目标 =================
+local LockTargetEnabled = false
+local SelectedTarget = nil
+local PlayerList = {}
 
 -- =================== 全局变量与属性记录 (修改这里) ===================
 local TargetWalkSpeed = 16
@@ -1745,7 +1748,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="功能显示我默认开了，不想要的去视觉功能里面关闭" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="指定自瞄目前有点问题用还是可以用的后续应该会修" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -2575,6 +2578,65 @@ TabAimbot:CreateDropdown({
 
     end
 })
+-- ================= 指定自瞄 =================
+TabAimbot:CreateSection("指定自瞄目标")
+
+-- 开关
+TabAimbot:CreateToggle({
+    Name = "开启指定自瞄目标",
+    CurrentValue = false,
+ Callback = function(Value)
+    LockTargetEnabled = Value
+    Notify("指定自瞄", Value and "已开启" or "已关闭", 2)
+end
+})
+
+-- 下拉选择
+local PlayerDropdown = TabAimbot:CreateDropdown({
+    Name = "选择玩家",
+    Options = {},
+    CurrentOption = {},
+    MultipleOptions = false,
+    Callback = function(Option)
+
+        local name = Option[1]
+        if not name then return end
+
+        local target = Players:FindFirstChild(name)
+        if target then
+            SelectedTarget = target
+            Notify("已锁定目标", name, 2)
+        end
+    end
+})
+
+-- 刷新列表函数
+local function RefreshPlayerList()
+
+    PlayerList = {}
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(PlayerList, p.Name)
+        end
+    end
+
+    PlayerDropdown:Refresh(PlayerList)
+
+    Notify("玩家列表已刷新", "当前人数: "..#PlayerList, 2)
+end
+
+-- 刷新按钮
+TabAimbot:CreateButton({
+    Name = "刷新玩家列表",
+    Callback = function()
+        RefreshPlayerList()
+    end
+})
+
+-- 自动初始化一次
+task.delay(1, RefreshPlayerList)
+
 local function isVisible(p, part)
 
     if not Camera then return false end  -- ⭐防炸
@@ -2599,8 +2661,36 @@ local function isAlive(p)
     return h and h.Health > 0
 end
 local function getTarget()
+
+    -- ================= 指定目标优先 =================
+    if LockTargetEnabled and SelectedTarget then
+
+        if SelectedTarget.Parent and isAlive(SelectedTarget) then
+
+            -- 队伍检测
+            if ESP_SETTINGS.TeamCheck and SelectedTarget.Team == LocalPlayer.Team then
+                return nil
+            end
+
+            local char = SelectedTarget.Character
+            local part = char and GetAimPart(char)
+
+            if part then
+                local dist = (Camera.CFrame.Position - part.Position).Magnitude
+
+                if dist <= MaxDistance then
+                    return SelectedTarget -- ⭐直接锁定目标（无视FOV）
+                end
+            end
+
+        else
+            SelectedTarget = nil
+        end
+    end
+
+    -- ================= 原本自瞄 =================
     local closest = nil
-    local shortest = FOV -- 🔥 只在FOV内找
+    local shortest = FOV
     local center = Camera.ViewportSize / 2
 
     for _, p in ipairs(Players:GetPlayers()) do
@@ -2610,27 +2700,25 @@ local function getTarget()
             if ESP_SETTINGS.TeamCheck and p.Team == LocalPlayer.Team then
                 continue
             end
-local part = GetAimPart(p.Character)
-                       if part then
-                
+
+            local part = GetAimPart(p.Character)
+            if part then
+
                 local camPos = Camera.CFrame.Position
                 local offset = part.Position - camPos
                 local distance = offset.Magnitude
 
                 -- 距离限制
                 if distance > MaxDistance then
-    continue
-end
-                -- 背后检测（保留你原逻辑）
-                local directionUnit = distance > 0 and offset.Unit or Vector3.zero
-                local dot = Camera.CFrame.LookVector:Dot(directionUnit)
-                
-               local pos, visible = Camera:WorldToViewportPoint(part.Position)
+                    continue
+                end
+
+                local pos, visible = Camera:WorldToViewportPoint(part.Position)
                 if not visible then continue end
 
                 local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
 
-                -- 🔥 FOV + 最近优先
+                -- FOV + 最近优先
                 if dist < shortest and isVisible(p, part) then
                     shortest = dist
                     closest = p
