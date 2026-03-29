@@ -1748,7 +1748,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="指定自瞄目前有点问题用还是可以用的后续应该会修" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="虽然副作者跑路了，但是我的脚本还是会持续日更的" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -1761,6 +1761,7 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了指定自瞄开启队伍检测或墙壁检测，会导致指定自瞄，变为普通自瞄的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自身血量显示" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自定义UI主题" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="自瞄更新了选择瞄准位置" })
