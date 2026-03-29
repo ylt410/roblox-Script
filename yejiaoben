@@ -2662,54 +2662,53 @@ local function isAlive(p)
 end
 local function getTarget()
 
-    -- ================= 指定目标优先 =================
+    local candidates = {}
+
+    -- ================= 候选人来源 =================
     if LockTargetEnabled and SelectedTarget then
-
-        if SelectedTarget.Parent and isAlive(SelectedTarget) then
-
-            -- 队伍检测
-            if ESP_SETTINGS.TeamCheck and SelectedTarget.Team == LocalPlayer.Team then
-                return nil
+        -- ⭐指定自瞄：只检测一个人
+        table.insert(candidates, SelectedTarget)
+    else
+        -- ⭐普通自瞄：所有玩家
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                table.insert(candidates, p)
             end
-
-            local char = SelectedTarget.Character
-            local part = char and GetAimPart(char)
-
-            if part then
-                local dist = (Camera.CFrame.Position - part.Position).Magnitude
-
-                if dist <= MaxDistance then
-                    return SelectedTarget -- ⭐直接锁定目标（无视FOV）
-                end
-            end
-
-        else
-            SelectedTarget = nil
         end
     end
 
-    -- ================= 原本自瞄 =================
+    -- ================= 统一筛选 =================
     local closest = nil
     local shortest = FOV
     local center = Camera.ViewportSize / 2
 
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and isAlive(p) then
+    for _, p in ipairs(candidates) do
 
-            -- 队伍检测
-            if ESP_SETTINGS.TeamCheck and p.Team == LocalPlayer.Team then
-                continue
+        if p and p ~= LocalPlayer and isAlive(p) then
+
+            -- ❗队伍检测：只对普通自瞄生效
+            if (not LockTargetEnabled) and ESP_SETTINGS.TeamCheck then
+                if p.Team == LocalPlayer.Team then
+                    continue
+                end
             end
 
-            local part = GetAimPart(p.Character)
+            local char = p.Character
+            local part = char and GetAimPart(char)
+
             if part then
 
                 local camPos = Camera.CFrame.Position
                 local offset = part.Position - camPos
                 local distance = offset.Magnitude
 
-                -- 距离限制
+                -- 距离检测
                 if distance > MaxDistance then
+                    continue
+                end
+
+                -- 墙体检测（⭐对所有模式生效，包括指定）
+                if not isVisible(p, part) then
                     continue
                 end
 
@@ -2718,8 +2717,8 @@ local function getTarget()
 
                 local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
 
-                -- FOV + 最近优先
-                if dist < shortest and isVisible(p, part) then
+                -- ⭐FOV检测（指定也必须在圈内）
+                if dist < shortest then
                     shortest = dist
                     closest = p
                 end
