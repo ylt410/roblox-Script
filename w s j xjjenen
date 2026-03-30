@@ -1768,6 +1768,8 @@ TabAnnounce:CreateButton({
         end
     end
 })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了因为修复了偶发性的自瞄墙壁检测把瞄准镜当墙壁的bug而导致的不在fov内自瞄的bug" })
+TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了偶发性的自瞄墙壁检测把瞄准镜当墙壁的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="修复了指定自瞄开启队伍检测或墙壁检测，会导致指定自瞄，变为普通自瞄的bug" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自身血量显示" })
 TabAnnounce:CreateParagraph({ Title="更新日志", Content="更新了自定义UI主题" })
