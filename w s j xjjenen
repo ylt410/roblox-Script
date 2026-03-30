@@ -2637,39 +2637,162 @@ TabAimbot:CreateButton({
 -- 自动初始化一次
 task.delay(1, RefreshPlayerList)
 
+local VisibilityCache = {}
+
 local function isVisible(p, part)
 
-    if not Camera then return false end  -- ⭐防炸
-
+    if not Camera then return false end
     if not ESP_SETTINGS.WallCheck then return true end
 
+    local origin = Camera.CFrame.Position
+
     local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
     rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.IgnoreWater = true
 
-    local result = workspace:Raycast(
-        Camera.CFrame.Position,
-        (part.Position - Camera.CFrame.Position),
-        rayParams
-    )
+    local ignoreList = {LocalPlayer.Character, Camera}
 
-    return result and result.Instance and result.Instance:IsDescendantOf(p.Character)
+    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        table.insert(ignoreList, tool)
+    end
+
+    rayParams.FilterDescendantsInstances = ignoreList
+
+    local offsets = {
+        Vector3.new(0,0,0),
+        Vector3.new(0.25,0,0),
+        Vector3.new(-0.25,0,0),
+        Vector3.new(0,0.25,0),
+        Vector3.new(0,-0.25,0),
+    }
+
+    local visibleCount = 0
+
+    for _, offset in ipairs(offsets) do
+
+        local targetPos = part.Position + offset
+        local direction = targetPos - origin
+
+        local currentOrigin = origin
+local remaining = direction
+local hitCharacter = false
+
+for i = 1, 3 do  -- 最多穿透3层
+
+    local result = workspace:Raycast(currentOrigin, remaining, rayParams)
+
+    if not result then
+        hitCharacter = true
+        break
+    end
+
+    local hit = result.Instance
+
+    -- 命中敌人
+    if hit and hit:IsDescendantOf(p.Character) then
+        hitCharacter = true
+        break
+    end
+
+    -- ⭐ 如果是透明物体 → 继续穿透
+    if hit and (
+        hit.Transparency > 0.4 
+        or hit.CanCollide == false 
+        or hit.Material == Enum.Material.Glass
+        or hit.Name:lower():find("scope")
+        or hit.Name:lower():find("view")
+    ) then
+        currentOrigin = result.Position + (remaining.Unit * 0.1)
+        remaining = (part.Position - currentOrigin)
+    else
+        -- ❌ 真正的墙 → 直接挡住
+        break
+    end
+end
+
+if hitCharacter then
+    visibleCount += 1
+end
+        if hit then
+            if hit.Transparency > 0.4 
+            or hit.CanCollide == false 
+            or hit.Material == Enum.Material.Glass
+            or hit.Name:lower():find("scope")
+            or hit.Name:lower():find("view")
+            then
+                visibleCount += 1
+                continue
+            end
+        end
+    end
+
+    local isNowVisible = visibleCount >= 2
+
+    local last = VisibilityCache[p]
+
+    if last == nil then
+        VisibilityCache[p] = isNowVisible
+        return isNowVisible
+    end
+
+    if isNowVisible ~= last then
+        VisibilityCache[p] = last
+        task.delay(0.03, function()
+            VisibilityCache[p] = isNowVisible
+        end)
+        return last
+    end
+
+    VisibilityCache[p] = isNowVisible
+    return isNowVisible
 end
 local function isAlive(p)
     local c = p.Character
     local h = c and c:FindFirstChild("Humanoid")
     return h and h.Health > 0
 end
+local CurrentTarget = nil
+local LastSwitchTime = 0
+
+local SWITCH_DELAY = 0.25
+local SWITCH_THRESHOLD = 0.7
+
+local function shouldForceSwitch(target)
+
+    if not target then return true end
+    if not isAlive(target) then return true end
+
+    local char = target.Character
+    local part = char and GetAimPart(char)
+
+    if not part then return true end
+    if not isVisible(target, part) then return true end
+
+    local pos, visible = Camera:WorldToViewportPoint(part.Position)
+    if not visible then return true end
+
+    local center = Camera.ViewportSize / 2
+    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+
+    if dist > FOV then return true end
+
+    return false
+end
+
 local function getTarget()
+
+    local now = tick()
+    local center = Camera.ViewportSize / 2
+
+    local bestTarget = nil
+    local bestDist = math.huge
 
     local candidates = {}
 
-    -- ================= 候选人来源 =================
     if LockTargetEnabled and SelectedTarget then
-        -- ⭐指定自瞄：只检测一个人
         table.insert(candidates, SelectedTarget)
     else
-        -- ⭐普通自瞄：所有玩家
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer then
                 table.insert(candidates, p)
@@ -2677,16 +2800,10 @@ local function getTarget()
         end
     end
 
-    -- ================= 统一筛选 =================
-    local closest = nil
-    local shortest = FOV
-    local center = Camera.ViewportSize / 2
-
     for _, p in ipairs(candidates) do
 
-        if p and p ~= LocalPlayer and isAlive(p) then
+        if p and isAlive(p) then
 
-            -- ❗队伍检测：只对普通自瞄生效
             if (not LockTargetEnabled) and ESP_SETTINGS.TeamCheck then
                 if p.Team == LocalPlayer.Team then
                     continue
@@ -2699,34 +2816,63 @@ local function getTarget()
             if part then
 
                 local camPos = Camera.CFrame.Position
-                local offset = part.Position - camPos
-                local distance = offset.Magnitude
+                local dist3D = (part.Position - camPos).Magnitude
 
-                -- 距离检测
-                if distance > MaxDistance then
-                    continue
-                end
-
-                -- 墙体检测（⭐对所有模式生效，包括指定）
-                if not isVisible(p, part) then
-                    continue
-                end
+                if dist3D > MaxDistance then continue end
+                if not isVisible(p, part) then continue end
 
                 local pos, visible = Camera:WorldToViewportPoint(part.Position)
                 if not visible then continue end
 
-                local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                local dist2D = (Vector2.new(pos.X, pos.Y) - center).Magnitude
 
-                -- ⭐FOV检测（指定也必须在圈内）
-                if dist < shortest then
-                    shortest = dist
-                    closest = p
+                if dist2D < bestDist then
+                    bestDist = dist2D
+                    bestTarget = p
                 end
             end
         end
     end
 
-    return closest
+    -- ⭐强制切换（秒切）
+    if shouldForceSwitch(CurrentTarget) then
+        CurrentTarget = bestTarget
+        LastSwitchTime = now
+        return bestTarget
+    end
+
+    -- ⭐正常锁定
+    if bestTarget then
+
+        if now - LastSwitchTime < SWITCH_DELAY then
+            return CurrentTarget
+        end
+
+        if CurrentTarget and CurrentTarget ~= bestTarget then
+
+            local char = CurrentTarget.Character
+            local part = char and GetAimPart(char)
+
+            if part then
+                local pos, visible = Camera:WorldToViewportPoint(part.Position)
+
+                if visible then
+                    local currentDist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+
+                    if bestDist > currentDist * SWITCH_THRESHOLD then
+                        return CurrentTarget
+                    end
+                end
+            end
+        end
+
+        CurrentTarget = bestTarget
+        LastSwitchTime = now
+
+        return bestTarget
+    end
+
+    return nil
 end
 local TabStop = Window:CreateTab("终止")
 TabStop:CreateButton({
