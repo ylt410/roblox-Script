@@ -1,9 +1,9 @@
 --[[
-╔═══════════════════════════════════╗
-║                                   ║
-║           by Ye Script            ║
-║                                   ║
-╚═══════════════════════════════════╝
+╔═══════════════════════════════════════════════╗
+║                                               ║
+║                 by Ye Script                  ║
+║                                               ║
+╚═══════════════════════════════════════════════╝
 ]]
 
 -- 作者抖音58873829421
@@ -2834,10 +2834,11 @@ local function getTarget()
 
                 local dist2D = (Vector2.new(pos.X, pos.Y) - center).Magnitude
 
-                if dist2D < bestDist then
-                    bestDist = dist2D
-                    bestTarget = p
-                end
+-- ⭐核心修复：限制在FOV内
+if dist2D <= FOV and dist2D < bestDist then
+    bestDist = dist2D
+    bestTarget = p
+end
             end
         end
     end
