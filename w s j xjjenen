@@ -1875,7 +1875,7 @@ end)
 
 -- 1. 公告 Tab
 local TabAnnounce = Window:CreateTab("公告")
-TabAnnounce:CreateParagraph({ Title="公告", Content="夜脚本原管理3611146336全家死了，跑路之前还要搞我" })
+TabAnnounce:CreateParagraph({ Title="公告", Content="感谢所有支持夜脚本的人，我们的群已经100人了" })
 TabAnnounce:CreateParagraph({ Title="夜脚本主群", Content="1081045774" })
 TabAnnounce:CreateButton({
     Name = "复制QQ群",
@@ -3132,7 +3132,7 @@ TabConfig:CreateButton({
 
 
 Notify("脚本加载完成","by 夜",3)
-Notify("1","作者成功修复了脚本不够屎山的bug",3)
+Notify("感谢所有支持夜脚本的人","我们的群已经100人了",3)
 AimbotConnection = RunService.RenderStepped:Connect(function()
 
     -- UI FOV圈更新
