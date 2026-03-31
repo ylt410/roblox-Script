@@ -1050,8 +1050,16 @@ function RayfieldLibrary:Notify(data) -- action e.g open messages
 		newNotification.Name = data.Title or 'No Title Provided'
 		newNotification.Parent = Notifications
 		newNotification.LayoutOrder = #Notifications:GetChildren()
-		newNotification.Visible = false
+-- ✅ 让通知不挡点击（关键修复）
+newNotification.Active = false
+newNotification.Selectable = false
 
+for _, obj in ipairs(newNotification:GetDescendants()) do
+	if obj:IsA("GuiObject") then
+		obj.Active = false
+		obj.Selectable = false
+	end
+end
 		-- Set Data
 		newNotification.Title.Text = data.Title or "Unknown Title"
 		newNotification.Description.Text = data.Content or "Unknown Content"
