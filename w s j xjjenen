@@ -637,6 +637,126 @@ local SelectedTarget = nil
 local PlayerList = {}
 
 -- =================== 全局变量与属性记录 (修改这里) ===================
+-- =================== Universal Kill Aura ===================
+
+local AuraEnabled = false
+local AuraLoop = nil
+
+local ATTACK_RANGE = 60
+local ATTACK_INTERVAL = 0.15
+local MAX_ATTACKS = 3
+
+-- 缓存 Remote（避免每次扫描卡）
+local CachedRemotes = nil
+
+-- =================== 获取目标（全游戏通用） ===================
+local function GetTargets()
+    local targets = {}
+    local lp = game.Players.LocalPlayer
+    local char = lp.Character
+    if not char then return targets end
+
+    local myRoot = char:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return targets end
+
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= char then
+
+            local hum = obj:FindFirstChildOfClass("Humanoid")
+            local root = obj:FindFirstChild("HumanoidRootPart")
+
+            if hum and root and hum.Health > 0 then
+
+                -- 排除玩家
+                if game.Players:GetPlayerFromCharacter(obj) then
+                    continue
+                end
+
+                local dist = (root.Position - myRoot.Position).Magnitude
+
+                if dist <= ATTACK_RANGE then
+                    table.insert(targets, obj)
+                end
+            end
+        end
+    end
+
+    table.sort(targets, function(a, b)
+        return (a.HumanoidRootPart.Position - myRoot.Position).Magnitude <
+               (b.HumanoidRootPart.Position - myRoot.Position).Magnitude
+    end)
+
+    return targets
+end
+
+-- =================== 获取 Remote ===================
+local function GetRemotes()
+
+    if CachedRemotes then return CachedRemotes end
+
+    CachedRemotes = {}
+
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("RemoteEvent") then
+            table.insert(CachedRemotes, v)
+        end
+    end
+
+    return CachedRemotes
+end
+
+-- =================== 多模式攻击 ===================
+local function TryAttack(target)
+
+    local remotes = GetRemotes()
+
+    local head = target:FindFirstChild("Head")
+    local root = target:FindFirstChild("HumanoidRootPart")
+
+    for _, remote in pairs(remotes) do
+
+        pcall(function()
+            -- 常见参数组合（多尝试）
+            remote:FireServer(target)
+            remote:FireServer(target, head and head.Position or root.Position)
+            remote:FireServer("Hit", target)
+            remote:FireServer("Attack", target)
+            remote:FireServer("Damage", target)
+        end)
+
+    end
+end
+
+-- =================== 主循环 ===================
+local function StartAura()
+    if AuraLoop then return end
+
+    AuraEnabled = true
+
+    AuraLoop = task.spawn(function()
+
+        while AuraEnabled do
+
+            local targets = GetTargets()
+
+            for i = 1, math.min(MAX_ATTACKS, #targets) do
+                TryAttack(targets[i])
+            end
+
+            task.wait(ATTACK_INTERVAL)
+        end
+
+    end)
+end
+
+local function StopAura()
+    AuraEnabled = false
+
+    if AuraLoop then
+        task.cancel(AuraLoop)
+        AuraLoop = nil
+    end
+end
 local TargetWalkSpeed = 16
 local SpeedEnabled = false
 -- 新增：自定义跳跃状态和数值
@@ -2367,7 +2487,23 @@ TabOther:CreateInput({
         end
     end,
 })
+TabOther:CreateToggle({
+    Name = "杀戮光环（有些用不了）",
+    CurrentValue = false,
+    Callback = function(Value)
 
+        if Value then
+            StartAura()
+            Notify("杀戮光环","已开启",2)
+            AddFeature("杀戮光环")
+        else
+            StopAura()
+            Notify("杀戮光环","已关闭",2)
+            RemoveFeature("杀戮光环")
+        end
+
+    end
+})
 -- 防摔落伤害
 TabOther:CreateToggle({
     Name = "防摔落伤害",
