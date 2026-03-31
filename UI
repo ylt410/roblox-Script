@@ -1042,26 +1042,16 @@ local function SaveConfiguration()
 	callSafely(writefile, ConfigurationFolder .. "/" .. CFileName .. ConfigurationExtension, tostring(HttpService:JSONEncode(Data)))
 end
 
-local newNotification = Notifications.Template:Clone()
-newNotification.Name = data.Title or 'No Title Provided'
-newNotification.Parent = Notifications
-newNotification.LayoutOrder = #Notifications:GetChildren()
-newNotification.Visible = false
+function RayfieldLibrary:Notify(data) -- action e.g open messages
+	task.spawn(function()
 
--- 不挡下面点击
-pcall(function()
-	newNotification.Active = false
-	newNotification.Selectable = false
-end)
+		-- Notification Object Creation
+		local newNotification = Notifications.Template:Clone()
+		newNotification.Name = data.Title or 'No Title Provided'
+		newNotification.Parent = Notifications
+		newNotification.LayoutOrder = #Notifications:GetChildren()
+		newNotification.Visible = false
 
-for _, obj in ipairs(newNotification:GetDescendants()) do
-	if obj:IsA("GuiObject") then
-		pcall(function()
-			obj.Active = false
-			obj.Selectable = false
-		end)
-	end
-end
 		-- Set Data
 		newNotification.Title.Text = data.Title or "Unknown Title"
 		newNotification.Description.Text = data.Content or "Unknown Content"
