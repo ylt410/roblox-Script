@@ -1,653 +1,167 @@
-local result = (function()
-    getgenv().UI_CLOSED = false
-    local Players = game:GetService("Players")
-    local TweenService = game:GetService("TweenService")
-    local UserInputService = game:GetService("UserInputService")
-    local Lighting = game:GetService("Lighting")
-    
-    local Colors = {
-        background = Color3.fromRGB(13, 17, 23),
-        surface = Color3.fromRGB(22, 27, 34),
-        surfaceLight = Color3.fromRGB(30, 36, 44),
-        primary = Color3.fromRGB(88, 166, 255),
-        primaryDark = Color3.fromRGB(58, 136, 225),
-        primaryGlow = Color3.fromRGB(120, 180, 255),
-        accent = Color3.fromRGB(136, 87, 224),
-        success = Color3.fromRGB(47, 183, 117),
-        successDark = Color3.fromRGB(37, 153, 97),
-        successGlow = Color3.fromRGB(67, 203, 137),
-        error = Color3.fromRGB(248, 81, 73),
-        errorDark = Color3.fromRGB(200, 60, 55),
-        errorGlow = Color3.fromRGB(255, 100, 90),
-        textPrimary = Color3.fromRGB(230, 237, 243),
-        textSecondary = Color3.fromRGB(139, 148, 158),
-        textMuted = Color3.fromRGB(110, 118, 129),
-        border = Color3.fromRGB(48, 54, 61),
-        borderLight = Color3.fromRGB(63, 71, 79),
-        glass = Color3.fromRGB(255, 255, 255),
-        neonBlue = Color3.fromRGB(0, 229, 255),
-        neonPurple = Color3.fromRGB(187, 134, 252)
-    }
+--[[
+╔═══════════════════════════════════════════════╗
+║                                               ║
+║                 by Ye Script                  ║
+║                                               ║
+╚═══════════════════════════════════════════════╝
+]]
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+
+-- ========= 配置 =========
+local QQ_NUMBER = "1081045774"
+local CONFIG_FILE = "loader_config.txt"
+local LOAD_URL = "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/w%20s%20j%20xjjenen"
 
 local blacklist = {
     ["78lwq23"] = true,
 }
 
+-- ========= 黑名单 =========
 if blacklist[player.Name] then
     task.wait(1)
     player:Kick("你已被列入黑名单,信息为:\n我们的脚本已将你拉黑,请尝试联系作者")
     return
 end
-    
-    local function hasFileSystemSupport()
-        local hasWritefile = pcall(function() return type(writefile) == "function" end)
-        local hasReadfile = pcall(function() return type(readfile) == "function" end)
-        local hasIsfile = pcall(function() return type(isfile) == "function" end)
-        return hasWritefile and hasReadfile and hasIsfile
+
+-- ========= 文件 =========
+local canSave = (writefile and readfile)
+
+local function loadConfig()
+    if not canSave then return false end
+    if isfile and isfile(CONFIG_FILE) then
+        return readfile(CONFIG_FILE) == "true"
     end
-    
-    local fileSystemSupported = hasFileSystemSupport()
-    
-    -- 检查是否点击过“不再提示”
-    local function checkIgnoreFile()
-        if not fileSystemSupported then return false end
-        local ok, exists = pcall(function()
-            return isfile("qq_group_ignored.txt")
-        end)
-        return ok and exists
+    return false
+end
+
+local function saveConfig()
+    if canSave then
+        writefile(CONFIG_FILE, "true")
     end
+end
 
-    -- 写入“不再提示”状态
-    local function saveIgnoreFile()
-        if not fileSystemSupported then return false end
-        pcall(function()
-            writefile("qq_group_ignored.txt", "true")
-        end)
-    end
-    
-    -- 如果文件存在，直接跳过 UI 渲染，继续执行后面的脚本
-    if checkIgnoreFile() then
-        return true
-    end
+local function runScript()
+    loadstring(game:HttpGet(LOAD_URL))()
+end
 
-    local function loadUIFactory()
-        return function(Colors, Players, TweenService, UserInputService, Lighting)
-            local IconAssets = {
-                shield = 84528813312016,
-                link = 73034596791310,
-                check = 83827110621355,
-                x = 73070135088117
-            }
-            
-            local function createIconImage(name, size, color)
-                local id = IconAssets[name]
-                if id then
-                    local img = Instance.new("ImageLabel")
-                    img.BackgroundTransparency = 1
-                    img.Size = UDim2.new(0, size or 18, 0, size or 18)
-                    img.Image = "rbxassetid://" .. tostring(id)
-                    img.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
-                    img.ScaleType = Enum.ScaleType.Fit
-                    if img:IsA("ImageLabel") and img.ResampleMode ~= nil then
-                        img.ResampleMode = Enum.ResamplerMode.Default
-                    end
-                    return img
-                end
+-- ========= 已不再提示 =========
+if loadConfig() then
+    runScript()
+    return
+end
 
-                local lbl = Instance.new("TextLabel")
-                lbl.BackgroundTransparency = 1
-                lbl.Size = UDim2.new(0, size or 18, 0, size or 18)
-                lbl.TextScaled = true
-                lbl.Font = Enum.Font.SourceSansBold
-                lbl.TextColor3 = color or Color3.fromRGB(255, 255, 255)
-                lbl.Text = "🔘"
-                return lbl
-            end
+-- ========= UI =========
+local gui = Instance.new("ScreenGui")
+gui.Parent = game.CoreGui
+gui.ResetOnSpawn = false
 
-            return function(self)
-                if self.gui then self.gui:Destroy() end
-                
-                self.gui = Instance.new("ScreenGui")
-                self.gui.Name = "QQGroupUI"
-                self.gui.ResetOnSpawn = false
-                self.gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-                self.gui.IgnoreGuiInset = true
-                
-                local backdrop = Instance.new("Frame")
-                backdrop.Name = "Backdrop"
-                backdrop.Size = UDim2.new(1, 0, 1, 0)
-                backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-                backdrop.BackgroundTransparency = 0.4
-                backdrop.BorderSizePixel = 0
-                backdrop.Parent = self.gui
-                
-                local blur = Instance.new("BlurEffect")
-                blur.Size = 16
-                blur.Name = "JunkieUIBlur"
-                blur.Parent = Lighting
-                
-                local container = Instance.new("Frame")
-                container.Name = "Container"
-                
-                local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-                local viewportSize = workspace.CurrentCamera.ViewportSize
-                
-                -- 因为去掉了输入框，稍微调小了 UI 的整体高度 (从 320 降到 280)
-                if isMobile then
-                    container.Size = UDim2.new(0.6, 0, 0, math.min(280, viewportSize.Y * 0.8))
-                else
-                    container.Size = UDim2.new(0, 580, 0, 280)
-                end
-                container.Position = UDim2.new(0.5, 0, 0.5, 0)
-                container.AnchorPoint = Vector2.new(0.5, 0.5)
-                container.BackgroundColor3 = Colors.surface
-                container.BorderSizePixel = 0
-                container.Parent = backdrop
-                
-                local containerCorner = Instance.new("UICorner")
-                containerCorner.CornerRadius = UDim.new(0, 14)
-                containerCorner.Parent = container
-                
-                local containerStroke = Instance.new("UIStroke")
-                containerStroke.Color = Colors.border
-                containerStroke.Thickness = 1
-                containerStroke.Transparency = 0.3
-                containerStroke.Parent = container
-                
-                local shadow = Instance.new("Frame")
-                shadow.Name = "Shadow"
-                shadow.Size = UDim2.new(1, 40, 1, 40)
-                shadow.Position = UDim2.new(0.5, 0, 0.5, 6)
-                shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-                shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-                shadow.BackgroundTransparency = 0.7
-                shadow.BorderSizePixel = 0
-                shadow.ZIndex = 0
-                shadow.Parent = backdrop
-                
-                local shadowCorner = Instance.new("UICorner")
-                shadowCorner.CornerRadius = UDim.new(0, 18)
-                shadowCorner.Parent = shadow
-                
-                local glowFrame = Instance.new("Frame")
-                glowFrame.Name = "GlowEffect"
-                glowFrame.Size = UDim2.new(1, 60, 1, 60)
-                glowFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-                glowFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-                glowFrame.BackgroundColor3 = Colors.primary
-                glowFrame.BackgroundTransparency = 0.95
-                glowFrame.BorderSizePixel = 0
-                glowFrame.ZIndex = -1
-                glowFrame.Parent = backdrop
-                
-                local glowCorner = Instance.new("UICorner")
-                glowCorner.CornerRadius = UDim.new(0, 30)
-                glowCorner.Parent = glowFrame
+local blur = Instance.new("BlurEffect")
+blur.Size = 18
+blur.Parent = game.Lighting
 
-                local glowTween = TweenService:Create(glowFrame,
-                    TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                    {BackgroundTransparency = 0.9, Size = UDim2.new(1, 80, 1, 80)}
-                )
-                glowTween:Play()
-                
-                local glassOverlay = Instance.new("Frame")
-                glassOverlay.Name = "GlassOverlay"
-                glassOverlay.Size = UDim2.new(1, 0, 1, 0)
-                glassOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                glassOverlay.BackgroundTransparency = 0.98
-                glassOverlay.BorderSizePixel = 0
-                glassOverlay.ZIndex = 1
-                glassOverlay.Parent = container
-                
-                local glassCorner = Instance.new("UICorner")
-                glassCorner.CornerRadius = UDim.new(0, 14)
-                glassCorner.Parent = glassOverlay
-                
-                local topBar = Instance.new("Frame")
-                topBar.Name = "TopBar"
-                topBar.Size = UDim2.new(1, 0, 0, 45)
-                topBar.BackgroundColor3 = Colors.background
-                topBar.BorderSizePixel = 0
-                topBar.ZIndex = 10
-                topBar.Parent = container
-                
-                local topBarCorner = Instance.new("UICorner")
-                topBarCorner.CornerRadius = UDim.new(0, 14)
-                topBarCorner.Parent = topBar
+-- 主框（真正居中）
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 200)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.BackgroundTransparency = 0.25
+frame.Parent = gui
 
-                local topBarFix = Instance.new("Frame")
-                topBarFix.Size = UDim2.new(1, 0, 0, 10)
-                topBarFix.Position = UDim2.new(0, 0, 1, -10)
-                topBarFix.BackgroundColor3 = Colors.background
-                topBarFix.BorderSizePixel = 0
-                topBarFix.Parent = topBar
-                
-                local brandLogo = Instance.new("Frame")
-                brandLogo.Name = "BrandLogo"
-                brandLogo.Size = UDim2.new(0, 200, 1, 0)
-                brandLogo.Position = UDim2.new(0, 20, 0, 0)
-                brandLogo.BackgroundTransparency = 1
-                brandLogo.ZIndex = 11
-                brandLogo.Parent = topBar
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
 
-                local brandLogoIcon = createIconImage("shield", 20, Colors.primary)
-                brandLogoIcon.AnchorPoint = Vector2.new(0, 0.5)
-                brandLogoIcon.Position = UDim2.new(0, 0, 0.5, 0)
-                brandLogoIcon.ZIndex = 11
-                brandLogoIcon.Parent = brandLogo
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(255,255,255)
+stroke.Transparency = 0.7
 
-                local brandLogoText = Instance.new("TextLabel")
-                brandLogoText.BackgroundTransparency = 1
-                brandLogoText.Size = UDim2.new(1, -30, 1, 0)
-                brandLogoText.Position = UDim2.new(0, 28, 0, 0)
-                brandLogoText.Text = "欢迎使用"
-                brandLogoText.TextColor3 = Colors.textPrimary
-                brandLogoText.TextSize = 15
-                brandLogoText.TextXAlignment = Enum.TextXAlignment.Left
-                brandLogoText.Font = Enum.Font.GothamSemibold
-                brandLogoText.ZIndex = 11
-                brandLogoText.Parent = brandLogo
-                
-                -- 注意：移除了右上角的 closeButton 代码
-                
-                local contentArea = Instance.new("Frame")
-                contentArea.Name = "ContentArea"
-                contentArea.Size = UDim2.new(1, -40, 1, -65)
-                contentArea.Position = UDim2.new(0, 20, 0, 55)
-                contentArea.BackgroundTransparency = 1
-                contentArea.Parent = container
-                
-                local titleSection = Instance.new("Frame")
-                titleSection.Name = "TitleSection"
-                titleSection.Size = UDim2.new(1, 0, 0, 85)
-                titleSection.Position = UDim2.new(0, 0, 0, 5)
-                titleSection.BackgroundTransparency = 1
-                titleSection.Parent = contentArea
-                
-                local iconFrame = Instance.new("Frame")
-                iconFrame.Name = "IconFrame"
-                iconFrame.Size = UDim2.new(0, 52, 0, 52)
-                iconFrame.Position = UDim2.new(0.5, -26, 0, 0)
-                iconFrame.BackgroundColor3 = Colors.surfaceLight
-                iconFrame.BorderSizePixel = 0
-                iconFrame.Parent = titleSection
-                
-                local iconCorner = Instance.new("UICorner")
-                iconCorner.CornerRadius = UDim.new(0, 12)
-                iconCorner.Parent = iconFrame
-  
-                local iconStroke = Instance.new("UIStroke")
-                iconStroke.Color = Colors.primary
-                iconStroke.Thickness = 2
-                iconStroke.Transparency = 0.5
-                iconStroke.Parent = iconFrame
-                
-                local mainIcon = createIconImage("shield", 26, Color3.fromRGB(255, 255, 255))
-                mainIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-                mainIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
-                mainIcon.Parent = iconFrame
-        
-                local titleText = Instance.new("TextLabel")
-                titleText.Name = "TitleText"
-                titleText.Size = UDim2.new(1, 0, 0, 24)
-                titleText.Position = UDim2.new(0, 0, 0, 58)
-                titleText.BackgroundTransparency = 1
-                titleText.Text = "加入我们的 QQ 群"
-                titleText.TextColor3 = Colors.textPrimary
-                titleText.TextSize = 18
-                titleText.TextXAlignment = Enum.TextXAlignment.Center
-                titleText.Font = Enum.Font.GothamBold
-                titleText.Parent = titleSection
-                
-                local subtitleText = Instance.new("TextLabel")
-                subtitleText.Name = "SubtitleText"
-                subtitleText.Size = UDim2.new(1, 0, 0, 18)
-                subtitleText.Position = UDim2.new(0, 0, 0, 82)
-                subtitleText.BackgroundTransparency = 1
-                subtitleText.Text = "获取最新脚本更新与内部交流"
-                subtitleText.TextColor3 = Colors.textSecondary
-                subtitleText.TextSize = 13
-                subtitleText.TextXAlignment = Enum.TextXAlignment.Center
-                subtitleText.Font = Enum.Font.Gotham
-                subtitleText.Parent = titleSection
-                
-                -- 注意：移除了原本在这里的 inputSection (输入卡密的框)
-                
-                -- 将按钮区域向上移动，填补输入框的空缺
-                local buttonSection = Instance.new("Frame")
-                buttonSection.Name = "ButtonSection"
-                buttonSection.Size = UDim2.new(1, 0, 0, 40)
-                buttonSection.Position = UDim2.new(0, 0, 0, 120)
-                buttonSection.BackgroundTransparency = 1
-                buttonSection.Parent = contentArea
-                
-                -- 左侧按钮：残忍拒绝并继续
-                local rejectButton = Instance.new("TextButton")
-                rejectButton.Name = "RejectButton"
-                rejectButton.Size = UDim2.new(0.48, 0, 1, 0)
-                rejectButton.Position = UDim2.new(0, 0, 0, 0)
-                rejectButton.BackgroundColor3 = Colors.error
-                rejectButton.Text = ""  
-                rejectButton.AutoButtonColor = false
-                rejectButton.Parent = buttonSection
+-- 标题
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.Text = "加入我们的QQ群"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.Parent = frame
 
-                local rejectCorner = Instance.new("UICorner")
-                rejectCorner.CornerRadius = UDim.new(0, 10)
-                rejectCorner.Parent = rejectButton
+-- QQ
+local qqLabel = Instance.new("TextLabel")
+qqLabel.Size = UDim2.new(1,0,0,30)
+qqLabel.Position = UDim2.new(0,0,0,40)
+qqLabel.Text = "QQ群: "..QQ_NUMBER
+qqLabel.TextColor3 = Color3.new(1,1,1)
+qqLabel.BackgroundTransparency = 1
+qqLabel.Parent = frame
 
-                local rejectGradient = Instance.new("UIGradient")
-                rejectGradient.Color = ColorSequence.new{
-                    ColorSequenceKeypoint.new(0, Colors.error),
-                    ColorSequenceKeypoint.new(1, Colors.errorDark)
-                }
-                rejectGradient.Rotation = 90
-                rejectGradient.Parent = rejectButton
+-- 勾选
+local checked = false
 
-                local rejectGlow = Instance.new("UIStroke")
-                rejectGlow.Color = Colors.errorGlow
-                rejectGlow.Thickness = 0
-                rejectGlow.Transparency = 0.8
-                rejectGlow.Parent = rejectButton
+local checkbox = Instance.new("TextButton")
+checkbox.Size = UDim2.new(0,18,0,18)
+checkbox.Position = UDim2.new(0,20,0,90)
+checkbox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+checkbox.Text = ""
+checkbox.Parent = frame
+Instance.new("UICorner", checkbox)
 
-                local rejectIcon = createIconImage("x", 16, Color3.fromRGB(255, 255, 255))
-                rejectIcon.AnchorPoint = Vector2.new(0, 0.5)
-                rejectIcon.Position = UDim2.new(0, 12, 0.5, 0)
-                rejectIcon.Parent = rejectButton
+local checkText = Instance.new("TextLabel")
+checkText.Size = UDim2.new(0,120,0,20)
+checkText.Position = UDim2.new(0,42,0,88) -- ⭐ 靠近对齐
+checkText.Text = "不再提示"
+checkText.TextColor3 = Color3.new(1,1,1)
+checkText.BackgroundTransparency = 1
+checkText.TextXAlignment = Enum.TextXAlignment.Left
+checkText.Parent = frame
 
-                local rejectText = Instance.new("TextLabel")
-                rejectText.Size = UDim2.new(1, 0, 1, 0)  
-                rejectText.BackgroundTransparency = 1
-                rejectText.Text = "残忍拒绝并继续"
-                rejectText.TextColor3 = Color3.fromRGB(255, 255, 255)  
-                rejectText.Font = Enum.Font.GothamSemibold
-                rejectText.TextSize = 14  
-                rejectText.TextXAlignment = Enum.TextXAlignment.Center  
-                rejectText.Parent = rejectButton
-
-                -- 右侧按钮：加入并继续
-                local joinButton = Instance.new("TextButton")
-                joinButton.Name = "JoinButton"
-                joinButton.Size = UDim2.new(0.48, 0, 1, 0)
-                joinButton.Position = UDim2.new(0.52, 0, 0, 0)
-                joinButton.BackgroundColor3 = Colors.success
-                joinButton.BorderSizePixel = 0
-                joinButton.Text = ""  
-                joinButton.AutoButtonColor = false
-                joinButton.Parent = buttonSection
-
-                local joinCorner = Instance.new("UICorner")
-                joinCorner.CornerRadius = UDim.new(0, 10)
-                joinCorner.Parent = joinButton
-
-                local joinGradient = Instance.new("UIGradient")
-                joinGradient.Color = ColorSequence.new{
-                    ColorSequenceKeypoint.new(0, Colors.success),
-                    ColorSequenceKeypoint.new(1, Colors.successDark)
-                }
-                joinGradient.Rotation = 90
-                joinGradient.Parent = joinButton
-
-                local joinGlow = Instance.new("UIStroke")
-                joinGlow.Color = Colors.successGlow
-                joinGlow.Thickness = 0
-                joinGlow.Transparency = 0.8
-                joinGlow.Parent = joinButton
-
-                local joinIcon = createIconImage("check", 16, Color3.fromRGB(255, 255, 255))
-                joinIcon.AnchorPoint = Vector2.new(0, 0.5)
-                joinIcon.Position = UDim2.new(0, 12, 0.5, 0)
-                joinIcon.Parent = joinButton
-
-                local joinText = Instance.new("TextLabel")
-                joinText.Size = UDim2.new(1, 0, 1, 0)  
-                joinText.BackgroundTransparency = 1
-                joinText.Text = "加入并继续"
-                joinText.TextColor3 = Color3.fromRGB(255, 255, 255)  
-                joinText.Font = Enum.Font.GothamSemibold
-                joinText.TextSize = 14  
-                joinText.TextXAlignment = Enum.TextXAlignment.Center  
-                joinText.Parent = joinButton
-                
-                -- 勾选框：不再提示
-local ignoreToggleSection = Instance.new("Frame")
-ignoreToggleSection.Name = "IgnoreToggleSection"
-ignoreToggleSection.Size = UDim2.new(1, 0, 0, 30)
-ignoreToggleSection.Position = UDim2.new(0, 0, 0, 170)
-ignoreToggleSection.BackgroundTransparency = 1
-ignoreToggleSection.Parent = contentArea
-
-local ignoreToggle = Instance.new("TextButton")
-ignoreToggle.Name = "IgnoreToggle"
-ignoreToggle.Size = UDim2.new(0, 20, 0, 20)
-ignoreToggle.Position = UDim2.new(0.5, -60, 0.5, -10)
-ignoreToggle.BackgroundColor3 = Colors.surfaceLight
-ignoreToggle.Text = ""
-ignoreToggle.AutoButtonColor = false
-ignoreToggle.Parent = ignoreToggleSection
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 4)
-toggleCorner.Parent = ignoreToggle
-
-local toggleStroke = Instance.new("UIStroke")
-toggleStroke.Color = Colors.border
-toggleStroke.Parent = ignoreToggle
-
-local checkmark = Instance.new("TextLabel")
-checkmark.Name = "Checkmark"
-checkmark.Size = UDim2.new(1, 0, 1, 0)
-checkmark.BackgroundTransparency = 1
-checkmark.Text = "✅"
-checkmark.TextColor3 = Colors.success
-checkmark.TextScaled = true
-checkmark.Visible = false
-checkmark.Parent = ignoreToggle
-
-local ignoreLabel = Instance.new("TextLabel")
-ignoreLabel.Name = "IgnoreLabel"
-ignoreLabel.Size = UDim2.new(0, 120, 1, 0)
-ignoreLabel.Position = UDim2.new(0.5, -30, 0, 0)
-ignoreLabel.BackgroundTransparency = 1
-ignoreLabel.Text = "不再提示"
-ignoreLabel.TextColor3 = Colors.textMuted
-ignoreLabel.Font = Enum.Font.Gotham
-ignoreLabel.TextSize = 14
-ignoreLabel.TextXAlignment = Enum.TextXAlignment.Left
-ignoreLabel.Parent = ignoreToggleSection
-
--- 状态
-local ignoreChecked = false
-
-ignoreToggle.MouseButton1Click:Connect(function()
-    ignoreChecked = not ignoreChecked
-    checkmark.Visible = ignoreChecked
+checkbox.MouseButton1Click:Connect(function()
+    checked = not checked
+    checkbox.Text = checked and "✅" or ""
 end)
 
-                self.elements = {
-    backdrop = backdrop,
-    container = container,
-    rejectButton = rejectButton,
-    joinButton = joinButton,
-    ignoreToggle = ignoreToggle,
-    ignoreChecked = function()
-        return ignoreChecked
-    end,
-    rejectGlow = rejectGlow,
-    joinGlow = joinGlow
-}                
-                local function setupAnimations()
-                    local elements = self.elements
-                    
-                    -- 左侧按钮动画
-                    if elements.rejectButton then
-                        elements.rejectButton.MouseEnter:Connect(function()
-                            TweenService:Create(elements.rejectButton, TweenInfo.new(0.2), {
-                                BackgroundColor3 = Colors.errorGlow
-                            }):Play()
-                            if elements.rejectGlow then
-                                TweenService:Create(elements.rejectGlow, TweenInfo.new(0.2), { Thickness = 2, Transparency = 0.3 }):Play()
-                            end
-                        end)
-                        elements.rejectButton.MouseLeave:Connect(function()
-                            TweenService:Create(elements.rejectButton, TweenInfo.new(0.2), {
-                                BackgroundColor3 = Colors.error
-                            }):Play()
-                            if elements.rejectGlow then
-                                TweenService:Create(elements.rejectGlow, TweenInfo.new(0.2), { Thickness = 0, Transparency = 0.8 }):Play()
-                            end
-                        end)
-                        elements.rejectButton.MouseButton1Down:Connect(function()
-                            TweenService:Create(elements.rejectButton, TweenInfo.new(0.1, Enum.EasingStyle.Back), { Size = UDim2.new(0.47, 0, 0.95, 0), Position = UDim2.new(0.005, 0, 0.025, 0) }):Play()
-                        end)
-                        elements.rejectButton.MouseButton1Up:Connect(function()
-                            TweenService:Create(elements.rejectButton, TweenInfo.new(0.1, Enum.EasingStyle.Back), { Size = UDim2.new(0.48, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0) }):Play()
-                        end)
-                    end
-                    
-                    -- 右侧按钮动画
-                    if elements.joinButton then
-                        elements.joinButton.MouseEnter:Connect(function()
-                            TweenService:Create(elements.joinButton, TweenInfo.new(0.2), {
-                                BackgroundColor3 = Colors.successGlow
-                            }):Play()
-                            if elements.joinGlow then
-                                TweenService:Create(elements.joinGlow, TweenInfo.new(0.2), { Thickness = 2, Transparency = 0.3 }):Play()
-                            end
-                        end)
-                        elements.joinButton.MouseLeave:Connect(function()
-                            TweenService:Create(elements.joinButton, TweenInfo.new(0.2), {
-                                BackgroundColor3 = Colors.success
-                            }):Play()
-                            if elements.joinGlow then
-                                TweenService:Create(elements.joinGlow, TweenInfo.new(0.2), { Thickness = 0, Transparency = 0.8 }):Play()
-                            end
-                        end)
-                        elements.joinButton.MouseButton1Down:Connect(function()
-                            TweenService:Create(elements.joinButton, TweenInfo.new(0.1, Enum.EasingStyle.Back), { Size = UDim2.new(0.47, 0, 0.95, 0), Position = UDim2.new(0.525, 0, 0.025, 0) }):Play()
-                        end)
-                        elements.joinButton.MouseButton1Up:Connect(function()
-                            TweenService:Create(elements.joinButton, TweenInfo.new(0.1, Enum.EasingStyle.Back), { Size = UDim2.new(0.48, 0, 1, 0), Position = UDim2.new(0.52, 0, 0, 0) }):Play()
-                        end)
-                    end
+-- 按钮样式
+local function style(btn)
+    btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    btn.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", btn)
+end
 
-                    -- 底部不再提示按钮动画
-                    if elements.ignoreButton then
-                        elements.ignoreButton.MouseEnter:Connect(function()
-                            TweenService:Create(elements.ignoreButton, TweenInfo.new(0.2), { BackgroundColor3 = Colors.surface }):Play()
-                            if elements.ignoreStroke then
-                                TweenService:Create(elements.ignoreStroke, TweenInfo.new(0.2), { Transparency = 0 }):Play()
-                            end
-                        end)
-                        elements.ignoreButton.MouseLeave:Connect(function()
-                            TweenService:Create(elements.ignoreButton, TweenInfo.new(0.2), { BackgroundColor3 = Colors.surfaceLight }):Play()
-                            if elements.ignoreStroke then
-                                TweenService:Create(elements.ignoreStroke, TweenInfo.new(0.2), { Transparency = 0.5 }):Play()
-                            end
-                        end)
-                    end
-                end
-                
-                local function animateEntrance()
-                    if container then
-                        container.BackgroundTransparency = 1
-                        TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { BackgroundTransparency = 0 }):Play()
-                    end
-                    if backdrop then
-                        backdrop.BackgroundTransparency = 1
-                        TweenService:Create(backdrop, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { BackgroundTransparency = 0.4 }):Play()
-                    end
-                end
-                
-                self.gui.Parent = game:GetService("CoreGui")
-                
-                self.gui.AncestryChanged:Connect(function(_, parent)
-                    if parent == nil then
-                        local b = Lighting:FindFirstChild("JunkieUIBlur")
-                        if b then b:Destroy() end
-                    end
-                end)
-                
-                self.close = function(self)
-                    if not self.gui then return end
-                    getgenv().UI_CLOSED = true
-                    local c = self.elements.container
-                    local b = self.elements.backdrop
-                    local bl = Lighting:FindFirstChild("JunkieUIBlur")
-                    
-                    TweenService:Create(c, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
-                    TweenService:Create(b, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
-                    
-                    task.wait(0.2)
-                    if bl then bl:Destroy() end
-                    self.gui:Destroy()
-                    self.gui = nil
-                end
-                
-                setupAnimations()
-                animateEntrance()
-                return self.gui
-            end
-        end 
-    end 
-    
-    local UI = {}
-    UI.__index = UI
-    
-    function UI.new()
-        local self = setmetatable({}, UI)
-        self.player = Players.LocalPlayer
-        self.gui = nil
-        self._connections = {}
-        return self
-    end
-    
-    UI.createUI = function(self)
-        local UIFactory = loadUIFactory()
-        if UIFactory then
-            local uiBuilder = UIFactory(Colors, Players, TweenService, UserInputService, Lighting)
-            uiBuilder(self)
-        end
-        
 -- 拒绝
-table.insert(self._connections, self.elements.rejectButton.MouseButton1Click:Connect(function()
-    if self.elements.ignoreChecked and self.elements.ignoreChecked() then
-        saveIgnoreFile()
-    end
-    self:close()
-end))
+local refuse = Instance.new("TextButton")
+refuse.Size = UDim2.new(0.4,0,0,40)
+refuse.Position = UDim2.new(0.1,0,1,-55)
+refuse.Text = "残忍拒绝并继续"
+refuse.Parent = frame
+style(refuse)
 
--- 加入
-table.insert(self._connections, self.elements.joinButton.MouseButton1Click:Connect(function()
-    local btn = self.elements.joinButton
-    local label = btn:FindFirstChildOfClass("TextLabel")
+refuse.MouseButton1Click:Connect(function()
+    if checked then saveConfig() end
+    blur:Destroy()
+    gui:Destroy()
+    runScript()
+end)
 
+-- 加入QQ群
+local join = Instance.new("TextButton")
+join.Size = UDim2.new(0.4,0,0,40)
+join.Position = UDim2.new(0.5,0,1,-55)
+join.Text = "复制QQ群号并继续"
+join.Parent = frame
+style(join)
+
+join.MouseButton1Click:Connect(function()
     if setclipboard then
-        setclipboard("1081045774")
+        setclipboard(QQ_NUMBER)
     end
 
-    if label then
-        label.Text = "已复制"
-    end
+    -- ⭐ 自动不再提示（关键改动）
+    saveConfig()
 
-    saveIgnoreFile()
+    join.Text = "已复制"
 
-    task.wait(2)
+    task.wait(0.5)
 
-    self:close()
-end))        
-        return self.gui
-    end
-
-    local ui = UI.new()
-    ui:createUI()
-
-    -- 阻塞线程，直到用户点击按钮并关闭了 UI 才继续执行外部代码
-    while not getgenv().UI_CLOSED do
-        task.wait(0.1)
-    end
-    
-    return true
-end)()
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/yejiaoben"))()
+    blur:Destroy()
+    gui:Destroy()
+    runScript()
+end)
