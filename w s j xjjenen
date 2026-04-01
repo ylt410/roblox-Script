@@ -640,6 +640,7 @@ local PlayerList = {}
 -- =================== 状态 ===================
 local FlingLoop = false
 local Flinging = false
+local AlreadyNotified = {}
 
 -- =================== 甩飞核心 ===================
 local function SkidFling(TargetPlayer)
@@ -681,86 +682,90 @@ local function SkidFling(TargetPlayer)
         end
     end
 
-    local function FPos(BasePart, Pos, Ang)
-        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
-        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
-        RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
-        RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
-    end
+local function FPos(BasePart, Pos, Ang)
 
+    if not BasePart or not BasePart.Parent then return end
+    if not RootPart or not RootPart.Parent then return end
+
+    RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+    Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+
+    RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+    RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+end
     local function SFBasePart(BasePart)
 
-        local TimeToWait = 2
-        local Time = tick()
-        local Angle = 0
+    local TimeToWait = 2
+    local Time = tick()
+    local Angle = 0
 
-        repeat
-            if RootPart and THumanoid then
+    repeat
 
-                if BasePart.Velocity.Magnitude < 50 then
+        -- ⭐核心防炸（你缺的就是这个）
+        if not BasePart or not BasePart.Parent then break end
+        if not RootPart or not RootPart.Parent then break end
+        if not TRootPart or not TRootPart.Parent then break end
+        if not THumanoid or THumanoid.Health <= 0 then break end
 
-                    Angle = Angle + 100
+        if BasePart.Velocity.Magnitude > 1 then
 
-                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
-                    task.wait()
+            Angle = Angle + 100
 
-                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(2.25, 1.5, -2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(-2.25, -1.5, 2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(2.25, 1.5, -2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(-2.25, -1.5, 2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+            task.wait()
 
-                else
+            FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
-                    task.wait()
+        else
 
-                    FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5, -TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(0, 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, -1.5, -TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(0, 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
-                    task.wait()
+            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+            task.wait()
 
-                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
-                    task.wait()
-                end
+            FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
+            task.wait()
 
-            else
-                break
-            end
+            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+            task.wait()
+        end
 
-        until BasePart.Velocity.Magnitude > 500
-            or not BasePart.Parent
-            or tick() > Time + TimeToWait
-    end
-
+    until BasePart.Velocity.Magnitude > 500
+        or not BasePart.Parent
+        or tick() > Time + TimeToWait
+end
     local BV = Instance.new("BodyVelocity")
     BV.Parent = RootPart
     BV.Velocity = Vector3.new(9e8,9e8,9e8)
@@ -803,23 +808,104 @@ local function SkidFling(TargetPlayer)
 
     Flinging = false
 end
+local function MonitorTarget(target)
 
+    if not target then return end
+
+    -- ⭐ 初始化状态
+    if not AlreadyNotified[target] then
+        AlreadyNotified[target] = {
+            dead = false,
+            left = false
+        }
+    end
+
+    local state = AlreadyNotified[target]
+
+    task.spawn(function()
+
+        while true do
+
+            -- ===== 玩家退出 =====
+            if not target or not target.Parent then
+
+                if not state.left then
+                    state.left = true
+
+                    local msg = "玩家已退出，操作已终止"
+
+                    if TP_Loop then
+                        msg = "目标退出，无法继续传送"
+                    elseif FlingLoop or Flinging then
+                        msg = "目标退出，无法继续甩飞"
+                    end
+
+                    Notify("目标失效", msg, 3)
+                end
+
+                break
+            end
+
+            local char = target.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            -- ===== 死亡 =====
+            if not char or not hum or hum.Health <= 0 then
+
+                if not state.dead then
+                    state.dead = true
+
+                    local msg = target.Name .. " 已死亡或消失"
+
+                    if TP_Loop then
+                        msg = target.Name .. " 已死亡或不存在，无法继续传送"
+                    elseif FlingLoop or Flinging then
+                        msg = target.Name .. " 已死亡或不存在，无法继续甩飞"
+                    end
+
+                    Notify("目标失效", msg, 3)
+                end
+
+                -- ⭐关键：等复活 → 重置状态
+                repeat
+                    task.wait(0.5)
+                    char = target.Character
+                    hum = char and char:FindFirstChildOfClass("Humanoid")
+                until hum and hum.Health > 0 or not target.Parent
+
+                if hum and hum.Health > 0 then
+                    state.dead = false -- ✅允许再次检测死亡
+                end
+            end
+
+            task.wait(0.5)
+        end
+
+    end)
+end
 -- =================== 循环甩飞 ===================
 local function StartFlingLoop()
     if FlingLoop then return end
     FlingLoop = true
+AlreadyNotified = {}
+
 
     task.spawn(function()
-        while FlingLoop do
+while FlingLoop do
 
-            local target = TP_SelectedPlayer or SelectedTarget
+    local target = TP_SelectedPlayer or SelectedTarget
 
-            if target and not Flinging then
-                SkidFling(target)
-            end
+    if target and not Flinging then
 
-            task.wait(0.08)
-        end
+    -- ⭐只在第一次开始时监听（防重复弹）
+    if not AlreadyNotified[target] then
+        MonitorTarget(target)
+    end
+
+    SkidFling(target)
+end
+    task.wait(0.2)
+end
     end)
 end
 
@@ -3214,6 +3300,7 @@ end
 -- =================== 传送与观战系统 ===================
 
 local TabTP = Window:CreateTab("传送与甩飞")
+TabTP:CreateParagraph({ Title="警告", Content="不要在开着循环甩飞的时候手动重生不然会报错" })
 
 -- ================= 玩家列表（与自瞄共用目标） =================
 
@@ -3223,7 +3310,7 @@ local TP_PlayerList = {}
 local TP_SelectedPlayer = nil
 
 local TP_Dropdown = TabTP:CreateDropdown({
-    Name = "选择玩家（与自瞄共用）",
+    Name = "选择玩家",
     Options = {},
     CurrentOption = {},
     MultipleOptions = false,
@@ -3259,6 +3346,20 @@ local function TP_RefreshPlayerList()
         TP_Dropdown:SetOptions(TP_PlayerList)
     elseif TP_Dropdown.Refresh then
         TP_Dropdown:Refresh(TP_PlayerList)
+
+-- ⭐关键修复：刷新后重新锁定
+if TP_SelectedPlayer then
+    local name = TP_SelectedPlayer.Name
+    local stillExists = Players:FindFirstChild(name)
+
+    if stillExists then
+        TP_SelectedPlayer = stillExists
+        SelectedTarget = stillExists
+    else
+        TP_SelectedPlayer = nil
+        SelectedTarget = nil
+    end
+end
     end
 end
 
@@ -3277,16 +3378,6 @@ task.spawn(function()
     TP_RefreshPlayerList()
 end)
 
--- ⭐ 自动同步玩家进出
-Players.PlayerAdded:Connect(function()
-    task.wait(0.5)
-    TP_RefreshPlayerList()
-end)
-
-Players.PlayerRemoving:Connect(function()
-    task.wait(0.5)
-    TP_RefreshPlayerList()
-end)
 
 -- ================= 传送 =================
 local function TeleportToPlayer(player)
@@ -3310,7 +3401,7 @@ TabTP:CreateButton({
     Name = "传送到玩家身边",
     Callback = function()
 
-        local target = TP_SelectedPlayer or SelectedTarget
+        local target = TP_SelectedPlayer
 
         if target then
             TeleportToPlayer(target)
@@ -3333,15 +3424,20 @@ TabTP:CreateToggle({
         TP_Loop = Value
 
         if Value then
+AlreadyNotified = {}
 
             TP_LoopConnection = RunService.Heartbeat:Connect(function()
 
                 local target = TP_SelectedPlayer or SelectedTarget
 
                 if target then
-                    TeleportToPlayer(target)
-                end
 
+    if not AlreadyNotified[target] then
+        MonitorTarget(target)
+    end
+
+    TeleportToPlayer(target)
+end
             end)
 
             Notify("循环传送", "已开启", 2)
@@ -3353,6 +3449,15 @@ TabTP:CreateToggle({
                 TP_LoopConnection:Disconnect()
                 TP_LoopConnection = nil
             end
+local char = LocalPlayer.Character
+if char then
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
 
             Notify("循环传送", "已关闭", 2)
             RemoveFeature("循环传送")
@@ -3440,6 +3545,23 @@ TabTP:CreateToggle({
 
     end
 })
+Players.PlayerRemoving:Connect(function(p)
+
+    local isUsing =
+        TP_Loop
+        or FlingLoop
+        or Flinging
+
+    if isUsing
+    and (p == TP_SelectedPlayer or p == SelectedTarget)
+    and not AlreadyNotified[p] then
+
+        AlreadyNotified[p] = true
+
+        Notify("目标已退出", p.Name .. " 已离开游戏，无法继续甩飞/传送", 3)
+    end
+
+end)
 local TabStop = Window:CreateTab("终止")
 TabStop:CreateButton({
     Name = "强制退出",
