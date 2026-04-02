@@ -637,6 +637,110 @@ local SelectedTarget = nil
 local PlayerList = {}
 
 -- =================== 全局变量与属性记录 (修改这里) ===================
+-- =================== 旋转模块（重生完全修复版） ===================
+
+local SpinEnabled = false
+local SpinSpeed = 5
+local SpinConnection = nil
+
+-- ⭐强制锁动画（可重复调用）
+local function ApplyAnimationLock(char)
+
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.AutoRotate = false
+    end
+
+    -- ⭐关键：持续找 Animate（因为有延迟生成）
+    task.spawn(function()
+
+        local animate = char:WaitForChild("Animate", 3)
+
+        if animate then
+            animate.Disabled = true
+        end
+
+        -- ⭐防止被脚本重新开启（很多游戏会重启动画）
+        for i = 1, 10 do
+            if animate and animate.Parent then
+                animate.Disabled = true
+            end
+            task.wait(0.3)
+        end
+
+    end)
+end
+
+-- 恢复动画
+local function RemoveAnimationLock(char)
+
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.AutoRotate = true
+    end
+
+    local animate = char:FindFirstChild("Animate")
+    if animate then
+        animate.Disabled = false
+    end
+end
+
+-- 开始旋转
+local function StartSpin()
+
+    if SpinConnection then return end
+
+    local plr = game.Players.LocalPlayer
+
+    SpinConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+
+        if not SpinEnabled then return end
+
+        local char = plr.Character
+        if not char then return end
+
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SpinSpeed) * dt * 60, 0)
+
+    end)
+
+    -- ⭐立即锁一次
+    ApplyAnimationLock(plr.Character)
+end
+
+-- 停止旋转
+local function StopSpin()
+
+    if SpinConnection then
+        SpinConnection:Disconnect()
+        SpinConnection = nil
+    end
+
+    RemoveAnimationLock(game.Players.LocalPlayer.Character)
+end
+
+-- ⭐⭐⭐ 核心修复：重生强制重新锁动画 + 旋转
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+
+    if SpinEnabled then
+
+        -- 等角色完全加载
+        task.wait(0.5)
+
+        ApplyAnimationLock(char)
+
+        -- 再确保旋转在跑
+        if not SpinConnection then
+            StartSpin()
+        end
+    end
+end)
 -- =================== 状态 ===================
 local FlingLoop = false
 local Flinging = false
@@ -885,33 +989,79 @@ local function MonitorTarget(target)
 end
 -- =================== 循环甩飞 ===================
 local function StartFlingLoop()
+
     if FlingLoop then return end
     FlingLoop = true
-AlreadyNotified = {}
-
+    AlreadyNotified = {}
 
     task.spawn(function()
-while FlingLoop do
 
-    local target = TP_SelectedPlayer or SelectedTarget
+        while FlingLoop do
 
-    if target and not Flinging then
+            -- ================= 所有人模式 =================
+            if TP_SelectedPlayer == "ALL" then
 
-    -- ⭐只在第一次开始时监听（防重复弹）
-    if not AlreadyNotified[target] then
-        MonitorTarget(target)
-    end
+                for _, p in ipairs(Players:GetPlayers()) do
+    if not FlingLoop then break end -- ⭐加这一行
+                    if p ~= LocalPlayer then
 
-    SkidFling(target)
-end
-    task.wait(0.2)
-end
+                        local char = p.Character
+                        local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+                        if hum and hum.Health > 0 then
+
+                            if not AlreadyNotified[p] then
+                                MonitorTarget(p)
+                            end
+
+                            local t1 = tick()
+                            repeat task.wait() until not Flinging or tick() - t1 > 3
+
+                            SkidFling(p)
+
+                            local t2 = tick()
+                            repeat task.wait() until not Flinging or tick() - t2 > 3
+
+                            task.wait(0.1)
+                        end
+                    end
+                end
+
+            -- ================= 单人模式 =================
+            else
+
+                local target = (TP_SelectedPlayer ~= "ALL") and (TP_SelectedPlayer or SelectedTarget) or nil
+
+                if target then
+
+                    if not AlreadyNotified[target] then
+                        MonitorTarget(target)
+                    end
+
+                    local t1 = tick()
+                    repeat task.wait() until not Flinging or tick() - t1 > 3
+
+                    SkidFling(target)
+
+                    local t2 = tick()
+                    repeat task.wait() until not Flinging or tick() - t2 > 3
+
+                end
+
+            end
+
+            -- ⭐必须在 while 里面
+            task.wait(0.2)
+
+        end
+
     end)
-end
 
+end
 local function StopFlingLoop()
     FlingLoop = false
 end
+
 -- =================== Universal Kill Aura ===================
 
 local AuraEnabled = false
@@ -3316,39 +3466,50 @@ local TP_Dropdown = TabTP:CreateDropdown({
     MultipleOptions = false,
     Callback = function(opt)
 
-        local name = opt and opt[1]
-        if not name then return end
+    local name = opt and opt[1]
+    if not name then return end
 
-        local plr = Players:FindFirstChild(name)
-        if plr then
-            TP_SelectedPlayer = plr
-            SelectedTarget = plr -- ⭐同步给自瞄
+    -- ⭐选择“所有人”
+    if name == "所有人" then
+        TP_SelectedPlayer = "ALL"
+        SelectedTarget = nil
 
-            Notify("已选择玩家", name, 2)
-        end
+        Notify("目标选择", "所有玩家", 2)
+        return
     end
+
+    local plr = Players:FindFirstChild(name)
+    if plr then
+        TP_SelectedPlayer = plr
+        SelectedTarget = plr
+
+        Notify("已选择玩家", name, 2)
+    end
+end
 })
 
 -- ⭐ 稳定刷新（兼容不同 Rayfield 版本）
 local function TP_RefreshPlayerList()
 
-    TP_PlayerList = {}
+    TP_PlayerList = {"所有人"} -- ⭐新增
 
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(TP_PlayerList, p.Name)
-        end
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        table.insert(TP_PlayerList, p.Name)
     end
-
+end
     if not TP_Dropdown then return end
 
     if TP_Dropdown.SetOptions then
-        TP_Dropdown:SetOptions(TP_PlayerList)
-    elseif TP_Dropdown.Refresh then
-        TP_Dropdown:Refresh(TP_PlayerList)
+    TP_Dropdown:SetOptions(TP_PlayerList)
 
--- ⭐关键修复：刷新后重新锁定
-if TP_SelectedPlayer then
+elseif TP_Dropdown.Refresh then
+    TP_Dropdown:Refresh(TP_PlayerList)
+end
+
+-- ⭐关键修复（放在外面！不要放在 Refresh 里面）
+if typeof(TP_SelectedPlayer) == "Instance" then
+
     local name = TP_SelectedPlayer.Name
     local stillExists = Players:FindFirstChild(name)
 
@@ -3360,9 +3521,7 @@ if TP_SelectedPlayer then
         SelectedTarget = nil
     end
 end
-    end
 end
-
 -- ================= 刷新按钮 =================
 TabTP:CreateButton({
     Name = "刷新玩家列表",
@@ -3520,6 +3679,20 @@ TabTP:CreateButton({
     Name = "甩飞一次",
     Callback = function()
 
+    if TP_SelectedPlayer == "ALL" then
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                SkidFling(p)
+
+-- ⭐等待甩飞结束
+repeat task.wait() until not Flinging
+task.wait(0.1)
+            end
+        end
+
+    else
+
         local target = TP_SelectedPlayer or SelectedTarget
 
         if target then
@@ -3529,6 +3702,8 @@ TabTP:CreateButton({
         end
 
     end
+
+end
 })
 TabTP:CreateToggle({
     Name = "循环甩飞",
@@ -3541,6 +3716,41 @@ TabTP:CreateToggle({
         else
             StopFlingLoop()
             RemoveFeature("循环甩飞")
+        end
+
+    end
+})
+TabTP:CreateToggle({
+    Name = "人物自转",
+    CurrentValue = false,
+    Callback = function(Value)
+
+        SpinEnabled = Value
+
+        if Value then
+            StartSpin()
+            Notify("自转", "已开启", 2)
+            AddFeature("自转")
+        else
+            StopSpin()
+            Notify("自转", "已关闭", 2)
+            RemoveFeature("自转")
+        end
+
+    end
+})
+TabTP:CreateInput({
+    Name = "旋转速度",
+    PlaceholderText = "默认5",
+    Callback = function(Text)
+
+        local num = tonumber(Text)
+
+        if num then
+            SpinSpeed = math.clamp(num, 10, 500)
+            Notify("旋转速度", tostring(SpinSpeed), 2)
+        else
+            Notify("错误", "请输入数字", 2)
         end
 
     end
