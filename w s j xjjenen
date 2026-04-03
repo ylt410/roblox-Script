@@ -2924,6 +2924,176 @@ TabOther:Toggle({
     end
 })
 
+TabOther:Button({
+    Title = "绕过群组检测",
+    Callback = function()
+        local ok, err = pcall(function()
+local getnamecallmethod
+= getnamecallmethod
+local Speaker = cloneref(game:GetService("Players")).LocalPlayer
+local OldNameCall
+OldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
+if self ~= Speaker or getnamecallmethod() ~= "IsInGroup" then
+return OldNameCall(self, ...)
+end
+return true
+end)
+hookfunction(Speaker.IsInGroup, function(self, ...)
+return true
+end)
+        end)
+
+        if ok then
+            Notify("成功", "已绕过", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
+TabOther:Button({
+    Title = "一键清屏（有独立UI可关闭）",
+    Callback = function()
+        local ok, err = pcall(function()
+-- ================== 全GUI隐藏（可拖拽版） ==================
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local Hidden = false
+local Stored = {}
+
+-- 🖱 创建自己的UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FullUIToggle"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(0, 120, 0, 30)
+Button.Position = UDim2.new(1, -130, 0, 10)
+Button.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Button.TextColor3 = Color3.new(1,1,1)
+Button.Text = "Hide ALL UI"
+Button.Parent = ScreenGui
+
+Instance.new("UICorner", Button)
+
+-- ================== 拖拽逻辑 ==================
+
+local dragging = false
+local dragInput, startPos, startFramePos
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        startPos = input.Position
+        startFramePos = Button.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - startPos
+        Button.Position = UDim2.new(
+            startFramePos.X.Scale,
+            startFramePos.X.Offset + delta.X,
+            startFramePos.Y.Scale,
+            startFramePos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ================== 原逻辑 ==================
+
+local function IsUI(obj)
+    return obj:IsA("GuiObject")
+end
+
+local function ShouldSkip(obj)
+    return obj:IsDescendantOf(ScreenGui)
+end
+
+local function Process(container, hide)
+    for _, obj in ipairs(container:GetDescendants()) do
+        if IsUI(obj) and not ShouldSkip(obj) then
+            if hide then
+                if not Stored[obj] then
+                    Stored[obj] = obj.Visible
+                end
+                obj.Visible = false
+            else
+                if Stored[obj] ~= nil then
+                    obj.Visible = Stored[obj]
+                end
+            end
+        end
+    end
+end
+
+local function Toggle(state)
+    if state then
+        Stored = {}
+        Process(PlayerGui, true)
+        pcall(function()
+            Process(CoreGui, true)
+        end)
+    else
+        Process(PlayerGui, false)
+        pcall(function()
+            Process(CoreGui, false)
+        end)
+        Stored = {}
+    end
+end
+
+Button.MouseButton1Click:Connect(function()
+    Hidden = not Hidden
+    Toggle(Hidden)
+    Button.Text = Hidden and "Show ALL UI" or "Hide ALL UI"
+end)
+
+local function Hook(container)
+    container.DescendantAdded:Connect(function(obj)
+        if Hidden and obj:IsA("GuiObject") and not ShouldSkip(obj) then
+            Stored[obj] = obj.Visible
+            obj.Visible = false
+        end
+    end)
+end
+
+Hook(PlayerGui)
+pcall(function()
+    Hook(CoreGui)
+end)
+        end)
+
+        if ok then
+            Notify("成功", "已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
 
 local TabVisual = Window:Tab({
     Title = "透视功能",
