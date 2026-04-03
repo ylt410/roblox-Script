@@ -8,7 +8,7 @@
 
 -- 作者抖音58873829421
 -- by 夜
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/orialdev/WindUI-Boreal/main/WindUI%20Boreal"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local function Notify(title, content, duration, icon)
 
@@ -2311,19 +2311,24 @@ TabAttr:Toggle({
     end
 })
 
-TabAttr:Slider({
+TabAttr:Input({
     Title = "快速跑步强度",
-    Value = {
-        Min = 0,
-        Max = 200,
-        Default = 0,
-    },
-    Increment = 1,
-    Callback = function(value)
-        Speed = value
+    Placeholder = "输入速度 (0-200)",
+    Default = tostring(Speed or 0),
+
+    Callback = function(text)
+
+        local num = tonumber(text)
+
+        if num then
+            num = math.clamp(num, 0, 200) -- ⭐限制范围
+            Speed = num
+        else
+            Notify("输入错误", "请输入数字", 2, "error")
+        end
+
     end
 })
-
 -- ================= 跳跃 =================
 
 TabAttr:Toggle({
@@ -2350,7 +2355,7 @@ TabAttr:Slider({
     Title = "跳跃高度",
     Value = {
         Min = 50,
-        Max = 200,
+        Max = 600,
         Default = 50,
     },
     Increment = 1,
@@ -3674,8 +3679,8 @@ TabTP:Toggle({
 TabTP:Slider({
     Title = "旋转速度",
     Value = {
-        Min = 10,
-        Max = 500,
+        Min = 1,
+        Max = 200,
         Default = SpinSpeed,
     },
     Increment = 5,
