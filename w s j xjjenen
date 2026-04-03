@@ -189,6 +189,65 @@ end)
 Players.PlayerRemoving:Connect(function(p)
     flaggedAdmins[p] = nil
 end)
+-- =================== 强制解锁第三人称 ===================
+
+local ThirdPersonUnlock = {
+    Enabled = false,
+    Connection = nil
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local function ApplyUnlock()
+
+    pcall(function()
+        -- ⭐核心：解除锁定
+        if LocalPlayer.CameraMode ~= Enum.CameraMode.Classic then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+        end
+
+        -- ⭐允许缩放
+        LocalPlayer.CameraMinZoomDistance = 0.5
+        LocalPlayer.CameraMaxZoomDistance = 50
+    end)
+end
+
+local function EnableUnlock()
+
+    if ThirdPersonUnlock.Connection then return end
+
+    ThirdPersonUnlock.Enabled = true
+
+    ApplyUnlock()
+
+    -- ⭐持续对抗游戏锁定（关键）
+    ThirdPersonUnlock.Connection = RunService.RenderStepped:Connect(function()
+        if not ThirdPersonUnlock.Enabled then return end
+        ApplyUnlock()
+    end)
+end
+
+local function DisableUnlock()
+
+    ThirdPersonUnlock.Enabled = false
+
+    if ThirdPersonUnlock.Connection then
+        ThirdPersonUnlock.Connection:Disconnect()
+        ThirdPersonUnlock.Connection = nil
+    end
+
+    -- ⚠️ 不强制改回（避免干扰游戏）
+end
+
+-- ⭐重生修复
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    if ThirdPersonUnlock.Enabled then
+        ApplyUnlock()
+    end
+end)
 -- =================== 功能显示系统（终极进阶版） ===================
 
 local FeatureDisplayEnabled = true
@@ -2847,6 +2906,21 @@ TabOther:Button({
         else
             Notify("错误", tostring(err), 3, "error")
         end
+    end
+})
+TabOther:Toggle({
+    Title = "强制第三人称",
+    Default = false,
+    Callback = function(v)
+
+        if v then
+            EnableUnlock()
+            AddFeature("第三人称")
+        else
+            DisableUnlock()
+            RemoveFeature("第三人称")
+        end
+
     end
 })
 
