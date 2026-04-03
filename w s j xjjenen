@@ -2292,7 +2292,6 @@ if not table.find(ThemeList, CurrentTheme) then
     CurrentTheme = "Dark"
 end
 
--- ⭐创建窗口
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
     Icon = "rbxassetid://4483362748",
@@ -2302,16 +2301,14 @@ local Window = WindUI:CreateWindow({
     Folder = "NightHub",
     Size = UDim2.fromOffset(320, 240),
     Transparent = true,
-
-    Theme = CurrentTheme, -- ⭐安全主题
-
+    Theme = CurrentTheme, 
     User = {
         Enabled = true,
         Callback = function() print("clicked") end,
         Anonymous = false
     },
 
-    SideBarWidth = 140,
+    SideBarWidth = 130,
     ScrollBarEnabled = true
 })
 
