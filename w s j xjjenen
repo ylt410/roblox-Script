@@ -10,6 +10,7 @@
 -- by 夜
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
+
 local function Notify(title, content, duration, icon)
 
     pcall(function()
@@ -22,6 +23,85 @@ local function Notify(title, content, duration, icon)
     end)
 
 end
+-- ================= 主题注册 =================
+
+-- 🖤 奢侈黑金（Luxury版）
+WindUI:AddTheme({
+    Name = "BlackGold",
+
+    -- ⭐ 低饱和金（偏暖，像真金）
+    Accent = Color3.fromRGB(200, 160, 60),
+
+    Background = Color3.fromRGB(8,8,10), -- 更深，更“贵”
+    Text = Color3.fromRGB(240,240,240),
+
+    Outline = Color3.fromRGB(35,35,40),
+    Button = Color3.fromRGB(18,18,22),
+
+    Icon = Color3.fromRGB(200,160,60),
+    Placeholder = Color3.fromRGB(110,110,120),
+})
+
+-- 🌈 高级版彩虹主题（替换原来的Rainbow）
+WindUI:AddTheme({
+    Name = "Rainbow Pro",
+
+    -- ✔ 改成高级紫色（核心）
+    Accent = Color3.fromRGB(140, 80, 255),
+
+    Background = Color3.fromRGB(18,18,22), -- 更深一点更高级
+    Text = Color3.fromRGB(235,235,235),
+    Outline = Color3.fromRGB(45,45,55),
+    Button = Color3.fromRGB(28,28,35),
+    Icon = Color3.fromRGB(200,200,255),
+    Placeholder = Color3.fromRGB(130,130,150),
+})
+-- 🟢 青色主题
+WindUI:AddTheme({
+    Name = "Cyan",
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(0,255,200), Transparency = 0.2 },
+        ["100"] = { Color = Color3.fromRGB(0,150,255), Transparency = 0.2 },
+    }, { Rotation = 45 }),
+
+    Background = Color3.fromRGB(10,20,20),
+    Text = Color3.fromRGB(200,255,255),
+    Outline = Color3.fromRGB(30,60,60),
+    Button = Color3.fromRGB(15,30,30),
+    Icon = Color3.fromRGB(0,255,200),
+    Placeholder = Color3.fromRGB(120,180,180),
+})
+
+-- 🔵 蓝色主题
+WindUI:AddTheme({
+    Name = "Blue",
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(0,120,255), Transparency = 0.2 },
+        ["100"] = { Color = Color3.fromRGB(0,60,200), Transparency = 0.2 },
+    }, { Rotation = 0 }),
+
+    Background = Color3.fromRGB(10,15,25),
+    Text = Color3.fromRGB(220,230,255),
+    Outline = Color3.fromRGB(30,40,70),
+    Button = Color3.fromRGB(15,20,35),
+    Icon = Color3.fromRGB(100,150,255),
+    Placeholder = Color3.fromRGB(120,140,180),
+})
+local ThemeFile = "NightTheme.txt"
+local CurrentTheme = "Dark"
+
+-- 读取
+pcall(function()
+    if isfile and isfile(ThemeFile) then
+        local saved = readfile(ThemeFile)
+        if saved and saved ~= "" then
+            CurrentTheme = saved
+        end
+    end
+end)
+
 -- =================== UI版FOV圈 ===================
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -2202,95 +2282,8 @@ end)
 
 
 -- ===================UI创建===================
--- ================= 主题注册 =================
-
--- 🖤 奢侈黑金（Luxury版）
-WindUI:AddTheme({
-    Name = "BlackGold",
-
-    -- ⭐ 低饱和金（偏暖，像真金）
-    Accent = Color3.fromRGB(200, 160, 60),
-
-    Background = Color3.fromRGB(8,8,10), -- 更深，更“贵”
-    Text = Color3.fromRGB(240,240,240),
-
-    Outline = Color3.fromRGB(35,35,40),
-    Button = Color3.fromRGB(18,18,22),
-
-    Icon = Color3.fromRGB(200,160,60),
-    Placeholder = Color3.fromRGB(110,110,120),
-})
-
--- 🌈 高级版彩虹主题（替换原来的Rainbow）
-WindUI:AddTheme({
-    Name = "Rainbow Pro",
-
-    -- ✔ 改成高级紫色（核心）
-    Accent = Color3.fromRGB(140, 80, 255),
-
-    Background = Color3.fromRGB(18,18,22), -- 更深一点更高级
-    Text = Color3.fromRGB(235,235,235),
-    Outline = Color3.fromRGB(45,45,55),
-    Button = Color3.fromRGB(28,28,35),
-    Icon = Color3.fromRGB(200,200,255),
-    Placeholder = Color3.fromRGB(130,130,150),
-})
--- 🟢 青色主题
-WindUI:AddTheme({
-    Name = "Cyan",
-
-    Accent = WindUI:Gradient({
-        ["0"] = { Color = Color3.fromRGB(0,255,200), Transparency = 0.2 },
-        ["100"] = { Color = Color3.fromRGB(0,150,255), Transparency = 0.2 },
-    }, { Rotation = 45 }),
-
-    Background = Color3.fromRGB(10,20,20),
-    Text = Color3.fromRGB(200,255,255),
-    Outline = Color3.fromRGB(30,60,60),
-    Button = Color3.fromRGB(15,30,30),
-    Icon = Color3.fromRGB(0,255,200),
-    Placeholder = Color3.fromRGB(120,180,180),
-})
-
--- 🔵 蓝色主题
-WindUI:AddTheme({
-    Name = "Blue",
-
-    Accent = WindUI:Gradient({
-        ["0"] = { Color = Color3.fromRGB(0,120,255), Transparency = 0.2 },
-        ["100"] = { Color = Color3.fromRGB(0,60,200), Transparency = 0.2 },
-    }, { Rotation = 0 }),
-
-    Background = Color3.fromRGB(10,15,25),
-    Text = Color3.fromRGB(220,230,255),
-    Outline = Color3.fromRGB(30,40,70),
-    Button = Color3.fromRGB(15,20,35),
-    Icon = Color3.fromRGB(100,150,255),
-    Placeholder = Color3.fromRGB(120,140,180),
-})
 
 
-local ThemeFile = "NightTheme.txt"
-local CurrentTheme = "Dark"
-
-pcall(function()
-    if isfile and isfile(ThemeFile) then
-        local saved = readfile(ThemeFile)
-        if saved and saved ~= "" then
-            CurrentTheme = saved
-        end
-    end
-end)
-
--- ⭐关键：校验主题是否合法
-local ThemeList = {}
-pcall(function()
-    ThemeList = WindUI:GetThemes()
-end)
-
-if not table.find(ThemeList, CurrentTheme) then
-    CurrentTheme = "Dark"
-end
 
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
@@ -3869,20 +3862,20 @@ local TabConfig = Window:Tab({
     Locked = false,
 })
 
--- ================= 读取保存 =================
 
-local ThemeFile = "NightTheme.txt"
-local CurrentTheme = "Dark"
+-- ⭐延迟获取主题（确保AddTheme已注册）
+task.wait()
 
+local ThemeList = {}
 pcall(function()
-    if isfile and isfile(ThemeFile) then
-        local saved = readfile(ThemeFile)
-        if saved and saved ~= "" then
-            CurrentTheme = saved
-        end
-    end
+    ThemeList = WindUI:GetThemes()
 end)
 
+-- ⭐严格校验
+if not table.find(ThemeList, CurrentTheme) then
+    warn("主题不存在，重置为 Dark ->", CurrentTheme)
+    CurrentTheme = "Dark"
+end
 -- ================= 管理员检测 =================
 
 TabConfig:Toggle({
