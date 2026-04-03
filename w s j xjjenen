@@ -2192,6 +2192,99 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
+
+-- ===================UI创建===================
+-- ================= 主题注册 =================
+
+-- 🖤 奢侈黑金（Luxury版）
+WindUI:AddTheme({
+    Name = "BlackGold",
+
+    -- ⭐ 低饱和金（偏暖，像真金）
+    Accent = Color3.fromRGB(200, 160, 60),
+
+    Background = Color3.fromRGB(8,8,10), -- 更深，更“贵”
+    Text = Color3.fromRGB(240,240,240),
+
+    Outline = Color3.fromRGB(35,35,40),
+    Button = Color3.fromRGB(18,18,22),
+
+    Icon = Color3.fromRGB(200,160,60),
+    Placeholder = Color3.fromRGB(110,110,120),
+})
+
+-- 🌈 高级版彩虹主题（替换原来的Rainbow）
+WindUI:AddTheme({
+    Name = "Rainbow Pro",
+
+    -- ✔ 改成高级紫色（核心）
+    Accent = Color3.fromRGB(140, 80, 255),
+
+    Background = Color3.fromRGB(18,18,22), -- 更深一点更高级
+    Text = Color3.fromRGB(235,235,235),
+    Outline = Color3.fromRGB(45,45,55),
+    Button = Color3.fromRGB(28,28,35),
+    Icon = Color3.fromRGB(200,200,255),
+    Placeholder = Color3.fromRGB(130,130,150),
+})
+-- 🟢 青色主题
+WindUI:AddTheme({
+    Name = "Cyan",
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(0,255,200), Transparency = 0.2 },
+        ["100"] = { Color = Color3.fromRGB(0,150,255), Transparency = 0.2 },
+    }, { Rotation = 45 }),
+
+    Background = Color3.fromRGB(10,20,20),
+    Text = Color3.fromRGB(200,255,255),
+    Outline = Color3.fromRGB(30,60,60),
+    Button = Color3.fromRGB(15,30,30),
+    Icon = Color3.fromRGB(0,255,200),
+    Placeholder = Color3.fromRGB(120,180,180),
+})
+
+-- 🔵 蓝色主题
+WindUI:AddTheme({
+    Name = "Blue",
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(0,120,255), Transparency = 0.2 },
+        ["100"] = { Color = Color3.fromRGB(0,60,200), Transparency = 0.2 },
+    }, { Rotation = 0 }),
+
+    Background = Color3.fromRGB(10,15,25),
+    Text = Color3.fromRGB(220,230,255),
+    Outline = Color3.fromRGB(30,40,70),
+    Button = Color3.fromRGB(15,20,35),
+    Icon = Color3.fromRGB(100,150,255),
+    Placeholder = Color3.fromRGB(120,140,180),
+})
+
+
+local ThemeFile = "NightTheme.txt"
+local CurrentTheme = "Dark"
+
+pcall(function()
+    if isfile and isfile(ThemeFile) then
+        local saved = readfile(ThemeFile)
+        if saved and saved ~= "" then
+            CurrentTheme = saved
+        end
+    end
+end)
+
+-- ⭐关键：校验主题是否合法
+local ThemeList = {}
+pcall(function()
+    ThemeList = WindUI:GetThemes()
+end)
+
+if not table.find(ThemeList, CurrentTheme) then
+    CurrentTheme = "Dark"
+end
+
+-- ⭐创建窗口
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
     Icon = "rbxassetid://4483362748",
@@ -2201,26 +2294,36 @@ local Window = WindUI:CreateWindow({
     Folder = "NightHub",
     Size = UDim2.fromOffset(320, 240),
     Transparent = true,
-    Theme = "Dark",
+
+    Theme = CurrentTheme, -- ⭐安全主题
+
     User = {
         Enabled = true,
         Callback = function() print("clicked") end,
         Anonymous = false
     },
+
     SideBarWidth = 140,
     ScrollBarEnabled = true
 })
+
+-- ⭐再补一层保险（防UI初始化不同步）
+pcall(function()
+    WindUI:SetTheme(CurrentTheme)
+end)
 Window:Tag({
     Title = "V1.0",
     Icon = "github",
     Color = Color3.fromRGB(255, 204, 0), -- ⭐柔和黄色（推荐）
     Radius = 8,
 })
+
 local MainTab = Window:Tab({
         Title = "公告",
         Icon = "megaphone",
         Locked = false,
     })
+
 MainTab:Paragraph({
         Title = "公告",
         Desc = "感谢所有支持夜脚本的人，我们的群已经100人了", 
@@ -3741,12 +3844,27 @@ TabStop:Button({
 
 -- ================= 配置 =================
 local TabConfig = Window:Tab({
-    Title = "配置（暂时不开放）",
+    Title = "配置",
     Icon = "settings",
-    Locked = true,
+    Locked = false,
 })
 
--- 管理员检测
+-- ================= 读取保存 =================
+
+local ThemeFile = "NightTheme.txt"
+local CurrentTheme = "Dark"
+
+pcall(function()
+    if isfile and isfile(ThemeFile) then
+        local saved = readfile(ThemeFile)
+        if saved and saved ~= "" then
+            CurrentTheme = saved
+        end
+    end
+end)
+
+-- ================= 管理员检测 =================
+
 TabConfig:Toggle({
     Title = "管理员检测",
     Default = true,
@@ -3755,45 +3873,61 @@ TabConfig:Toggle({
     end
 })
 
--- 主题切换
+-- ================= 主题列表（关键修复） =================
+
+local ThemeList = {}
+
+pcall(function()
+    ThemeList = WindUI:GetThemes()
+end)
+
+-- ⭐手动加入自定义主题
+local CustomThemes = {"Rainbow", "Cyan", "Blue", "BlackGold"}
+
+for _, v in ipairs(CustomThemes) do
+    if not table.find(ThemeList, v) then
+        table.insert(ThemeList, v)
+    end
+end
+-- ⭐去重并确保Dark在第一位
+local NewList = {"Dark"}
+
+for _, v in ipairs(ThemeList) do
+    if v ~= "Dark" then
+        table.insert(NewList, v)
+    end
+end
+
+ThemeList = NewList
+
+-- ================= 主题切换 =================
+
 TabConfig:Dropdown({
     Title = "UI主题",
-    Values = {
-        "Default",
-        "AmberGlow",
-        "Amethyst",
-        "Bloom",
-        "DarkBlue",
-        "Green",
-        "Light",
-        "Ocean",
-        "Serenity"
-    },
+    Values = ThemeList,
     Default = CurrentTheme,
+
     Callback = function(v)
 
-        local theme = v
-        CurrentTheme = theme
+        CurrentTheme = v
 
-        -- 切换主题
         pcall(function()
-            Window:ModifyTheme(theme)
+            WindUI:SetTheme(v)
         end)
 
-        -- 保存
         pcall(function()
             if writefile then
-                writefile(ThemeFile, theme)
+                writefile(ThemeFile, v)
             end
         end)
 
-        -- 提示
-        FallbackNotify("主题已更改", "请重新进入服务器以完全生效", 5)
+        Notify("主题切换", "已切换为 "..tostring(v), 2, "success")
 
     end
 })
 
--- 重进服务器
+-- ================= 重进服务器 =================
+
 TabConfig:Button({
     Title = "重新进入服务器",
     Callback = function()
@@ -3804,27 +3938,6 @@ TabConfig:Button({
         local player = game.Players.LocalPlayer
 
         TeleportService:Teleport(game.PlaceId, player)
-
-    end
-})
-
--- 文本说明
-TabConfig:Paragraph({
-    Title = "查看配置图例",
-    Desc = "https://docs.sirius.menu/rayfield/configuration/themes"
-})
-
--- 复制网址
-TabConfig:Button({
-    Title = "复制网址",
-    Callback = function()
-
-        if setclipboard then
-            setclipboard("https://docs.sirius.menu/rayfield/configuration/themes")
-            Notify("复制成功", "网址已复制", 3)
-        else
-            Notify("复制失败", "当前环境不支持", 3)
-        end
 
     end
 })
