@@ -803,7 +803,11 @@ local function MonitorTarget(target)
 
     if not target then return end
 
-    -- ⭐ 初始化状态
+    -- ⭐核心修复：没有在执行功能就不监听
+    if not (TP_Loop or FlingLoop or Flinging) then
+        return
+    end
+
     if not AlreadyNotified[target] then
         AlreadyNotified[target] = {
             dead = false,
@@ -816,6 +820,11 @@ local function MonitorTarget(target)
     task.spawn(function()
 
         while true do
+
+            -- ⭐再次校验（防止中途关闭功能）
+            if not (TP_Loop or FlingLoop or Flinging) then
+                break
+            end
 
             -- ===== 玩家退出 =====
             if not target or not target.Parent then
@@ -857,7 +866,6 @@ local function MonitorTarget(target)
                     Notify("目标失效", msg, 3)
                 end
 
-                -- ⭐关键：等复活 → 重置状态
                 repeat
                     task.wait(0.5)
                     char = target.Character
@@ -865,7 +873,7 @@ local function MonitorTarget(target)
                 until hum and hum.Health > 0 or not target.Parent
 
                 if hum and hum.Health > 0 then
-                    state.dead = false -- ✅允许再次检测死亡
+                    state.dead = false
                 end
             end
 
