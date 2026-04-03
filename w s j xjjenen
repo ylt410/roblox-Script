@@ -2845,6 +2845,21 @@ TabOther:Button({
         end
     end
 })
+TabOther:Button({
+    Title = "fe变车（有些动画关不掉）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FE-SILLY-CAR-V1-48227"))()
+        end)
+
+        if ok then
+            Notify("成功", "fe变车已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
 
 local TabVisual = Window:Tab({
     Title = "透视功能",
