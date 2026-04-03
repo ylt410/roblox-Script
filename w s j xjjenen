@@ -1643,7 +1643,7 @@ local function UpdatePlayerESP()
             local head = char:FindFirstChild("Head")
             local root = char:FindFirstChild("HumanoidRootPart")
 
-            if hum and head and root and hum.Health > 0 then
+            if hum and head and root and hum.Health > -500 then
 
                 local isTeam = (p.Team == LocalPlayer.Team)
                 local filtered = PLAYER_ESP.TeamCheck and isTeam
