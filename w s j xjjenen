@@ -3140,33 +3140,35 @@ local function RefreshAimbotPlayerList()
         end
     end
 
-    -- 2. 销毁旧的下拉菜单（参考你传送功能的防Bug写法）
-    if PlayerDropdown and PlayerDropdown.Destroy then
-        PlayerDropdown:Destroy()
-    end
-
-    -- 3. 重新创建下拉菜单
     local lastSelected = SelectedTarget and SelectedTarget.Name or nil
-    PlayerDropdown = TabAimbot:Dropdown({
-        Title = "选择玩家",
-        Values = AimbotPlayerList,
-        Default = lastSelected,
-        Callback = function(v)
-            if typeof(v) == "table" then
-                v = v.Value or v[1]
-            end
 
-            if not v then return end
+    -- 2. ⭐ 核心修复：使用 Refresh 而不是 Destroy
+    if PlayerDropdown then
+        -- 如果 UI 已经存在，直接刷新列表内容
+        PlayerDropdown:Refresh(AimbotPlayerList, lastSelected)
+    else
+        -- 如果 UI 不存在（第一次加载），则创建它
+        PlayerDropdown = TabAimbot:Dropdown({
+            Title = "选择玩家",
+            Values = AimbotPlayerList,
+            Default = lastSelected,
+            Callback = function(v)
+                if typeof(v) == "table" then
+                    v = v.Value or v[1]
+                end
 
-            local target = Players:FindFirstChild(v)
-            if target then
-                SelectedTarget = target
-                print("自瞄锁定目标:", v)
-            else
-                warn("找不到玩家:", v)
+                if not v then return end
+
+                local target = Players:FindFirstChild(v)
+                if target then
+                    SelectedTarget = target
+                    print("自瞄锁定目标:", v)
+                else
+                    warn("找不到玩家:", v)
+                end
             end
-        end
-    })
+        })
+    end
 end
 
 -- ================= 刷新按钮 =================
@@ -3448,34 +3450,37 @@ local function CreateTPDropdown(lastSelectedName)
         end
     end
 
-    -- ⭐删除旧UI（关键）
-    if TP_Dropdown and TP_Dropdown.Destroy then
-        TP_Dropdown:Destroy()
+    -- ⭐ 核心修复：使用 Refresh 而不是 Destroy
+    if TP_Dropdown then
+        -- 如果 UI 已经存在，直接刷新列表内容
+        TP_Dropdown:Refresh(TP_PlayerList, lastSelectedName)
+    else
+        -- 如果 UI 不存在（第一次加载），则创建它
+        TP_Dropdown = TabTP:Dropdown({
+            Title = "选择玩家",
+            Values = TP_PlayerList,
+            Default = lastSelectedName,
+            Callback = function(v)
+                if typeof(v) == "table" then
+                    v = v.Value or v[1]
+                end
+
+                if not v then return end
+
+                if v == "所有人" then
+                    TP_SelectedPlayer = "ALL"
+                    SelectedTarget = nil
+                    return
+                end
+
+                local plr = Players:FindFirstChild(v)
+                if plr then
+                    TP_SelectedPlayer = plr
+                    SelectedTarget = plr
+                end
+            end
+        })
     end
-
-    -- ⭐重建Dropdown
-    TP_Dropdown = TabTP:Dropdown({
-        Title = "选择玩家",
-        Values = TP_PlayerList,
-        Default = lastSelectedName,
-        Callback = function(v)
-
-            if not v then return end
-
-            if v == "所有人" then
-                TP_SelectedPlayer = "ALL"
-                SelectedTarget = nil
-                return
-            end
-
-            local plr = Players:FindFirstChild(v)
-            if plr then
-                TP_SelectedPlayer = plr
-                SelectedTarget = plr
-            end
-        end
-    })
-
 end
 
 -- ================= 刷新函数 =================
