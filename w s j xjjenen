@@ -1,3 +1,4 @@
+
 --[[
 ╔═══════════════════════════════════════════════╗
 ║                                               ║
@@ -553,6 +554,10 @@ local ESP_SETTINGS = {
     DistanceCheck = false,     -- 距离限制
     WallCheck = false          -- 墙体检测
 }
+-- ⭐团队白名单（核心）
+local AimbotTeamWhitelist = {}
+local AimbotTeamWhitelistEnabled = false
+
 -- ================= 玩家透视专用变量 =================
 local PLAYER_ESP = {
     Enabled = false,        -- 总开关（⭐核心）
@@ -2424,7 +2429,7 @@ TabAttr:Toggle({
 TabAttr:Slider({
     Title = "速度数值",
     Value = {
-        Min = 16,
+        Min = 0,
         Max = 400,
         Default = 16,
     },
@@ -2553,7 +2558,6 @@ local TabOther = Window:Tab({
     Icon = "info",
     Locked = false,
 })
-
 -- ================= 飞行 =================
 
 TabOther:Button({
@@ -3461,6 +3465,62 @@ TabAimbot:Button({
         RefreshAimbotPlayerList()
     end
 })
+-- ================= 白名单开关 =================
+TabAimbot:Toggle({
+    Title = "启用团队白名单",
+    Default = false,
+    Callback = function(v)
+        AimbotTeamWhitelistEnabled = v
+    end
+})
+-- ================= 团队白名单 =================
+local TeamDropdown = nil
+
+local function RefreshTeamList()
+
+    local teams = {}
+
+    for _, t in ipairs(game:GetService("Teams"):GetTeams()) do
+        table.insert(teams, t.Name)
+    end
+
+    if TeamDropdown then
+        TeamDropdown:Refresh(teams, {})
+    else
+        TeamDropdown = TabAimbot:Dropdown({
+            Title = "自瞄团队白名单",
+            Values = teams,
+            Value = {}, -- ⭐默认空
+            Multi = true, -- ⭐开启多选
+            AllowNone = true,
+
+            Callback = function(selected)
+
+                -- 清空旧数据
+                AimbotTeamWhitelist = {}
+
+                -- ⭐selected 是 table
+                for _, teamName in ipairs(selected) do
+                    AimbotTeamWhitelist[teamName] = true
+                end
+
+            end
+        })
+    end
+end
+
+-- 刷新按钮
+TabAimbot:Button({
+    Title = "刷新团队列表",
+    Callback = function()
+        RefreshTeamList()
+    end
+})
+
+-- 初始化
+task.delay(1, function()
+    RefreshTeamList()
+end)
 
 -- ================= 初始化列表 =================
 task.delay(1, function()
@@ -3633,12 +3693,25 @@ local function getTarget()
 
         if p and isAlive(p) then
 
-            if (not LockTargetEnabled) and ESP_SETTINGS.TeamCheck then
-                if p.Team == LocalPlayer.Team then
-                    continue
-                end
-            end
+-- ================= 团队过滤（最终版） =================
+if not LockTargetEnabled then
 
+    -- ⭐白名单开关开启才生效
+    if AimbotTeamWhitelistEnabled and next(AimbotTeamWhitelist) ~= nil then
+
+        if not p.Team or not AimbotTeamWhitelist[p.Team.Name] then
+            continue
+        end
+
+    elseif ESP_SETTINGS.TeamCheck then
+
+        if p.Team == LocalPlayer.Team then
+            continue
+        end
+
+    end
+
+end
             local char = p.Character
             local part = char and GetAimPart(char)
 
