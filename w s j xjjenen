@@ -2676,7 +2676,7 @@ TabOther:Toggle({
 })
 
 TabOther:Slider({
-    Title = "Freecam速度",
+    Title = "自由视角速度",
     Value = {
         Min = 1,
         Max = 20,
