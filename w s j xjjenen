@@ -803,6 +803,17 @@ local function SkidFling(TargetPlayer)
 
     local Camera = workspace.CurrentCamera
 
+    -- ⭐ 新增：监听自身重生
+    local Dead = false
+    local DeadConn
+    DeadConn = Player.CharacterAdded:Connect(function()
+        Dead = true
+        if DeadConn then
+            DeadConn:Disconnect()
+            DeadConn = nil
+        end
+    end)
+
     if RootPart.Velocity.Magnitude < 50 then
         getgenv().OldPos = RootPart.CFrame
     end
@@ -817,90 +828,96 @@ local function SkidFling(TargetPlayer)
         end
     end
 
-local function FPos(BasePart, Pos, Ang)
+    local function FPos(BasePart, Pos, Ang)
+        -- ⭐ 新增：每次移动前检查
+        if Dead then return end
+        if not BasePart or not BasePart.Parent then return end
+        if not RootPart or not RootPart.Parent then return end
 
-    if not BasePart or not BasePart.Parent then return end
-    if not RootPart or not RootPart.Parent then return end
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
 
-    RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
-    Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+        RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+        RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+    end
 
-    RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
-    RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
-end
     local function SFBasePart(BasePart)
 
-    local TimeToWait = 2
-    local Time = tick()
-    local Angle = 0
+        local TimeToWait = 2
+        local Time = tick()
+        local Angle = 0
 
-    repeat
+        repeat
+            -- ⭐ 新增：死亡检测放最前面
+            if Dead then break end
 
-        -- ⭐核心防炸（你缺的就是这个）
-        if not BasePart or not BasePart.Parent then break end
-        if not RootPart or not RootPart.Parent then break end
-        if not TRootPart or not TRootPart.Parent then break end
-        if not THumanoid or THumanoid.Health <= 0 then break end
+            if not BasePart or not BasePart.Parent then break end
+            if not RootPart or not RootPart.Parent then break end
+            if not TRootPart or not TRootPart.Parent then break end
+            if not THumanoid or THumanoid.Health <= 0 then break end
 
-        if BasePart.Velocity.Magnitude > 1 then
+            if BasePart.Velocity.Magnitude > 1 then
 
-            Angle = Angle + 100
+                Angle = Angle + 100
 
-            FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(2.25, 1.5, -2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(2.25, 1.5, -2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(-2.25, -1.5, 2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(-2.25, -1.5, 2.25) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
 
-        else
+            else
 
-            FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, -TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(0, 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, -TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(0, 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, 1.5, TRootPart.Velocity.Magnitude / 1.25), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
-            task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5 ,0), CFrame.Angles(math.rad(-90), 0, 0))
+                task.wait()
 
-            FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
-            task.wait()
-        end
+                FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                task.wait()
+            end
 
-    until BasePart.Velocity.Magnitude > 500
-        or not BasePart.Parent
-        or tick() > Time + TimeToWait
-end
+        -- ⭐ 新增 Dead 退出条件
+        until BasePart.Velocity.Magnitude > 500
+            or not BasePart.Parent
+            or Dead
+            or tick() > Time + TimeToWait
+    end
+
     local BV = Instance.new("BodyVelocity")
     BV.Parent = RootPart
     BV.Velocity = Vector3.new(9e8,9e8,9e8)
@@ -908,37 +925,56 @@ end
 
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated,false)
 
-    if TRootPart then
-        SFBasePart(TRootPart)
-    elseif THead then
-        SFBasePart(THead)
-    elseif Handle then
-        SFBasePart(Handle)
+    if not Dead then
+        if TRootPart then
+            SFBasePart(TRootPart)
+        elseif THead then
+            SFBasePart(THead)
+        elseif Handle then
+            SFBasePart(Handle)
+        end
     end
 
     BV:Destroy()
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated,true)
 
     if Camera then
-        Camera.CameraSubject = Humanoid
+        -- ⭐ 新增：恢复镜头前检查角色是否还存在
+        local newChar = Player.Character
+        local newHum = newChar and newChar:FindFirstChildOfClass("Humanoid")
+        if newHum then
+            Camera.CameraSubject = newHum
+        end
     end
 
-    -- ⭐原版刹车
-    if getgenv().OldPos then
-        repeat
-            RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
-            Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
-            Humanoid:ChangeState("GettingUp")
+    -- ⭐ 新增：刹车前检查是否重生
+    if not Dead and getgenv().OldPos then
+        local newChar = Player.Character
+        local newRoot = newChar and newChar:FindFirstChild("HumanoidRootPart")
+        local newHum = newChar and newChar:FindFirstChildOfClass("Humanoid")
 
-            for _, x in ipairs(Character:GetChildren()) do
-                if x:IsA("BasePart") then
-                    x.Velocity = Vector3.zero
-                    x.RotVelocity = Vector3.zero
+        if newRoot and newHum then
+            repeat
+                newRoot.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+                newChar:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
+                newHum:ChangeState("GettingUp")
+
+                for _, x in ipairs(newChar:GetChildren()) do
+                    if x:IsA("BasePart") then
+                        x.Velocity = Vector3.zero
+                        x.RotVelocity = Vector3.zero
+                    end
                 end
-            end
 
-            task.wait()
-        until (RootPart.Position - getgenv().OldPos.Position).Magnitude < 25
+                task.wait()
+            until (newRoot.Position - getgenv().OldPos.Position).Magnitude < 25
+        end
+    end
+
+    -- ⭐ 新增：清理连接
+    if DeadConn then
+        DeadConn:Disconnect()
+        DeadConn = nil
     end
 
     Flinging = false
@@ -1037,11 +1073,27 @@ local function StartFlingLoop()
 
         while FlingLoop do
 
-            -- ================= 所有人模式 =================
+            -- ⭐ 检查自身角色是否存在，重生中就等待
+            local selfChar = LocalPlayer.Character
+            local selfHum = selfChar and selfChar:FindFirstChildOfClass("Humanoid")
+            local selfRoot = selfChar and selfChar:FindFirstChild("HumanoidRootPart")
+
+            if not selfChar or not selfHum or not selfRoot or selfHum.Health <= 0 then
+                task.wait(0.5)
+                continue
+            end
+
+-- ================= 所有人模式 =================
             if TP_SelectedPlayer == "ALL" then
 
                 for _, p in ipairs(Players:GetPlayers()) do
-    if not FlingLoop then break end -- ⭐加这一行
+                    if not FlingLoop then break end
+
+                    -- ⭐ 每次循环重新检查自身
+                    local c = LocalPlayer.Character
+                    local h = c and c:FindFirstChildOfClass("Humanoid")
+                    if not c or not h or h.Health <= 0 then break end
+
                     if p ~= LocalPlayer then
 
                         local char = p.Character
@@ -1089,7 +1141,6 @@ local function StartFlingLoop()
 
             end
 
-            -- ⭐必须在 while 里面
             task.wait(0.2)
 
         end
@@ -1097,6 +1148,7 @@ local function StartFlingLoop()
     end)
 
 end
+
 local function StopFlingLoop()
     FlingLoop = false
 end
