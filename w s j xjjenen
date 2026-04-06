@@ -9,7 +9,6 @@
 
 -- 作者抖音58873829421
 -- by 夜
-
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 
