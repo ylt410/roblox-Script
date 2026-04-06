@@ -10,7 +10,7 @@
 -- 作者抖音58873829421
 -- by 夜
 -- ================= 配置 =================
-local FILE_NAME = "notice_read.txt"
+local FILE_NAME = "save.txt"
 
 -- ================= 已读检测 =================
 if isfile and isfile(FILE_NAME) then
@@ -69,7 +69,7 @@ TextLabel.TextSize = 17
 TextLabel.Font = Enum.Font.Gotham
 TextLabel.TextYAlignment = Enum.TextYAlignment.Top
 TextLabel.TextTransparency = 1
-TextLabel.Text = "公告\n\n我们的主群被封了，请等待解封"
+TextLabel.Text = "公告\n我们的主群被封了\n请等待解封，或从脚本公告进入新群\n感谢大家支持\夜脚本不会跑路"
 TextLabel.Parent = Frame
 
 -- ================= 按钮 =================
@@ -2579,12 +2579,12 @@ MainTab:Paragraph({
         Title = "公告",
         Desc = "感谢所有支持夜脚本的人，我们的群已经100人了", 
     })
-MainTab:Paragraph({ Title="夜脚本主群", Desc ="1081045774" })
+MainTab:Paragraph({ Title="夜脚本主群", Desc ="1082866627" })
 MainTab:Button({
     Title = "复制QQ群",
     Callback = function()
         if setclipboard then
-            setclipboard("1081045774")
+            setclipboard("1082866627")
         end
 end
 })
