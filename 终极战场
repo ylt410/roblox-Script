@@ -1,6 +1,6 @@
 --BY XI.team
 local TabA = Window:Tab({
-    Title = "主要功能",
+    Title = "主要功能（似乎没用，用暴力吧那个有用）",
     Icon = "sword",
     Locked = false,
 })
