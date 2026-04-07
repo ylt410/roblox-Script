@@ -1,3 +1,5 @@
+local Window = Window or _G.Window
+local WindUI = WindUI or _G.WindUI
 local Env = getfenv()
 local SoundService = game:GetService("SoundService")
 local PlayStartSound = Instance.new("Sound")
