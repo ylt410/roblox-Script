@@ -1,2021 +1,1896 @@
-if game.PlaceId == 7239319209 then
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "正在加载中...";
-Title = "🖇Rb脚本中心🖇";
-Duration = 5;
-});
-
-wait(1);
-
-Notify({
-Description = "本脚本为免费脚本，请勿圈钱！";
-Title = "🖇Rb脚本中心🖇";
-Duration = 5;
-});
-
-wait(1);
-
-Notify({
-Description = "加载成功！请享受---";
-Title = "🖇Rb脚本中心🖇";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Consistt/Ui/main/UnLeaked"))()
-
-
-library.rank = "developer"
-local Wm = library:Watermark("Rb脚本中心-俄亥俄州 | v1.0.0 | " .. library:GetUsername() .. " | 您的注入器：" ..identifyexecutor().."" )
-local FpsWm = Wm:AddWatermark("fps: " .. library.fps)
-coroutine.wrap(function()
-    while wait(.75) do
-        FpsWm:Text("帧率（FPS）: " .. library.fps)
-    end
-end)()
-
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mapple7777/UI-Librarys/main/UI-1/UI.lua"))()
-
-local Window = Library:Create("Rb脚本中心","俄亥俄州")
-
-local Tab1 = Window:Tab("玩家功能",true)
-
-Tab1:Label("基本功能")
-
-Tab1:Button("隐身（请勿多次点击）",function()
--- Roblox Invisibility Toggle Script
-        
-            -- Also by the way, if you press "E" on your keyboard, You will become invisible to other players, but on your screen, you will still be able to see yourself to make it easier.
-        
-        
-            --Settings:
-            local ScriptStarted = false
-            local Keybind = "X" --Set to whatever you want, has to be the name of a KeyCode Enum.
-            local Transparency = true --Will make you slightly transparent when you are invisible. No reason to disable.
-            local NoClip = false --Will make your fake character no clip.
-        
-            local Player = game:GetService("Players").LocalPlayer
-            local RealCharacter = Player.Character or Player.CharacterAdded:wait(0.1)
-        
-            local IsInvisible = false
-        
-            RealCharacter.Archivable = true
-            local FakeCharacter = RealCharacter:Clone()
-            local Part
-            Part = Instance.new("Part", workspace)
-            Part.Anchored = true
-            Part.Size = Vector3.new(200, 1, 200)
-            Part.CFrame = CFrame.new(0, -500, 0) --Set this to whatever you want, just far away from the map.
-            Part.CanCollide = true
-            FakeCharacter.Parent = workspace
-            FakeCharacter.HumanoidRootPart.CFrame = Part.CFrame * CFrame.new(0, 5, 0)
-        
-            for i, v in pairs(RealCharacter:GetChildren()) do
-                if v:IsA("LocalScript") then
-                    local clone = v:Clone()
-                    clone.Disabled = true
-                    clone.Parent = FakeCharacter
-                end
-            end
-            if Transparency then
-                for i, v in pairs(FakeCharacter:GetDescendants()) do
-                    if v:IsA("BasePart") then
-                        v.Transparency = 0.7
-                    end
-                end
-            end
-            local CanInvis = true
-            function RealCharacterDied()
-                CanInvis = false
-                RealCharacter:Destroy()
-                RealCharacter = Player.Character
-                CanInvis = true
-                isinvisible = false
-                FakeCharacter:Destroy()
-                workspace.CurrentCamera.CameraSubject = RealCharacter.Humanoid
-        
-                RealCharacter.Archivable = true
-                FakeCharacter = RealCharacter:Clone()
-                Part:Destroy()
-                Part = Instance.new("Part", workspace)
-                Part.Anchored = true
-                Part.Size = Vector3.new(200, 1, 200)
-                Part.CFrame = CFrame.new(9999, 9999, 9999) --Set this to whatever you want, just far away from the map.
-                Part.CanCollide = true
-                FakeCharacter.Parent = workspace
-                FakeCharacter.HumanoidRootPart.CFrame = Part.CFrame * CFrame.new(0, 5, 0)
-        
-                for i, v in pairs(RealCharacter:GetChildren()) do
-                    if v:IsA("LocalScript") then
-                        local clone = v:Clone()
-                        clone.Disabled = true
-                        clone.Parent = FakeCharacter
-                    end
-                end
-                if Transparency then
-                    for i, v in pairs(FakeCharacter:GetDescendants()) do
-                        if v:IsA("BasePart") then
-                            v.Transparency = 0.7
-                        end
-                    end
-                end
-                RealCharacter.Humanoid.Died:Connect(function()
-                    RealCharacter:Destroy()
-                    FakeCharacter:Destroy()
-                end)
-                Player.CharacterAppearanceLoaded:Connect(RealCharacterDied)
-            end
-            RealCharacter.Humanoid.Died:Connect(function()
-                RealCharacter:Destroy()
-                FakeCharacter:Destroy()
-            end)
-            Player.CharacterAppearanceLoaded:Connect(RealCharacterDied)
-            local PseudoAnchor
-            game:GetService "RunService".RenderStepped:Connect(
-                function()
-                    if PseudoAnchor ~= nil then
-                        PseudoAnchor.CFrame = Part.CFrame * CFrame.new(0, 5, 0)
-                    end
-                    if NoClip then
-                        FakeCharacter.Humanoid:ChangeState(11)
-                    end
-                end
-            )
-        
-            PseudoAnchor = FakeCharacter.HumanoidRootPart
-            local function Invisible()
-                if IsInvisible == false then
-                    local StoredCF = RealCharacter.HumanoidRootPart.CFrame
-                    RealCharacter.HumanoidRootPart.CFrame = FakeCharacter.HumanoidRootPart.CFrame
-                    FakeCharacter.HumanoidRootPart.CFrame = StoredCF
-                    RealCharacter.Humanoid:UnequipTools()
-                    Player.Character = FakeCharacter
-                    workspace.CurrentCamera.CameraSubject = FakeCharacter.Humanoid
-                    PseudoAnchor = RealCharacter.HumanoidRootPart
-                    for i, v in pairs(FakeCharacter:GetChildren()) do
-                        if v:IsA("LocalScript") then
-                            v.Disabled = false
-                        end
-                    end
-        
-                    IsInvisible = true
-                else
-                    local StoredCF = FakeCharacter.HumanoidRootPart.CFrame
-                    FakeCharacter.HumanoidRootPart.CFrame = RealCharacter.HumanoidRootPart.CFrame
-        
-                    RealCharacter.HumanoidRootPart.CFrame = StoredCF
-        
-                    FakeCharacter.Humanoid:UnequipTools()
-                    Player.Character = RealCharacter
-                    workspace.CurrentCamera.CameraSubject = RealCharacter.Humanoid
-                    PseudoAnchor = FakeCharacter.HumanoidRootPart
-                    for i, v in pairs(FakeCharacter:GetChildren()) do
-                        if v:IsA("LocalScript") then
-                            v.Disabled = true
-                        end
-                    end
-                    IsInvisible = false
-                end
-            end
-        
-            game:GetService("UserInputService").InputBegan:Connect(
-            function(key, gamep)
-                if gamep then
-                    return
-                end
-                if key.KeyCode.Name:lower() == Keybind:lower() and CanInvis and RealCharacter and FakeCharacter then
-                    if RealCharacter:FindFirstChild("HumanoidRootPart") and FakeCharacter:FindFirstChild("HumanoidRootPart") then
-                        Invisible()
-                    end
-                end
-            end
-            )
-            
-            game:GetService("StarterGui"):SetCore("SendNotification",{["Title"] = "Rb脚本中心-隐身",["Text"] = "按下 "..Keybind.." 即可隐身",["Duration"] = 20,["Button1"] = "确定"})
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "隐身已开启，请勿多次点击此功能，会导致此功能失效，手机玩家可使用键盘脚本来开启隐身";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("穿墙",function()
-local Workspace = game:GetService("Workspace")
+--by凌乱自愿开源 可以进行缝合二改
 local Players = game:GetService("Players")
-local Clipon = true
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
 
-Stepped = game:GetService("RunService").Stepped:Connect(function()
-	if not Clipon == false then
-		for a, b in pairs(Workspace:GetChildren()) do
-        if b.Name == Players.LocalPlayer.Name then
-        for i, v in pairs(Workspace[Players.LocalPlayer.Name]:GetChildren()) do
-        if v:IsA("BasePart") then
-        v.CanCollide = false
-        end end end end
-	else
-		Stepped:Disconnect()
-	end
+local Character = LocalPlayer.Character
+local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    Humanoid = char:WaitForChild("Humanoid")
 end)
 
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Window = WindUI:CreateWindow({
+    Title = "塔菲喵脚本",
+    Author = "伊散塔菲喵",
+    Folder = "HackerHub",
+    Size = UDim2.fromOffset(200, 395),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = false,
+        Callback = function() print("clicked") end,
+        Anonymous = false
+    },
+    SideBarWidth = 135,
+    ScrollBarEnabled = true,
+    --Background = "",
+    BackgroundImageTransparency = 0.65,
+})
 
+Window:EditOpenButton({
+    Title = "打开伊散",
+    --Icon = "",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2.35,
+    Color = ColorSequence.new(
+        Color3.fromHex("3C1361"),
+        Color3.fromHex("6A0DAD")
+    ),
+    Draggable = true,
+})
 
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
+local Tabs = {}
 
-wait(0);
-
-Notify({
-Description = "已开启穿墙，请勿多次点击，否则会造成游戏卡顿";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("踏空",function()
--- Make sure to copy aLL of this!
-
--- Gui to Lua
--- Version: 3.2
-
--- Instances:
-
-local ScreenGui = Instance.new("ScreenGui")
-local main = Instance.new("Frame")
-local TextLabel = Instance.new("TextLabel")
-local Frame = Instance.new("Frame")
-local INFJUMP = Instance.new("TextButton")
-local TextLabel_2 = Instance.new("TextLabel")
-
---Properties:
-
-ScreenGui.Parent = game.CoreGui
-
-main.Name = "main"
-main.Parent = ScreenGui
-main.Active = true
-main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-main.BorderSizePixel = 0
-main.Position = UDim2.new(0.119258665, 0, 0, 0)
-main.Size = UDim2.new(0, 146, 0, 28)
-main.Active = true
-main.Draggable = false
-
-TextLabel.Parent = main
-TextLabel.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-TextLabel.BorderSizePixel = 0
-TextLabel.Size = UDim2.new(0, 146, 0, 28)
-TextLabel.Font = Enum.Font.SciFi
-TextLabel.Text = "Rb脚本中心"
-TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextLabel.TextSize = 17.000
-TextLabel.TextWrapped = true
-
-Frame.Parent = main
-Frame.BackgroundColor3 = Color3.fromRGB(86, 86, 86)
-Frame.BorderSizePixel = 0
-Frame.Position = UDim2.new(0, 0, 1, 0)
-Frame.Size = UDim2.new(0, 146, 0, 61)
-
-INFJUMP.Name = "INFJUMP"
-INFJUMP.Parent = main
-INFJUMP.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-INFJUMP.BorderSizePixel = 0
-INFJUMP.Position = UDim2.new(0.794520497, 0, 1.6785717, 0)
-INFJUMP.Size = UDim2.new(0, 21, 0, 21)
-INFJUMP.Font = Enum.Font.SourceSans
-INFJUMP.Text = ""
-INFJUMP.TextColor3 = Color3.fromRGB(0, 0, 0)
-INFJUMP.TextSize = 14.000
-INFJUMP.MouseButton1Down:connect(function()
-local Player = game:GetService'Players'.LocalPlayer;
-local UIS = game:GetService'UserInputService';
- 
-_G.JumpHeight = 50;
- 
-function Action(Object, Function) if Object ~= nil then Function(Object); end end
- 
-UIS.InputBegan:connect(function(UserInput)
-    if UserInput.UserInputType == Enum.UserInputType.Keyboard and UserInput.KeyCode == Enum.KeyCode.Space then
-        Action(Player.Character.Humanoid, function(self)
-            if self:GetState() == Enum.HumanoidStateType.Jumping or self:GetState() == Enum.HumanoidStateType.Freefall then
-                Action(self.Parent.HumanoidRootPart, function(self)
-                    self.Velocity = Vector3.new(0, _G.JumpHeight, 0);
-                end)
-            end
-        end)
-    end
-end)
-end)
-
-TextLabel_2.Parent = main
-TextLabel_2.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-TextLabel_2.BorderSizePixel = 0
-TextLabel_2.Position = UDim2.new(0.0547945201, 0, 1.57142854, 0)
-TextLabel_2.Size = UDim2.new(0, 94, 0, 28)
-TextLabel_2.Font = Enum.Font.SciFi
-TextLabel_2.Text = "踏空"
-TextLabel_2.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextLabel_2.TextSize = 17.000
-TextLabel_2.TextWrapped = true
-
--- Scripts:
-
-local function TKDWQ_fake_script() -- INFJUMP.LocalScript 
-local script = Instance.new('LocalScript', INFJUMP)
-
-function zigzag(X) return math.acos(math.cos(X*math.pi))/math.pi end
-
-counter = 0
-
-while wait(0.1)do
-script.Parent.BackgroundColor3 = Color3.fromHSV(zigzag(counter),1,1)
- 
-counter = counter + 0.01
-end
-end
-coroutine.wrap(TKDWQ_fake_script)()
-
-
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "踏空开启成功，请点击左上方的彩虹按钮即可开启";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("反挂机",function()
-
-
-
-		local vu = game:GetService("VirtualUser")
-
-		game:GetService("Players").LocalPlayer.Idled:connect(function()
-
-		   vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-
-		   wait(1)
-
-		   vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-
-		end)
-
-
-
-		local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "反挂机开启成功";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("透视地图（一次性）",function()
-game.Workspace.Map:Destroy()
-
-
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "透视地图已开启，若要关闭请重启游戏";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("小地图ESP",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "小地图开启成功";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
--- Made by Blissful#4992
-local Players = game:service("Players")
-local Player = Players.LocalPlayer
-local Mouse = Player:GetMouse()
-local Camera = game:service("Workspace").CurrentCamera
-local RS = game:service("RunService")
-local UIS = game:service("UserInputService")
-
-repeat wait() until Player.Character ~= nil and Player.Character.PrimaryPart ~= nil
-
-local LerpColorModule = loadstring(game:HttpGet("https://pastebin.com/raw/wRnsJeid"))()
-local HealthBarLerp = LerpColorModule:Lerp(Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0))
-
-local function NewCircle(Transparency, Color, Radius, Filled, Thickness)
-    local c = Drawing.new("Circle")
-    c.Transparency = Transparency
-    c.Color = Color
-    c.Visible = false
-    c.Thickness = Thickness
-    c.Position = Vector2.new(0, 0)
-    c.Radius = Radius
-    c.NumSides = math.clamp(Radius*55/100, 10, 75)
-    c.Filled = Filled
-    return c
+do
+    Tabs.BladeSection = Window:Section({
+        Title = "杀戮类",
+        Opened = true,
+    })
+    
+    Tabs.MoneySection = Window:Section({
+        Title = "主要类",
+        Opened = true,
+    })
+    
+    Tabs.ProSection = Window:Section({
+        Title = "防护类",
+        Opened = true,
+    })
+    
+    Tabs.ConfigSection = Window:Section({
+        Title = "次要类",
+        Opened = true,
+    })
+    
+    Tabs.ACSection = Window:Section({
+        Title = "活动类",
+        Opened = true,
+    })
+    
+    Tabs.BladeTab = Tabs.BladeSection:Tab({ Title = "杀戮光环", Icon = "crown" })
+    Tabs.MoneyTab = Tabs.MoneySection:Tab({ Title = "刷钱类", Icon = "crown" })
+    Tabs.BypassTab = Tabs.MoneySection:Tab({ Title = "绕过类", Icon = "crown" })
+    Tabs.ProTab = Tabs.ProSection:Tab({ Title = "防护类", Icon = "crown" })
+    Tabs.PlayerTab = Tabs.ConfigSection:Tab({ Title = "通用类", Icon = "crown" })
+    Tabs.MMMTab = Tabs.ConfigSection:Tab({ Title = "快捷美化类", Icon = "crown" })
+    Tabs.MHTab = Tabs.ConfigSection:Tab({ Title = "自定义美化类", Icon = "crown" })
+    Tabs.ACTab = Tabs.ACSection:Tab({ Title = "春节活动", Icon = "crown" })
 end
 
-local RadarInfo = {
-    Position = Vector2.new(200, 200),
-    Radius = 100,
-    Scale = 1, -- Determinant factor on the effect of the relative position for the 2D integration
-    RadarBack = Color3.fromRGB(10, 10, 10),
-    RadarBorder = Color3.fromRGB(75, 75, 75),
-    LocalPlayerDot = Color3.fromRGB(255, 255, 255),
-    PlayerDot = Color3.fromRGB(60, 170, 255),
-    Team = Color3.fromRGB(0, 255, 0),
-    Enemy = Color3.fromRGB(255, 0, 0),
-    Health_Color = true,
-    Team_Check = true
+Window:SelectTab(1)
+
+_G.HealthThreshold = 0
+_G.BladeAuraEnabled = false
+
+local AutoArmor = false
+local autokz = false
+local healThread = nil
+local AutoKnockReset = false
+local antiKBEnabled = false
+local sudu = nil
+local Speed = 1
+local jumpConn = nil
+local skinvoid = false
+local autoskin = false
+local skinsec = ""
+
+Tabs.BladeTab:Paragraph({
+    Title = "使用须知",
+    Desc = "忍者飞镖光环需使用的时候 先将原来的忍者飞镖丢弃 然后再点击自动购买 再开启其余功能 即可使用",
+    Image = "sword",
+    ImageSize = 42,
+})
+
+Tabs.BladeTab:Paragraph({
+    Title = "关于作者",
+    Desc = "本人浙江彭于晏",
+    Image = "sword",
+    ImageSize = 42,
+})
+
+local plrs = game:GetService("Players")
+local rs = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
+local lp = plrs.LocalPlayer
+
+local dvv = require(rs.devv)
+local sig = dvv.load("Signal")
+local guid = dvv.load("GUID")
+local inv = dvv.load("v3item").inventory
+
+local dartOn = false
+local dartTeleportTargets = false
+local dartCachedHitId = nil
+local dartCurrentTarget = nil
+local dartHeartConnections = {}
+local dartNinjaStarBuyThread = nil
+
+getgenv().TrailColors = {
+    StartColor = Color3.fromRGB(200, 180, 255),
+    EndColor = Color3.fromRGB(140, 100, 220),
+    MiddleColor1 = Color3.fromRGB(180, 150, 240),
+    MiddleColor2 = Color3.fromRGB(160, 130, 230)
 }
 
-local RadarBackground = NewCircle(0.9, RadarInfo.RadarBack, RadarInfo.Radius, true, 1)
-RadarBackground.Visible = true
-RadarBackground.Position = RadarInfo.Position
+local function createBeautifulTrail(origin, targetPos)
+    local trailContainer = Instance.new("Folder")
+    trailContainer.Name = "MagicTrail"
+    trailContainer.Parent = Workspace
+    
+    local midPoint = (origin + targetPos) / 2
+    local direction = (targetPos - origin).Unit
+    local perpendicular = Vector3.new(-direction.Z, direction.Y, direction.X) * 3
+    local controlPoint = midPoint + perpendicular + Vector3.new(0, math.random(-3, 3), 0)
+    
+    local function createBezierCurve(p0, p1, p2, t)
+        return (1 - t)^2 * p0 + 2 * (1 - t) * t * p1 + t^2 * p2
+    end
+    
+    local curvePoints = {}
+    local numSegments = 20
+    
+    for i = 0, numSegments do
+        local t = i / numSegments
+        local point = createBezierCurve(origin, controlPoint, targetPos, t)
+        table.insert(curvePoints, point)
+    end
+    
+    for i = 1, #curvePoints - 1 do
+        local startPoint = curvePoints[i]
+        local endPoint = curvePoints[i + 1]
+        local distance = (endPoint - startPoint).Magnitude
+        
+        local beamPart = Instance.new("Part")
+        beamPart.Size = Vector3.new(0.15, 0.15, distance)
+        beamPart.Anchored = true
+        beamPart.CanCollide = false
+        beamPart.Material = Enum.Material.Neon
+        beamPart.Transparency = 0.3
+        beamPart.CFrame = CFrame.new(startPoint, endPoint) * CFrame.new(0, 0, -distance / 2)
+        beamPart.Parent = trailContainer
+        
+        local t = i / (#curvePoints - 1)
+        local color
+        if t < 0.3 then
+            color = getgenv().TrailColors.StartColor or Color3.fromRGB(200, 180, 255)
+        elseif t < 0.6 then
+            color = getgenv().TrailColors.MiddleColor1 or Color3.fromRGB(180, 150, 240)
+        elseif t < 0.9 then
+            color = getgenv().TrailColors.MiddleColor2 or Color3.fromRGB(160, 130, 230)
+        else
+            color = getgenv().TrailColors.EndColor or Color3.fromRGB(140, 100, 220)
+        end
+        
+        beamPart.Color = color
+        
+        local pointLight = Instance.new("PointLight")
+        pointLight.Brightness = 5
+        pointLight.Range = 3
+        pointLight.Color = color
+        pointLight.Parent = beamPart
+        
+        local particles = Instance.new("ParticleEmitter")
+        particles.Size = NumberSequence.new(0.1, 0.3)
+        particles.Transparency = NumberSequence.new(0.3, 0.8)
+        particles.Lifetime = NumberRange.new(0.5, 1)
+        particles.Rate = 50
+        particles.Speed = NumberRange.new(1, 2)
+        particles.VelocitySpread = 180
+        particles.Color = ColorSequence.new(color)
+        particles.Parent = beamPart
+    end
+    
+    task.delay(1.5, function()
+        if trailContainer and trailContainer.Parent then
+            trailContainer:Destroy()
+        end
+    end)
+    
+    return trailContainer
+end
 
-local RadarBorder = NewCircle(0.75, RadarInfo.RadarBorder, RadarInfo.Radius, false, 3)
-RadarBorder.Visible = true
-RadarBorder.Position = RadarInfo.Position
+local function dartCleanupConnections()
+    for _, conn in ipairs(dartHeartConnections) do
+        if conn then conn:Disconnect() end
+    end
+    dartHeartConnections = {}
+end
 
-local function GetRelative(pos)
-    local char = Player.Character
-    if char ~= nil and char.PrimaryPart ~= nil then
-        local pmpart = char.PrimaryPart
-        local camerapos = Vector3.new(Camera.CFrame.Position.X, pmpart.Position.Y, Camera.CFrame.Position.Z)
-        local newcf = CFrame.new(pmpart.Position, camerapos)
-        local r = newcf:PointToObjectSpace(pos)
-        return r.X, r.Z
-    else
-        return 0, 0
+local function dartEquipNinjaStar()
+    local itm = inv.getItems and inv.getItems() or inv.items or {}
+    for _, v in next, itm do
+        if v.name == "Ninja Star" then
+            sig.FireServer("equip", v.guid)
+            return v.guid
+        end
+    end
+    return nil
+end
+
+local function dartInitThrow()
+    local sg = dartEquipNinjaStar()
+    if not sg then return end
+    
+    local c = lp.Character
+    if not c then return end
+    
+    local rh = c:FindFirstChild("RightHand")
+    local hrp = c:FindFirstChild("HumanoidRootPart")
+    if not rh or not hrp then return end
+    
+    local mp = rh.Position + Vector3.new(0, 0.5, 0)
+    local tp = mp + Vector3.new(50, 0, 0)
+    local vel = (tp - mp).Unit * 150
+    
+    createBeautifulTrail(mp, tp)
+    
+    local ok, r1, hid = pcall(function()
+        return sig.InvokeServer("throwSticky", guid(), "Ninja Star", sg, vel, tp)
+    end)
+    
+    if ok and r1 and hid then
+        dartCachedHitId = hid
     end
 end
 
-local function PlaceDot(plr)
-    local PlayerDot = NewCircle(1, RadarInfo.PlayerDot, 3, true, 1)
+local function dartHasShield(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return false end
+    
+    local char = targetPlayer.Character
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    for _, desc in pairs(char:GetDescendants()) do
+        if desc:IsA("ForceField") then
+            return true
+        end
+    end
+    
+    return false
+end
 
-    local function Update()
-        local c 
-        c = game:service("RunService").RenderStepped:Connect(function()
-            local char = plr.Character
-            if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart ~= nil and char:FindFirstChildOfClass("Humanoid").Health > 0 then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                local scale = RadarInfo.Scale
-                local relx, rely = GetRelative(char.PrimaryPart.Position)
-                local newpos = RadarInfo.Position - Vector2.new(relx * scale, rely * scale) 
-                
-                if (newpos - RadarInfo.Position).magnitude < RadarInfo.Radius-2 then 
-                    PlayerDot.Radius = 3   
-                    PlayerDot.Position = newpos
-                    PlayerDot.Visible = true
-                else 
-                    local dist = (RadarInfo.Position - newpos).magnitude
-                    local calc = (RadarInfo.Position - newpos).unit * (dist - RadarInfo.Radius)
-                    local inside = Vector2.new(newpos.X + calc.X, newpos.Y + calc.Y)
-                    PlayerDot.Radius = 2
-                    PlayerDot.Position = inside
-                    PlayerDot.Visible = true
+local function dartFindValidTarget()
+    local closest = nil
+    local minDist = math.huge
+    local myPos = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position
+    
+    if not myPos then return nil end
+    
+    for _, player in ipairs(plrs:GetPlayers()) do
+        if player ~= lp and player.Character then
+            local char = player.Character
+            local humanoid = char:FindFirstChild("Humanoid")
+            local head = char:FindFirstChild("Head")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and head and hrp and humanoid.Health > 0 and not dartHasShield(player) then
+                local dist = (hrp.Position - myPos).Magnitude
+                if dist < minDist and dist <= 50 then
+                    minDist = dist
+                    closest = {player = player, head = head}
                 end
+            end
+        end
+    end
+    return closest
+end
 
-                PlayerDot.Color = RadarInfo.PlayerDot
-                if RadarInfo.Team_Check then
-                    if plr.TeamColor == Player.TeamColor then
-                        PlayerDot.Color = RadarInfo.Team
-                    else
-                        PlayerDot.Color = RadarInfo.Enemy
+local function dartRapidThrowAttack()
+    if not dartOn or not dartCachedHitId then return end
+    
+    local targetData = dartFindValidTarget()
+    if not targetData then return end
+    
+    local head = targetData.head 
+    local tp = head.Position
+    local wcf = CFrame.new(tp, tp + Vector3.new(0, 1, 0))
+    local rcf = CFrame.new(0, 0, 0)
+    
+    local c = lp.Character
+    if c and c:FindFirstChild("RightHand") then
+        local rh = c:FindFirstChild("RightHand")
+        createBeautifulTrail(rh.Position, tp)
+    end
+    
+    for i = 1, 15 do 
+        sig.InvokeServer("hitSticky", dartCachedHitId, head, rcf, wcf)
+    end
+end
+
+local function dartFindNextTeleportTarget()
+    local players = plrs:GetPlayers()
+    
+    for _, player in ipairs(players) do
+        if player ~= lp and player.Character then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 and not dartHasShield(player) then
+                return player
+            end
+        end
+    end
+    return nil
+end
+
+local function dartFastTeleport()
+    if not dartTeleportTargets or not dartOn then return end
+    
+    if not dartCurrentTarget then
+        dartCurrentTarget = dartFindNextTeleportTarget()
+        if not dartCurrentTarget then return end
+    end
+    
+    if not dartCurrentTarget.Character then
+        dartCurrentTarget = dartFindNextTeleportTarget()
+        if not dartCurrentTarget then return end
+    end
+    
+    local humanoid = dartCurrentTarget.Character:FindFirstChild("Humanoid")
+    if not humanoid or humanoid.Health <= 0 or dartHasShield(dartCurrentTarget) then
+        dartCurrentTarget = dartFindNextTeleportTarget()
+        if not dartCurrentTarget then return end
+    end
+    
+    local char = lp.Character
+    if not char or not char.PrimaryPart then return end
+    
+    local targetChar = dartCurrentTarget.Character
+    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+    
+    char.PrimaryPart.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 1.5)
+end
+
+Tabs.BladeTab:Toggle({
+    Title = "忍者飞镖光环",
+    Default = false,
+    Callback = function(state)
+        dartOn = state
+        dartCleanupConnections()
+        
+        if state then
+            dartEquipNinjaStar()
+            task.wait(0.1)
+            dartInitThrow()
+            
+            local fastAttackConn = runService.RenderStepped:Connect(function()
+                if not dartOn then return end
+                dartRapidThrowAttack()
+            end)
+            table.insert(dartHeartConnections, fastAttackConn)
+        end
+    end
+})
+
+Tabs.BladeTab:Toggle({
+    Title = "传送攻击(需打开忍者飞镖光环)",
+    Default = false,
+    Callback = function(state)
+        dartTeleportTargets = state
+        
+        if state and dartOn then
+            local fastTeleportConn = runService.RenderStepped:Connect(function()
+                dartFastTeleport()
+            end)
+            table.insert(dartHeartConnections, fastTeleportConn)
+            
+            WindUI:Notify({
+                Title = "TPattack",
+                Content = "open",
+                Duration = 2,
+                Icon = "zap"
+            })
+        elseif state then
+            local checkConnection
+            checkConnection = runService.Heartbeat:Connect(function()
+                if dartOn then
+                    checkConnection:Disconnect()
+                    local fastTeleportConn = runService.RenderStepped:Connect(function()
+                        dartFastTeleport()
+                    end)
+                    table.insert(dartHeartConnections, fastTeleportConn)
+                elseif not dartTeleportTargets then
+                    checkConnection:Disconnect()
+                end
+            end)
+        end
+    end
+})
+
+Tabs.BladeTab:Toggle({
+    Title = "自动购买忍者飞镖",
+    Default = false,
+    Callback = function(state)
+        if dartNinjaStarBuyThread then
+            dartNinjaStarBuyThread:Disconnect()
+            dartNinjaStarBuyThread = nil
+        end
+        if state then
+            local heartbeat = game:GetService("RunService").Heartbeat
+            dartNinjaStarBuyThread = heartbeat:Connect(function()
+                sig.InvokeServer("attemptPurchase", "Ninja Star")
+                for _, v in next, inv.items do
+                    if v.name == "Ninja Star" then
+                        break
                     end
                 end
+            end)
+        end
+    end
+})
 
-                if RadarInfo.Health_Color then
-                    PlayerDot.Color = HealthBarLerp(hum.Health / hum.MaxHealth)
+local originalOnDestroy = Window.OnDestroy or function() end
+Window.OnDestroy = function(...)
+    originalOnDestroy(...)
+    dartCleanupConnections()
+    if dartNinjaStarBuyThread then
+        dartNinjaStarBuyThread:Disconnect()
+        dartNinjaStarBuyThread = nil
+    end
+end
+
+Tabs.BladeTab:Toggle({
+    Title = "香蕉光环",
+    Default = false,
+    Callback = function(state)
+        _G.AuraEnabled = state
+        if not state then _G.TargetId = nil end
+    end
+})
+
+Tabs.BladeTab:Toggle({
+    Title = "战斧光环",
+    Default = false,
+    Callback = function(state)
+        _G.BladeAuraEnabled = state
+    end
+})
+
+Tabs.BladeTab:Slider({
+    Title = "不攻击生命值",
+    Value = {
+        Min = 0,
+        Max = 25,
+        Default = 0,
+    },
+    Callback = function(value)
+        _G.HealthThreshold = value
+    end
+})
+
+local devv = ReplicatedStorage:WaitForChild("devv")
+local load = require(devv).load
+local FireServer = load("Signal").FireServer
+local InvokeServer = load("Signal").InvokeServer
+local GUID = load("GUID")
+local Raycast = load("Raycast")
+local v3item = load("v3item")
+local inventory = v3item.inventory
+
+_G.TargetId = nil
+local lastAttack = 0
+local lastAmmo = 0
+
+local function getTarget()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local target, dist = nil, 150
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local tRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+            local tHum = plr.Character:FindFirstChildOfClass("Humanoid")
+            if tRoot and tHum and tHum.Health >= _G.HealthThreshold then
+                local d = (root.Position - tRoot.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    target = plr
                 end
-            else 
-                PlayerDot.Visible = false
-                if Players:FindFirstChild(plr.Name) == nil then
-                    PlayerDot:Remove()
-                    c:Disconnect()
+            end
+        end
+    end
+    return target
+end
+
+local function hackthrow(plr, itemname, itemguid, velocity, epos)
+    if plr ~= LocalPlayer then
+        return
+    end
+    task.spawn(function()
+        local throwGuid = GUID()
+        local char = plr.Character
+        if char and char:FindFirstChild("RightHand") then
+            local hand = char:FindFirstChild("RightHand")
+            createBeautifulTrail(hand.Position, epos)
+        end
+        
+        local success, stickyId = InvokeServer("throwSticky", throwGuid, itemname, itemguid, velocity, epos)
+        if not success then
+            return
+        end
+        local dummyPart = Instance.new("Part")
+        dummyPart.Size = Vector3.new(2, 2, 2)
+        dummyPart.Position = epos
+        dummyPart.Anchored = true
+        dummyPart.Transparency = 1
+        dummyPart.CanCollide = true
+        dummyPart.Parent = workspace
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = { plr.Character, workspace.Game.Local, workspace.Game.Drones }
+        local dist = (epos - plr.Character.Head.Position).Magnitude
+        local rayResult = workspace:Raycast(
+            plr.Character.Head.Position,
+            (epos - plr.Character.Head.Position).Unit * (dist + 5),
+            rayParams
+        )
+        if rayResult and rayResult.Instance then
+            local hitPart = rayResult.Instance
+            local relativeHitCFrame = hitPart.CFrame:ToObjectSpace(CFrame.new(rayResult.Position, rayResult.Position + rayResult.Normal))
+            local stickyCFrame = CFrame.new(rayResult.Position)
+            if dummyPart.Parent then
+                dummyPart:Destroy()
+            end
+            _G.throwargs = {
+                "hitSticky",
+                stickyId or throwGuid,
+                hitPart,
+                relativeHitCFrame,
+                stickyCFrame,
+            }
+            InvokeServer("hitSticky", stickyId or throwGuid, hitPart, relativeHitCFrame, stickyCFrame)
+        else
+            if dummyPart.Parent then
+                dummyPart:Destroy()
+            end
+        end
+    end)
+end
+
+local function getinventory()
+    return inventory.items
+end
+
+local function finditem(string)
+    for guid, data in next, getinventory() do
+        if data.name == string or data.type == string or data.subtype == string then
+            return data
+        end
+    end
+end
+
+local function executebladekill(plr, head)
+    local item = finditem("Tomahawk")
+    if item then
+        FireServer("equip", item.guid)
+
+        if not _G.throwargs then
+            local char = LocalPlayer.Character
+            if not char then return end
+            local hand = char:FindFirstChild("RightHand")
+            if not hand then return end
+            
+            local spos = hand.Position
+            local epos = head.Position
+            local velocity = (epos - spos).Unit * ((spos - epos).Magnitude * 15)
+            createBeautifulTrail(spos, epos)
+            task.spawn(InvokeServer, "attemptPurchaseAmmo", "Tomahawk")
+            hackthrow(LocalPlayer, "Tomahawk", item.guid, velocity, epos)
+        end
+
+        if _G.throwargs then
+            _G.throwargs[3] = head
+            task.spawn(InvokeServer, unpack(_G.throwargs))
+        end
+    else
+        task.spawn(InvokeServer, "attemptPurchase", "Tomahawk")
+    end
+end
+
+local function attack(plr)
+    local now = tick()
+    if now - lastAttack < 0.03 then return end
+    lastAttack = now
+
+    local tChar = plr.Character
+    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+    if not tRoot or not tHum or tHum.Health < 15 then return end
+
+    task.spawn(function()
+        local items = inventory.items or {}
+        local banana = nil
+        for _, v in next, items do
+            if v.name == "Banana Peel" then
+                banana = v
+                break
+            end
+        end
+
+        if not banana then
+            pcall(function() InvokeServer("attemptPurchase", "Banana Peel") end)
+            return
+        end
+
+        FireServer("equip", banana.guid)
+
+        local pred = tRoot.AssemblyLinearVelocity * 0.2
+        local cf = tRoot.CFrame * CFrame.new(0, -1, 0) + pred
+        local rcf = tRoot.CFrame:ToObjectSpace(cf)
+
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("RightHand") then
+            local hand = char:FindFirstChild("RightHand")
+            createBeautifulTrail(hand.Position, cf.Position)
+        end
+
+        if not _G.TargetId then
+            local ok, _, id = pcall(function()
+                return InvokeServer("throwSticky", GUID(), "Banana Peel", banana.guid, Vector3.new(0, 100, 0), cf.Position)
+            end)
+            if ok and id then _G.TargetId = id end
+        end
+
+        if _G.TargetId then
+            pcall(function()
+                InvokeServer("hitSticky", _G.TargetId, tRoot, rcf, cf)
+            end)
+        end
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if _G.AuraEnabled then
+        local target = getTarget()
+        if target then
+            attack(target)
+        end
+        
+        if tick() - lastAmmo > 0.5 then
+            lastAmmo = tick()
+            task.spawn(function()
+                pcall(function() InvokeServer("attemptPurchaseAmmo", "Banana Peel") end)
+            end)
+        end
+    end
+    
+    if _G.BladeAuraEnabled and HumanoidRootPart then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                local char = plr.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local head = char and char:FindFirstChild("Head")
+                if head then
+                    local dist = (HumanoidRootPart.Position - head.Position).Magnitude
+                    if hum and hum.Health > 0 and dist < 190 then
+                        executebladekill(plr, head)
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local autobank = false
+local bankTeleportCFrame = CFrame.new(1112.12671, 10.1856346, -324.815613)  
+local originalPosition = nil  
+
+local function robBankAndReturn()
+    if not autobank then return end
+    
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    originalPosition = rootPart.CFrame
+    
+    rootPart.CFrame = bankTeleportCFrame
+    task.wait(0.1)
+    
+    local Signal = require(game:GetService("ReplicatedStorage").devv).load("Signal")
+    
+    local waitTime = 0.1
+    local maxWait = 10.0
+    
+    local startTime = tick()
+    while autobank and (tick() - startTime) < maxWait do
+        Signal.FireServer("stealBankCash")
+        task.wait(waitTime)
+    end
+    
+    if autobank and originalPosition then
+        rootPart.CFrame = originalPosition
+        task.wait(0.1)
+    end
+    
+    originalPosition = nil
+end
+
+local bankThread = nil
+
+local function startBankRobberyLoop()
+    if bankThread then return end
+    
+    bankThread = task.spawn(function()
+        while autobank do
+            robBankAndReturn()
+            task.wait(0.5)
+        end
+        bankThread = nil
+    end)
+end
+
+local function stopBankRobberyLoop()
+    if bankThread then
+        task.cancel(bankThread)
+        bankThread = nil
+    end
+end
+
+Tabs.MoneyTab:Toggle({
+    Title = "银行光环",
+    Value = false,
+    Callback = function(state) 
+        autobank = state
+        if autobank then
+            startBankRobberyLoop()
+        else
+            stopBankRobberyLoop()
+        end
+    end
+})
+
+local autoATMCashCombo = false
+
+Tabs.MoneyTab:Toggle({
+    Title = "ATM农场",
+    Default = false,
+    Callback = function(Value)
+        autoATMCashCombo = Value
+        
+        if autoATMCashCombo then
+            local function collectCash()
+                local player = game:GetService("Players").LocalPlayer
+                local cashSize = Vector3.new(2, 0.2499999850988388, 1)
+                
+                for _, part in ipairs(workspace.Game.Entities.CashBundle:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Size == cashSize then
+                        player.Character.HumanoidRootPart.CFrame = part.CFrame
+                        task.wait()
+                    end
+                end
+            end
+            
+            coroutine.wrap(function()
+                while autoATMCashCombo and task.wait() do
+                   
+                    local ATMsFolder = workspace:FindFirstChild("ATMs")
+                    local localPlayer = game:GetService("Players").LocalPlayer
+                    local hasActiveATM = false
+                    
+                    if ATMsFolder and localPlayer.Character then
+                        for _, atm in ipairs(ATMsFolder:GetChildren()) do
+                            if atm:IsA("Model") then
+                                local hp = atm:GetAttribute("health")
+                                if hp ~= 0 then
+                                    hasActiveATM = true
+                                    for _, part in ipairs(atm:GetChildren()) do
+                                        if part.Name == "Main" and part:IsA("BasePart") then
+                                            localPlayer.Character.HumanoidRootPart.CFrame = part.CFrame
+                                            task.wait()
+                                            atm:SetAttribute("health", 0)
+                                            break
+                                        end
+                                    end
+                                    task.wait()
+                                end
+                            end
+                        end
+                    end
+                    
+                    if hasActiveATM then
+                        task.wait(0.1)
+                    else
+                        collectCash()
+                        
+                 
+                        task.wait()
+                    end
+                end
+            end)()
+        end
+    end
+})
+
+local autoCraftEnabled = false
+local autoClaimEnabled = false
+local craftConnection
+
+local Signal = require(game:GetService("ReplicatedStorage").devv).load("Signal")
+
+local function performCrafting()
+    if autoCraftEnabled then
+        Signal.InvokeServer("beginCraft", 'RollieCraft')
+    end
+    
+    if autoClaimEnabled then
+        Signal.InvokeServer("claimCraft", 'RollieCraft')
+    end
+end
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    if autoCraftEnabled or autoClaimEnabled then
+        performCrafting()
+    end
+end)
+
+Tabs.BypassTab:Toggle({
+    Title = "自动制作萝莉",
+    Value = false,
+    Callback = function(state)
+        autoCraftEnabled = state
+    end
+})
+
+Tabs.BypassTab:Toggle({
+    Title = "自动领取萝莉",
+    Value = false,
+    Callback = function(state)
+        autoClaimEnabled = state
+    end
+})
+
+Tabs.BypassTab:Button({
+    Title = "绕过移动经销商",
+    Callback = function()
+local pjyd pjyd=hookmetamethod(game,"__namecall",function(self,...)local args={...}local method=getnamecallmethod()if method=="InvokeServer" and args[2]==true then args[2]=false return pjyd(self,unpack(args))end return pjyd(self,...)end)--
+game:GetService("Players").LocalPlayer:SetAttribute("mobileDealer",true)
+local ReplicatedStorage=game:GetService("ReplicatedStorage")
+local mobileDealer=require(ReplicatedStorage.devv.shared.Indicies.mobileDealer)
+
+for category,items in pairs(mobileDealer)do 
+    for _,item in ipairs(items)do 
+        item.stock=999999 
+    end 
+end
+
+table.insert(mobileDealer.Gun,{itemName="Acid Gun",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Candy Bucket",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Golden Rose",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Black Rose",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Dollar Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Bat Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Bunny Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Clover Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Ghost Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Gold Clover Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Heart Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Skull Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Snowflake Balloon",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Admin AK-47",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Admin Nuke Launcher",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Admin RPG",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Void Gem",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Pulse Rifle",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Unusual Money Printer",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Money Printer",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="Trident",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="NextBot Grenade",stock=9999})
+table.insert(mobileDealer.Gun,{itemName="El Fuego",stock=9999})
+
+    end
+})
+
+Tabs.BypassTab:Button({
+    Title = "绕过高级动作",
+    Callback = function()
+        for _, v in pairs(game:GetService("Players").LocalPlayer.PlayerGui.Emotes.Frame.ScrollingFrame:GetDescendants()) do
+            if v.Name == "Locked" then
+                v.Visible = false
+            end
+        end
+    end
+})
+
+Tabs.BypassTab:Button({
+    Title = "绕过飞行封禁",
+    Callback = function()
+        if game:GetService("ReplicatedStorage"):FindFirstChild("devv"):FindFirstChild("remoteStorage"):FindFirstChild("makeExplosion") then
+            game:GetService("ReplicatedStorage"):FindFirstChild("devv"):FindFirstChild("remoteStorage"):FindFirstChild("makeExplosion"):Destroy()
+        end
+    end
+})
+
+Tabs.BypassTab:Button({
+    Title = "绕过物品栏封禁",
+    Callback = function()
+        if game:GetService("ReplicatedStorage"):FindFirstChild("devv"):FindFirstChild("remoteStorage"):FindFirstChild("makeExplosion") then
+            game:GetService("ReplicatedStorage"):FindFirstChild("devv"):FindFirstChild("remoteStorage"):FindFirstChild("makeExplosion"):Destroy()
+        end
+    end
+})
+
+Tabs.BypassTab:Button({
+    Title = "绕过战斗状态",
+    Callback = function()
+        for _, func in pairs(getgc(true)) do
+            if type(func) == "function" then
+                local info = debug.getinfo(func)
+                if info.name == "isInCombat" or (info.source and info.source:find("combatIndicator")) then
+                    hookfunction(func, function() 
+                        return false 
+                    end)
+                end
+            end
+        end
+    end
+})
+
+Tabs.ProTab:Toggle({
+    Title = "自动买护甲",
+    Default = false,
+    Callback = function(Value)
+        AutoArmor = Value
+        if Value then
+            local heartbeat = game:GetService("RunService").Heartbeat
+            local connection
+            connection = heartbeat:Connect(function()
+                if not AutoArmor then
+                    connection:Disconnect()
+                    return
+                end
+                
+                pcall(function()
+                    local player = game:GetService('Players').LocalPlayer
+                    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 35 then
+                        local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+                        local hasLightVest = false
+                        
+                        for i, v in next, b1 do
+                            if v.name == "Light Vest" then
+                                hasLightVest = true
+                                local light = v.guid
+                                local armor = player:GetAttribute('armor')
+                                if armor == nil or armor <= 0 then
+                                    require(game:GetService("ReplicatedStorage").devv).load("Signal").FireServer("equip", light)
+                                    require(game:GetService("ReplicatedStorage").devv).load("Signal").FireServer("useConsumable", light)
+                                    require(game:GetService("ReplicatedStorage").devv).load("Signal").FireServer("removeItem", light)
+                                end
+                                break
+                            end
+                        end
+                        
+                        if not hasLightVest then
+                            require(game:GetService("ReplicatedStorage").devv).load("Signal").InvokeServer("attemptPurchase", "Light Vest")
+                        end
+                    end
+                end)
+            end)
+        end
+    end
+})
+
+Tabs.ProTab:Toggle({
+    Title = "自动购买面具",
+    Value = false,
+    Callback = function(state) 
+        autokz = state
+        if autokz then
+            while autokz and task.wait(1) do
+                local player = game:GetService("Players").LocalPlayer
+                local character = player.Character or player.CharacterAdded:Wait()
+                local Mask = character:FindFirstChild("Hockey Mask")
+                local Signal = require(game:GetService("ReplicatedStorage").devv).load("Signal")
+                local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+                if not Mask then
+                    Signal.InvokeServer("attemptPurchase", "Hockey Mask")
+                    for i, v in next, b1 do
+                        if v.name == "Hockey Mask" then
+                            local sugid = v.guid
+                            if not Mask then
+                                Signal.FireServer("equip", sugid)
+                                Signal.FireServer("wearMask", sugid)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+Tabs.ProTab:Toggle({
+    Title = "自动恢复健康值(回血)",
+    Default = false,
+    Callback = function(Value)
+        if healThread then
+            healThread:Disconnect()
+            healThread = nil
+        end
+
+        if Value then
+            local heartbeat = game:GetService("RunService").Heartbeat
+            healThread = heartbeat:Connect(function()
+                Signal.InvokeServer("attemptPurchase", 'Bandage')
+                local inv = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory
+                for _, v in next, inv.items do
+                    if v.name == 'Bandage' then
+                        local bande = v.guid
+                        local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                        local Humanoid = Character:WaitForChild('Humanoid')
+                        if Humanoid.Health >= 5 and Humanoid.Health < Humanoid.MaxHealth then
+                            Signal.FireServer("equip", bande)
+                            Signal.FireServer("useConsumable", bande)
+                            Signal.FireServer("removeItem", bande)
+                        end
+                        break
+                    end
+                end
+            end)
+        end
+    end
+})
+
+local melee = require(game:GetService("ReplicatedStorage").devv).load("ClientReplicator")
+local lp = game:GetService("Players").LocalPlayer
+
+Tabs.ProTab:Toggle({
+    Title = "反立",
+    Default = false,
+    Callback = function(Value)
+        AutoKnockReset = Value
+        if Value then
+            task.spawn(function()
+                while AutoKnockReset do
+                    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                        melee.Set(lp, "knocked", false)
+                        melee.Replicate("knocked")
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
+
+Tabs.ProTab:Toggle({
+    Title = "反击退",
+    Default = false,
+    Callback = function(Value)
+        antiKBEnabled = Value
+        task.spawn(function()
+            while antiKBEnabled and task.wait(0.1) do
+                local character = game:GetService("Players").LocalPlayer.Character
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
                 end
             end
         end)
     end
-    coroutine.wrap(Update)()
+})
+
+Tabs.PlayerTab:Toggle({
+    Title = "walkspend(移速修改)",
+    Default = false,
+    Callback = function(v)
+        if v == true then
+            sudu = game:GetService("RunService").Heartbeat:Connect(function()
+                if game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character.Humanoid and game:GetService("Players").LocalPlayer.Character.Humanoid.Parent then
+                    if game:GetService("Players").LocalPlayer.Character.Humanoid.MoveDirection.Magnitude > 0 then
+                        game:GetService("Players").LocalPlayer.Character:TranslateBy(game:GetService("Players").LocalPlayer.Character.Humanoid.MoveDirection * Speed / 10)
+                    end
+                end
+            end)
+        elseif not v and sudu then
+            sudu:Disconnect()
+            sudu = nil
+        end
+    end
+})
+
+Tabs.PlayerTab:Slider({
+    Title = "速度设置",
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = 1,
+    },
+    Callback = function(Value)
+        Speed = Value
+    end
+})
+
+Tabs.PlayerTab:Toggle({
+    Title = "无限跳跃",
+    Default = false,
+    Callback = function(Value)
+        local jumpConn
+        if Value then
+            jumpConn = game:GetService("UserInputService").JumpRequest:Connect(function()
+                local humanoid = game:GetService("Players").LocalPlayer.Character and
+                                 game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            if jumpConn then
+                jumpConn:Disconnect()
+                jumpConn = nil
+            end
+        end
+    end
+})
+
+local xeniox = {
+    Data = {
+        Identity = getidentity()
+    },
+    Helpers = {}
+}
+
+local devv = game:GetService("ReplicatedStorage").devv
+local load = require(devv).load
+
+xeniox.Helpers.SetIdentity = function(self, identity)
+    setidentity(identity)
 end
 
-for _,v in pairs(Players:GetChildren()) do
-    if v.Name ~= Player.Name then
-        PlaceDot(v)
+xeniox.Helpers.CallFuncSec = function(self, func, waited)
+    self:SetIdentity(2)
+    local result, err = pcall(func)
+    if not result then
+        warn("函数执行错误:", err)
     end
+    if waited then
+        task.wait(waited)
+    end
+    self:SetIdentity(xeniox.Data.Identity)
 end
 
-local function NewLocalDot()
-    local d = Drawing.new("Triangle")
-    d.Visible = true
-    d.Thickness = 1
-    d.Filled = true
-    d.Color = RadarInfo.LocalPlayerDot
-    d.PointA = RadarInfo.Position + Vector2.new(0, -6)
-    d.PointB = RadarInfo.Position + Vector2.new(-3, 6)
-    d.PointC = RadarInfo.Position + Vector2.new(3, 6)
-    return d
-end
-
-local LocalPlayerDot = NewLocalDot()
-
-Players.PlayerAdded:Connect(function(v)
-    if v.Name ~= Player.Name then
-        PlaceDot(v)
-    end
-    LocalPlayerDot:Remove()
-    LocalPlayerDot = NewLocalDot()
-end)
-
--- Loop
-coroutine.wrap(function()
-    local c 
-    c = game:service("RunService").RenderStepped:Connect(function()
-        if LocalPlayerDot ~= nil then
-            LocalPlayerDot.Color = RadarInfo.LocalPlayerDot
-            LocalPlayerDot.PointA = RadarInfo.Position + Vector2.new(0, -6)
-            LocalPlayerDot.PointB = RadarInfo.Position + Vector2.new(-3, 6)
-            LocalPlayerDot.PointC = RadarInfo.Position + Vector2.new(3, 6)
+Tabs.MMMTab:Toggle({
+    Title = "自动购买气球",
+    Value = false,
+    Callback = function(state)
+        if not state then return end
+        
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        
+        if character:FindFirstChild("Balloon") then return end
+        
+        local Signal = load("Signal")
+        Signal.InvokeServer("attemptPurchase", "Balloon")
+        
+        task.wait(0.5)
+        
+        local v3item = load("v3item")
+        local inventory = v3item.inventory
+        local balloonItem = inventory.getFromName("Balloon")
+        
+        if balloonItem then
+            xeniox.Helpers:CallFuncSec(function()
+                balloonItem:SetEquipped(true)
+            end)
         end
-        RadarBackground.Position = RadarInfo.Position
-        RadarBackground.Radius = RadarInfo.Radius
-        RadarBackground.Color = RadarInfo.RadarBack
-
-        RadarBorder.Position = RadarInfo.Position
-        RadarBorder.Radius = RadarInfo.Radius
-        RadarBorder.Color = RadarInfo.RadarBorder
-    end)
-end)()
-
--- Draggable
-local inset = game:service("GuiService"):GetGuiInset()
-
-local dragging = false
-local offset = Vector2.new(0, 0)
-UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and (Vector2.new(Mouse.X, Mouse.Y + inset.Y) - RadarInfo.Position).magnitude < RadarInfo.Radius then
-        offset = RadarInfo.Position - Vector2.new(Mouse.X, Mouse.Y)
-        dragging = true
     end
-end)
+})
 
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
+Tabs.MMMTab:Button({
+    Title = "美化美金(需普通气球)",
+    Callback = function()
+        for _, v in pairs(getgc(true)) do
+            if type(v) == "table" and rawget(v, "name") == "Balloon" and rawget(v, "holdableType") == "Balloon" then
+                v.name, v.cost, v.unpurchasable, v.multiplier, v.movespeedAdd, v.cannotDiscard = "Dollar Balloon", 200, true, 0.8, 8, true
+                if v.TPSOffsets then v.TPSOffsets.hold = CFrame.new(0, 0, 0) * CFrame.Angles(0, math.pi, 0) end
+                if v.viewportOffsets and v.viewportOffsets.hotbar then v.viewportOffsets.hotbar.dist = 4 end
+                v.canDrop, v.dropCooldown, v.craft = nil
+                break
+            end
+        end
+
+        for _, item in pairs(require(game.ReplicatedStorage.devv.client.Objects.v3item.modules.inventory).items) do
+            if item.name == "Dollar Balloon" then
+                for _, btn in pairs({item.button, item.backpackButton}) do
+                    if btn and btn.resetModelSkin then btn:resetModelSkin() end
+                end
+            end
+        end
     end
-end)
-
-coroutine.wrap(function()
-    local dot = NewCircle(1, Color3.fromRGB(255, 255, 255), 3, true, 1)
-    local c 
-    c = game:service("RunService").RenderStepped:Connect(function()
-        if (Vector2.new(Mouse.X, Mouse.Y + inset.Y) - RadarInfo.Position).magnitude < RadarInfo.Radius then
-            dot.Position = Vector2.new(Mouse.X, Mouse.Y + inset.Y)
-            dot.Visible = true
-        else 
-            dot.Visible = false
+})
+Tabs.MMMTab:Button({
+    Title = "美化黑玫瑰(需普通气球)",
+    Callback = function()
+        for _, v in pairs(getgc(true)) do
+            if type(v) == "table" and rawget(v, "name") == "Balloon" and rawget(v, "holdableType") == "Balloon" then
+                v.name, v.cost, v.unpurchasable, v.multiplier, v.movespeedAdd, v.cannotDiscard = "Black Rose", 200, true, 0.75, 12, true
+                if v.TPSOffsets then v.TPSOffsets.hold = CFrame.new(0, 0.5, 0) end
+                if v.viewportOffsets and v.viewportOffsets.hotbar then v.viewportOffsets.hotbar.dist = 3 end
+                v.canDrop, v.dropCooldown, v.craft = nil
+                break
+            end
         end
-        if dragging then
-            RadarInfo.Position = Vector2.new(Mouse.X, Mouse.Y) + offset
+
+        for _, item in pairs(require(game.ReplicatedStorage.devv.client.Objects.v3item.modules.inventory).items) do
+            if item.name == "Black Rose" then
+                for _, btn in pairs({item.button, item.backpackButton}) do
+                    if btn and btn.resetModelSkin then btn:resetModelSkin() end
+                end
+            end
         end
-    end)
-end)()
-
---[[ Example:
-wait(3)
-RadarInfo.Position = Vector2.new(300, 300)
-RadarInfo.Radius = 150
-RadarInfo.RadarBack = Color3.fromRGB(50, 0, 0)
-]]
-
-
-
-end)
-
-Tab1:Label("快捷功能")
-
-Tab1:Button("即时互动银行大门",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动银行大门，开大门时只需按一下按钮即可打开大门";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-while true do
-        	    wait(1)
-        	    game.Workspace.BankRobbery.VaultDoor.Door.Attachment.ProximityPrompt.HoldDuration = 0
-                game.Workspace.BankRobbery.BankCash.Main.Attachment.ProximityPrompt.MaxActivationDistance= 20
-        	end
-
-end)
-
-Tab1:Button("即时互动金色保险箱",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动金色保险箱，开保险箱时只需按一下按钮即可开启（仍需撬锁）";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-while true do
-        			wait(1)
-        			local safe = game.workspace.Game.Entities.GoldJewelSafe.GoldJewelSafe
-        			safe.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.HoldDuration = 0
-        			safe.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.MaxActivationDistance= 20
-        			safe.Name = "safeopen"
-        		end
-
-end)
-
-Tab1:Button("即时互动黑色保险箱",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动黑色保险箱，开保险箱时只需按一下按钮即可开启（仍需撬锁）";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-while true do
-        		wait(1)
-        		local safe2 = game.workspace.Game.Entities.JewelSafe.JewelSafe
-        		safe2.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.HoldDuration = 0
-        		safe.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.MaxActivationDistance= 20
-        		safe2.Name = "safeopen"
-        	end
-end)
-
-Tab1:Button("即时互动珠宝",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动珠宝，捡珠宝时只需点一下即可捡起";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-local rocks = game:GetService("Workspace").GemRobbery.JewelryCases.HighYieldSpawns
-            for _, obj in pairs(rocks:GetChildren()) do
-                if obj.ClassName == "Model" then
-                    for _, innerObj in pairs(obj:GetChildren()) do
-                        if innerObj.ClassName == "Model" then
-                            if innerObj.Name == "Case" then
-                            elseif innerObj.Name == "Emerald" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Sapphire" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Amethyst" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Topaz" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end                     
-                            elseif innerObj.Name == "Diamond" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Gold Bar" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Ruby" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            else
-                                if innerObj:FindFirstChild("Box") and innerObj.Box:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Box.ProximityPrompt.HoldDuration = 0
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            local rocks2 = game:GetService("Workspace").GemRobbery.JewelryCases.LowYieldSpawns
-            for _, obj in pairs(rocks2:GetChildren()) do
-                if obj.ClassName == "Model" then
-                    for _, innerObj in pairs(obj:GetChildren()) do
-                        if innerObj.ClassName == "Model" then
-                            if innerObj.Name == "Case" then
-                            elseif innerObj.Name == "Emerald" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Sapphire" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Amethyst" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Topaz" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Diamond" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Gold Bar" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            elseif innerObj.Name == "Ruby" then
-                                if innerObj:FindFirstChild("Handle") and innerObj.Handle:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Handle.ProximityPrompt.HoldDuration = 0
-                                end
-                            else
-                                if innerObj:FindFirstChild("Box") and innerObj.Box:FindFirstChild("ProximityPrompt") then
-                                    innerObj.Box.ProximityPrompt.HoldDuration = 0
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-end)
-
-Tab1:Button("即时互动空投",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动空投，捡空投时只需按一下按钮即可捡起";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-while true do
-        		wait(1)
-        		game:GetService("Workspace").Game.Airdrops.Airdrop.Airdrop.ProximityPrompt.HoldDuration = 0
-        		game:GetService("Workspace").Game.Airdrops.Airdrop.Airdrop.ProximityPrompt.MaxActivationDistance= 20
-        		game:GetService("Workspace").Game.Airdrops.Airdrop.Airdrop.Name = "airdropopen"
-        	end
-
-end)
-
-Tab1:Button("快捷打开储物柜（Z）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启快捷储物柜";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-game:GetService("Players").LocalPlayer.PlayerGui.Backpack.Holder.Locker.Visible = true
-end)
-
-
-Tab1:Button("远距离卖物品（开启）",function()
-game:GetService("Workspace").BlackMarket.Dealer.Dealer.ProximityPrompt.MaxActivationDistance = 100000
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启远距离贩卖";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("远距离卖物品（关闭）",function()
-
-game:GetService("Workspace").BlackMarket.Dealer.Dealer.ProximityPrompt.MaxActivationDistance = 20
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已关闭远距离贩卖";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Label("刷钱功能")
-
---Tab1:Textbox("Textbox","Enter Text",function(txt)
---print(txt)
---end)
-
---Tab1:Keybind("Keybind",Enum.KeyCode.F,function()
---print("Pressed key")
---end)
-
---Tab1:Dropdown("Dropdown",{"Option 1","Option 2","Option 3"},function(current)
---print(current)
---end)
-
---Tab1:Toggle("远距离卖物品",function(x)
---game:GetService("Workspace").BlackMarket.Dealer.Dealer.ProximityPrompt.MaxActivationDistance = 100000
---end)
-
---Tab1:Slider("Slider",16,500,function(s)
---print(s)
---end)
-
---local Tab2 = Window:Tab("Tab 2",false)
-
---Tab2:Label("UI")
-
---Tab2:Keybind("Toggle",Enum.KeyCode.RightShift,function()
---Library:Toggle()
---end)
-
-local Tab1 = Window:Tab("战斗功能",true)
-
-Tab1:Label("枪械功能")
-
-Tab1:Button("枪械无后座力",function()
-
-if game.ReplicatedStorage.Models.Items:FindFirstChild("Raygun") then
-                        if game.ReplicatedStorage.Models.Items.Raygun.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Raygun.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("M1911") then
-                        if game.ReplicatedStorage.Models.Items.M1911.Handle.Muzzle:FindFirstChild("PointLight") then
-                           game.ReplicatedStorage.Models.Items.M1911.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Scar L") then
-                        if game.ReplicatedStorage.Models.Items["Scar L"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["Scar L"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Glock") then
-                        if game.ReplicatedStorage.Models.Items.Glock.Handle.Muzzle:FindFirstChild("PointLight") then
-                        game.ReplicatedStorage.Models.Items.Glock.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Mossberg") then
-                        if game.ReplicatedStorage.Models.Items.Mossberg.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Mossberg.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("RPG") then
-                        if game.ReplicatedStorage.Models.Items.RPG.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.RPG.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("USP 45") then
-                        if game.ReplicatedStorage.Models.Items["USP 45"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["USP 45"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Sawn Off") then
-                        if game.ReplicatedStorage.Models.Items["Sawn Off"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["Sawn Off"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Minigun") then
-                        if game.ReplicatedStorage.Models.Items.Minigun.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Minigun.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Stagecoach") then
-                        if game.ReplicatedStorage.Models.Items.Stagecoach.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Stagecoach.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Deagle") then
-                        if game.ReplicatedStorage.Models.Items.Deagle.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Deagle.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("RPK") then
-                        if game.ReplicatedStorage.Models.Items.RPK.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.RPK.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Glock 18") then
-                        if game.ReplicatedStorage.Models.Items["Glock 18"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["Glock 18"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("AK-47") then
-                        if game.ReplicatedStorage.Models.Items["AK-47"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["AK-47"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Tommy Gun") then
-                        if game.ReplicatedStorage.Models.Items["Tommy Gun"].Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items["Tommy Gun"].Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("M4A1") then
-                        if game.ReplicatedStorage.Models.Items.M4A1.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.M4A1.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Uzi") then
-                        if game.ReplicatedStorage.Models.Items.Uzi.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Uzi.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("MP7") then
-                        if  game.ReplicatedStorage.Models.Items.MP7.Handle.Muzzle:FindFirstChild("PointLight") then
-                        game.ReplicatedStorage.Models.Items.MP7.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-                    if game.ReplicatedStorage.Models.Items:FindFirstChild("Python") then
-                        if  game.ReplicatedStorage.Models.Items.Python.Handle.Muzzle:FindFirstChild("PointLight") then
-                            game.ReplicatedStorage.Models.Items.Python.Handle.Muzzle.PointLight.Name = "PointLight1"
-                        end
-                    end
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "无后座力开启成功";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("即时互动弹药箱",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动弹药箱，补充弹药速度加快";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-
-for i = 1 , 50 do
-        		local Ammo = game.workspace.Game.Local.droppables["Ammo Box"]
-        		Ammo.Handle.ProximityPrompt.HoldDuration = 0
-        		Ammo.Name = "Ammo"
-        	end
-end)
-
-Tab1:Label("近战功能")
-
-Tab1:Button("范围增大四十倍",function()
-_G.HeadSize = 40
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "范围增大四十倍，在篮框范围内挥拳即可命中敌人";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("范围增大八十倍",function()
-_G.HeadSize = 80
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "范围增大八十倍，在篮框范围内挥拳即可命中敌人";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("范围增大一百六十倍",function()
-_G.HeadSize = 160
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "范围增大一百六十倍，在篮框范围内挥拳即可命中敌人";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("范围增大三百二十倍",function()
-_G.HeadSize = 320
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "范围增大三百二十倍，在篮框范围内挥拳即可命中敌人";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("范围增大六百四十倍",function()
-_G.HeadSize = 640
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "范围增大六百四十倍，在篮框范围内挥拳即可命中敌人";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("范围复原",function()
-_G.HeadSize = 1
-        		_G.Disabled = true
-        		game:GetService("RunService").RenderStepped:connect(function()
-        			if _G.Disabled then
-        				for i,v in next, game:GetService("Players"):GetPlayers() do
-        					if v.Name ~= game:GetService("Players").LocalPlayer.Name then
-        						pcall(function()
-        							v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-        							v.Character.HumanoidRootPart.Transparency = 0.7
-        							v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-        							v.Character.HumanoidRootPart.Material = "Neon"
-        							v.Character.HumanoidRootPart.CanCollide = false
-        						end)
-        					end
-        				end
-        			end
-        		end)
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已关闭范围增大";
-Title = "❗通知❗";
-Duration = 5;
-});
-
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-end)
-
-Tab1:Button("即时互动弹药箱",function()
-
-for i = 1 , 50 do
-        		local Ammo = game.workspace.Game.Local.droppables["Ammo Box"]
-        		Ammo.Handle.ProximityPrompt.HoldDuration = 0
-        		Ammo.Name = "Ammo"
-        	end
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启即时互动弹药箱，补充弹药速度加快";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-end)
-
-local Tab1 = Window:Tab("传送功能",true)
-
-Tab1:Label("传送区域")
-
-Tab1:Button("点击传送至---银行",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至银行";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-            local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(1055.94153, 15.11950874, -344.58374)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---珠宝店",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至珠宝店";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-            local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(1719.02637, 14.2831011, -714.293091)
-            tp2.CFrame = tp3
-end)
-
-Tab1:Button("点击传送至---黑市",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至黑市";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-            local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(690.499, -18.949, -115.453)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---沙滩",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至沙滩";
-Title = "❗通知❗";
-Duration = 5;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-            local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(998.4656372070312, 15, 395.9789733886719)
-            tp2.CFrame = tp3
-end)
-
-Tab1:Label("传送物品")
-
-Tab1:Button("点击传送至---撬锁",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至撬锁（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(660.5284423828125, 6.4081127643585205, -716.489990234375)
-            tp2.CFrame = tp3
-
-
-
-
-end)
-
-Tab1:Button("点击传送至---M4A1",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至M4A1（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(603.4676513671875,25.662811279296875,-922.0442504882812)
-            tp2.CFrame = tp3
-
-
-
-
-end)
-
-Tab1:Button("点击传送至---护甲",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至护甲（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(563.4422607421875,28.502071380615234,-1472.780517578125)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---武士刀",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至武士刀（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(175.191, 13.937, -132.69)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---短管散弹枪",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至短管散弹枪（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(1179.98523,40,-436.812683)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---沙漠之鹰",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至沙漠之鹰（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(363.341461, 26.0798492, -259.681396)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---射线枪（Ray Gun）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至射线枪（Ray Gun）（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(148.685471, -90, -529.280945)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---AUG",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至AUG（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(1170.500244140625,48.37138366699219,-772.55859375)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Button("点击传送至---加特林",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已传送至加特林（物品）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local tp1 = game:GetService("Players")
-            local tp2 = tp1.LocalPlayer.Character.HumanoidRootPart
-            local tp3 = CFrame.new(364.97076416015625, 0.764974117279053, -1447.3302001953125)
-            tp2.CFrame = tp3
-
-end)
-
-Tab1:Label("刷钱功能")
-
-local Tab1 = Window:Tab("赚钱功能",true)
-
-Tab1:Label("刷钱功能")
-
-Tab1:Button("自动刷银行（可用）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启银行刷钱，当银行未刷新时此功能不可用，当银行刷新时此功能可用";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local autobankbt = false
-if autobankbt == false then
-                autobankbt = true
-				while autobankbt == true do
-				wait(0.3)
-            if autobankbt == true then
-                local BankDoor = game:GetService("Workspace").BankRobbery.VaultDoor
-                local BankCashs = game:GetService("Workspace").BankRobbery.BankCash
-                local epoh2 = game:GetService("Players")
-                local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-                if BankDoor.Door.Attachment.ProximityPrompt.Enabled == true then
-                    BankDoor.Door.Attachment.ProximityPrompt.HoldDuration = 0
-                    BankDoor.Door.Attachment.ProximityPrompt.MaxActivationDistance = 20
-                    local epoh1 = CFrame.new(1071.955810546875, 9, -343.80816650390625)
-                    epoh3.CFrame = epoh1
-                    wait(0.3)
-                    BankDoor.Door.Attachment.ProximityPrompt:InputHoldBegin()
-                    wait(0.3)
-                    BankDoor.Door.Attachment.ProximityPrompt:InputHoldEnd()
-                else
-                    if BankCashs.Cash:FindFirstChild("Bundle") then
-                        local epoh1 = CFrame.new(1055.94153, 15.11950874, -344.58374)
-                        epoh3.CFrame = epoh1
-                        BankCashs.Main.Attachment.ProximityPrompt.MaxActivationDistance = 20
-                        BankCashs.Main.Attachment.ProximityPrompt:InputHoldBegin()
-                    end 
-                    if not BankCashs.Cash:FindFirstChild("Bundle") then
-                    	BankCashs.Main.Attachment.ProximityPrompt:InputHoldEnd()
-                    end
-                end
-            end
-		end
-	end
-
-
-
-
-end)
-
-Tab1:Button("自动刷零件（可用）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启自动捡零件，当地图中无零件时，此功能无效（请在捡零件的过程中打开物品栏，打开零件盒，否则物品栏过满无法捡零件";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local autoairdrop1231t = false
- if autoairdrop1231t == false then
-                autoairdrop1231t = true
-				while autoairdrop1231t == true do
-        	wait(0.1)
-            local epoh2 = game:GetService("Players")
-            local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-            for i,l in pairs(game:GetService("Workspace").Game.Entities.ItemPickup:GetChildren()) do
-                for i,v in pairs(l:GetChildren()) do
-                    if v.ClassName == "MeshPart" or "Part" then
-                        for i,e in pairs(v:GetChildren()) do
-                            if e.ClassName == "ProximityPrompt" then
-                                if e.ObjectText == "Electronics" or e.ObjectText == "Weapon Parts" then
-                                    local epoh1 = v.CFrame
-                                    epoh3.CFrame = epoh1 * CFrame.new(0, 2, 0)
-                                    wait(0.1)
-                                    e:InputHoldBegin()
-                                    e:InputHoldEnd()
-                                end
-                            end
-                        end       
-                    end
-                end
-            end
-		end
-	end
-
-
-
-
-end)
-
-Tab1:Button("自动打开随机位置金保险（需撬锁）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启（若没开启请手握撬锁按一下按钮）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local BankDoor = game:GetService("Workspace").BankRobbery.VaultDoor
-            local epoh2 = game:GetService("Players")
-            local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-            if BankDoor.Door.Attachment.ProximityPrompt.Enabled == true then
-                BankDoor.Door.Attachment.ProximityPrompt.HoldDuration = 0
-                BankDoor.Door.Attachment.ProximityPrompt.MaxActivationDistance = 20
-                local epoh1 = CFrame.new(1071.955810546875, 9, -343.80816650390625)
-                epoh3.CFrame = epoh1
-                wait(0.3)
-                BankDoor.Door.Attachment.ProximityPrompt:InputHoldBegin()
-        		BankDoor.Door.Attachment.ProximityPrompt:InputHoldEnd()
-            end
-            local GoldJewelSafes = game:GetService("Workspace").Game.Entities.GoldJewelSafe
-            for _, model in pairs(GoldJewelSafes:GetChildren()) do
-                if model.ClassName == "Model" then
-                    epoh3.CFrame = model.WorldPivot * CFrame.new(0, 10, 0)
-                    model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.HoldDuration = 0
-                    model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.MaxActivationDistance = 20
-                    wait(0.3)
-                    if model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.Enabled == true then
-                        model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldBegin()
-                        model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldEnd()
-                        break
-                    end
-                end
-            end
-        
-end)
-
-Tab1:Button("自动打开随机位置黑保险（需撬锁）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启（若没开启请手握撬锁按一下按钮）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local BankDoor = game:GetService("Workspace").BankRobbery.VaultDoor
-            local epoh2 = game:GetService("Players")
-            local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-            if BankDoor.Door.Attachment.ProximityPrompt.Enabled == true then
-                BankDoor.Door.Attachment.ProximityPrompt.HoldDuration = 0
-                BankDoor.Door.Attachment.ProximityPrompt.MaxActivationDistance = 20
-                local epoh1 = CFrame.new(1071.955810546875, 9, -343.80816650390625)
-                epoh3.CFrame = epoh1
-                wait(0.3)
-                BankDoor.Door.Attachment.ProximityPrompt:InputHoldBegin()
-        		BankDoor.Door.Attachment.ProximityPrompt:InputHoldEnd()
-            end
-            local JewelSafes = game:GetService("Workspace").Game.Entities.JewelSafe
-            for _, model in pairs(JewelSafes:GetChildren()) do
-                if model.ClassName == "Model" then
-                    epoh3.CFrame = model.WorldPivot * CFrame.new(0, 10, 0)
-                    model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.HoldDuration = 0
-                    model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.MaxActivationDistance = 20
-                    wait(0.3)
-                    if model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.Enabled == true then
-                        model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldBegin()
-                        model.Door["Meshes/LargeSafe_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldEnd()
-                        break
-                    end
-                end
-            end
-        
-end)
-
-Tab1:Button("自动打开海盗岛大宝箱（需撬锁）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启（若没开启请手握撬锁按一下按钮）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local LargeChes = game:GetService("Workspace").Game.Entities.LargeChest
-            local foundModel = false
-            for _, model in pairs(LargeChes:GetChildren()) do
-                if model.ClassName == "Model" then
-                    foundModel = true
-                    local epoh1 = model.WorldPivot
-                    local epoh2 = game:GetService("Players")
-                    local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-                    epoh3.CFrame = epoh1 * CFrame.new(0, 2, 0)
-                    wait(0.1)
-                    model.Door["Meshes/LargeSafe1_Cube.002_Cube.003_None (3)"].Attachment.ProximityPrompt:InputHoldBegin()
-                    model.Door["Meshes/LargeSafe1_Cube.002_Cube.003_None (3)"].Attachment.ProximityPrompt:InputHoldEnd()
-                    break
-                end
-            end
-        
-end)
-
-Tab1:Button("自动打开海盗岛小宝箱（需撬锁）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启（若没开启请手握撬锁按一下按钮）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local SmallChes = game:GetService("Workspace").Game.Entities.SmallChest
-            for _, model in pairs(SmallChes:GetChildren()) do
-                if model.ClassName == "Model" then
-                    local epoh1 = model.WorldPivot
-                    local epoh2 = game:GetService("Players")
-                    local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-                    epoh3.CFrame = epoh1 * CFrame.new(0, 2, 0)
-                    wait(0.1)
-                    model.Lock["Meshes/untitled_chest.002_Material.009 (4)"].Attachment.ProximityPrompt:InputHoldBegin()
-                    model.Lock["Meshes/untitled_chest.002_Material.009 (4)"].Attachment.ProximityPrompt:InputHoldEnd()
-                    break
-                end
-            end
-        
-end)
-
-Tab1:Button("自动打开随机位置小保险箱（需撬锁）",function()
-
-local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "已开启（若没开启请手握撬锁按一下按钮）";
-Title = "❗通知❗";
-Duration = 7;
-});
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-local SmallSaf = game:GetService("Workspace").Game.Entities.SmallSafe
-            for _, model in pairs(SmallSaf:GetChildren()) do
-                if model.ClassName == "Model" then
-                    local epoh1 = model.WorldPivot
-                    local epoh2 = game:GetService("Players")
-                    local epoh3 = epoh2.LocalPlayer.Character.HumanoidRootPart
-                    epoh3.CFrame = epoh1 * CFrame.new(0, 2, 0)
-                    SmallSaf.SmallSafe.Door["Meshes/Safe1_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt.HoldDuration = 0
-                    wait(0.1)
-                    SmallSaf.SmallSafe.Door["Meshes/Safe1_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldBegin()
-                    SmallSaf.SmallSafe.Door["Meshes/Safe1_Cube.002_Cube.003_None (1)"].Attachment.ProximityPrompt:InputHoldEnd()
-                    break
-                end
-            end
-        
-end)
-
-Tab1:Label("提示功能")
-
-Tab1:Button("珠宝店刷新提示",function()
-local aassddt = false
-if aassddt == false then
-                aassddt = true
-				while aassddt == true do
-                wait(0.1)
-                local Ge = game:GetService("Workspace").GemRobbery:FindFirstChild("Rubble")
-                if Ge then
-                    game:GetService("StarterGui"):SetCore("SendNotification",{
-        	    	Title = "❗通知❗";
-        	    	Text = "珠宝店已刷新";
-        	    	Duration = math.huge;
-                    Button1 = "确认"
-                    })
- 
- local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))();
-local Notify = AkaliNotif.Notify;
-
-wait(0);
-
-Notify({
-Description = "珠宝店刷新提示已开启，当珠宝店刷新时，右下角会出现提示";
-Title = "❗通知❗";
-Duration = 5;
-});
- 
- local Sound = Instance.new("Sound",game:GetService("SoundService"))
-            Sound.SoundId = "rbxassetid://232127604"
-            Sound:Play()
-
-
-                    wait(30)
-                end
-			end
-		end
-	
-end)
-
-Tab1:Label("刷钱功能")
-
-local Tab1 = Window:Tab("作者的话",true)
-
-Tab1:Label("本脚本为Yungengxin创作\n特别鸣谢：lyy，为本脚本提供技术支持")
-Tab1:Label("Rb脚本交流群群号：1018099361\n若群满请看群介绍转移其他群")
-Tab1:Label("Q：这个UI为什么这么拉？\nA：俄亥俄州屏蔽了大部分UI，这是我能找到的最不受影响的UI了")
-Tab1:Label("Q：为什么说特别鸣谢LYY？\nA：因为他把阿勺龟的脚本开源了，部分功能参考了他们的脚本")
-Tab1:Label("Q：功能用着很卡，或者延迟很高怎么办？\nA：开VPN，换加速器")
-Tab1:Label("最后：由于此UI的BUG较多，若在使用过程中出现问题\n请在群里提问，或私信我解答")
-Tab1:Label("Rb脚本中心的初衷：\n一切旨在为用户提升游玩体验，永久免费，请勿圈钱！")
-
-
+    end
+})
+
+Tabs.MMMTab:Button({
+Title = "美化Kunai(需普通气球)",
+Callback = function()
+for _, v in pairs(getgc(true)) do
+if type(v) == "table" and rawget(v, "name") == "Balloon" and rawget(v, "holdableType") == "Balloon" then
+v.name = "Kunai"
+v.permanent = true
+v.canDrop = true
+v.dropCooldown = 120
+v.holdableType = "Balloon"
+v.movespeedAdd = 12
+if v.TPSOffsets then
+v.TPSOffsets.hold = CFrame.new(0, -0.3, 0)
 else
-
-game:GetService("StarterGui"):SetCore("SendNotification",{ Title = "Rb脚本中心"; Text ="服务器并非俄亥俄州，请在俄亥俄州内注入脚本！"; Duration = 4; })
-
+v.TPSOffsets = {hold = CFrame.new(0, -0.3, 0)}
 end
+if v.viewportOffsets then
+if v.viewportOffsets.hotbar then
+v.viewportOffsets.hotbar.dist = 3
+v.viewportOffsets.hotbar.offset = CFrame.new(0, 0, 0)
+v.viewportOffsets.hotbar.rotoffset = CFrame.Angles(0, 1.5707963, 0)
+else
+v.viewportOffsets.hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)}
+end
+if v.viewportOffsets.ammoHUD then
+v.viewportOffsets.ammoHUD.dist = 2
+v.viewportOffsets.ammoHUD.offset = CFrame.new(-0.1, -0.2, 0)
+v.viewportOffsets.ammoHUD.rotoffset = CFrame.Angles(0, -1.3744468, 0)
+else
+v.viewportOffsets.ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)}
+end
+if v.viewportOffsets.slotButton then
+v.viewportOffsets.slotButton.dist = 1
+v.viewportOffsets.slotButton.offset = CFrame.new(-0.1, -0.2, 0)
+v.viewportOffsets.slotButton.rotoffset = CFrame.Angles(0, -1.5707963, 0)
+else
+v.viewportOffsets.slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}
+end
+else
+v.viewportOffsets = {
+hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)},
+ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)},
+slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}
+}
+end
+break
+end
+end
+for _, item in pairs(require(game.ReplicatedStorage.devv.client.Objects.v3item.modules.inventory).items) do
+if item.name == "Kunai" then
+for _, btn in pairs({item.button, item.backpackButton}) do
+if btn and btn.resetModelSkin then btn:resetModelSkin() end
+end
+end
+end
+end
+})
+
+Tabs.MMMTab:Button({
+Title = "美化Spirit Kunai(需普通Kunai)",
+Callback = function()
+for _, v in pairs(getgc(true)) do
+if type(v) == "table" and rawget(v, "name") == "Kunai" and rawget(v, "holdableType") == "Kunai" then
+v.name = "Spirit Kunai"
+v.permanent = true
+v.canDrop = true
+v.dropCooldown = 120
+v.holdableType = "Kunai"
+v.movespeedAdd = 12
+if v.TPSOffsets then
+v.TPSOffsets.hold = CFrame.new(0, -0.3, 0)
+else
+v.TPSOffsets = {hold = CFrame.new(0, -0.3, 0)}
+end
+if v.viewportOffsets then
+if v.viewportOffsets.hotbar then
+v.viewportOffsets.hotbar.dist = 3
+v.viewportOffsets.hotbar.offset = CFrame.new(0, 0, 0)
+v.viewportOffsets.hotbar.rotoffset = CFrame.Angles(0, 1.5707963, 0)
+else
+v.viewportOffsets.hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)}
+end
+if v.viewportOffsets.ammoHUD then
+v.viewportOffsets.ammoHUD.dist = 2
+v.viewportOffsets.ammoHUD.offset = CFrame.new(-0.1, -0.2, 0)
+v.viewportOffsets.ammoHUD.rotoffset = CFrame.Angles(0, -1.3744468, 0)
+else
+v.viewportOffsets.ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)}
+end
+if v.viewportOffsets.slotButton then
+v.viewportOffsets.slotButton.dist = 1
+v.viewportOffsets.slotButton.offset = CFrame.new(-0.1, -0.2, 0)
+v.viewportOffsets.slotButton.rotoffset = CFrame.Angles(0, -1.5707963, 0)
+else
+v.viewportOffsets.slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}
+end
+else
+v.viewportOffsets = {
+hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)},
+ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)},
+slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}
+}
+end
+break
+end
+end
+for _, item in pairs(require(game.ReplicatedStorage.devv.client.Objects.v3item.modules.inventory).items) do
+if item.name == "Spirit Kunai" then
+for _, btn in pairs({item.button, item.backpackButton}) do
+if btn and btn.resetModelSkin then btn:resetModelSkin() end
+end
+end
+end
+end
+})
+
+Tabs.MMMTab:Toggle({
+    Title = "背包枪械美化虚空",
+    Value = false,
+    Callback = function(start) 
+        skinvoid = start
+        if skinvoid then
+            local it = require(game:GetService("ReplicatedStorage").devv).load("v3item").inventory
+            local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+            for i, item in next, b1 do 
+                if item.type == "Gun" then
+                    table.insert(require(game:GetService("ReplicatedStorage").devv.shared.Indicies.skins.bin.Special.Void).compatabilities, item.name)
+                    it.skinUpdate(item.name, "Void")
+                end
+            end
+        end
+    end
+})
+
+Tabs.MMMTab:Toggle({
+    Title = "背包枪械美化战术",
+    Value = false,
+    Callback = function(start) 
+        skinvoid = start
+        if skinvoid then
+            local it = require(game:GetService("ReplicatedStorage").devv).load("v3item").inventory
+            local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+            for i, item in next, b1 do 
+                if item.type == "Gun" then
+                    table.insert(require(game:GetService("ReplicatedStorage").devv.shared.Indicies.skins.bin.Special.Void).compatabilities, item.name)
+                    it.skinUpdate(item.name, "Tactical")
+                end
+            end
+        end
+    end
+})
+
+Tabs.MMMTab:Toggle({
+    Title = "背包枪械美化赛博",
+    Value = false,
+    Callback = function(start) 
+        skinvoid = start
+        if skinvoid then
+            local it = require(game:GetService("ReplicatedStorage").devv).load("v3item").inventory
+            local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+            for i, item in next, b1 do 
+                if item.type == "Gun" then
+                    table.insert(require(game:GetService("ReplicatedStorage").devv.shared.Indicies.skins.bin.Special.Void).compatabilities, item.name)
+                    it.skinUpdate(item.name, "Cyberpunk")
+                end
+            end
+        end
+    end
+})
+
+Tabs.MMMTab:Toggle({
+    Title = "背包枪械美化黑曜石",
+    Value = false,
+    Callback = function(start) 
+        skinvoid = start
+        if skinvoid then
+            local it = require(game:GetService("ReplicatedStorage").devv).load("v3item").inventory
+            local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+            for i, item in next, b1 do 
+                if item.type == "Gun" then
+                    table.insert(require(game:GetService("ReplicatedStorage").devv.shared.Indicies.skins.bin.Special.Void).compatabilities, item.name)
+                    it.skinUpdate(item.name, "Obsidian")
+                end
+            end
+        end
+    end
+})
+
+Tabs.MHTab:Dropdown({
+    Title = "选择美化皮肤",
+    Values = { 
+        "烟火", "虚空", "纯金", "暗物质", "反物质", "神秘", "虚空神秘", "战术", "纯金战术", 
+        "白未来", "黑未来", "圣诞未来", "礼物包装", "猩红", "收割者", "虚空收割者", "圣诞玩具",
+        "荒地", "隐形", "像素", "钻石像素", "黄金零下", "绿水晶", "生物", "樱花", "精英", 
+        "黑樱花", "彩虹激光", "蓝水晶", "紫水晶", "红水晶", "零下", "虚空射线", "冰冻钻石",
+        "虚空梦魇", "金雪", "爱国者", "MM2", "声望", "酷化", "蒸汽", "海盗", "玫瑰", "黑玫瑰",
+        "激光", "烟花", "诅咒背瓜", "大炮", "财富", "黄金大炮", "四叶草", "自由", "黑曜石", "赛博朋克"
+    },
+    Callback = function(Value) 
+        if Value == "烟火" then
+            skinsec = "Sparkler"
+        elseif Value == "虚空" then
+            skinsec = "Void"
+        elseif Value == "纯金" then
+            skinsec = "Solid Gold"
+        elseif Value == "暗物质" then
+            skinsec = "Dark Matter"
+        elseif Value == "反物质" then
+            skinsec = "Anti Matter"
+        elseif Value == "神秘" then
+            skinsec = "Hystic"
+        elseif Value == "虚空神秘" then
+            skinsec = "Void Mystic"
+        elseif Value == "战术" then
+            skinsec = "Tactical"
+        elseif Value == "纯金战术" then
+            skinsec = "Solid Gold Tactical"
+        elseif Value == "白未来" then
+            skinsec = "Future White"
+        elseif Value == "黑未来" then
+            skinsec = "Future Black"
+        elseif Value == "圣诞未来" then
+            skinsec = "Christmas Future"
+        elseif Value == "礼物包装" then
+            skinsec = "Gift Wrapped"
+        elseif Value == "猩红" then
+            skinsec = "Crimson Blood"
+        elseif Value == "收割者" then
+            skinsec = "Reaper"
+        elseif Value == "虚空收割者" then
+            skinsec = "Void Reaper"
+        elseif Value == "圣诞玩具" then
+            skinsec = "Christmas Toy"
+        elseif Value == "荒地" then
+            skinsec = "Wasteland"
+        elseif Value == "隐形" then
+            skinsec = "Invisible"
+        elseif Value == "像素" then
+            skinsec = "Pixel"
+        elseif Value == "钻石像素" then
+            skinsec = "Diamond Pixel"
+        elseif Value == "黄金零下" then
+            skinsec = "Frozen-Gold"
+        elseif Value == "绿水晶" then
+            skinsec = "Atomic Nature"
+        elseif Value == "生物" then
+            skinsec = "Biohazard"
+        elseif Value == "樱花" then
+            skinsec = "Sakura"
+        elseif Value == "精英" then
+            skinsec = "Elite"
+        elseif Value == "黑樱花" then
+            skinsec = "Death Blossom-Gold"
+        elseif Value == "彩虹激光" then
+            skinsec = "Rainbowlaser"
+        elseif Value == "蓝水晶" then
+            skinsec = "Atomic Water"
+        elseif Value == "紫水晶" then
+            skinsec = "Atomic Amethyst"
+        elseif Value == "红水晶" then
+            skinsec = "Atomic Flame"
+        elseif Value == "零下" then
+            skinsec = "Sub-Zero"
+        elseif Value == "虚空射线" then
+            skinsec = "Void-Ray"
+        elseif Value == "冰冻钻石" then
+            skinsec = "Frozen Diamond"
+        elseif Value == "虚空梦魇" then
+            skinsec = "Void Nightmare"
+        elseif Value == "金雪" then
+            skinsec = "Golden Snow"
+        elseif Value == "爱国者" then
+            skinsec = "Patriot"
+        elseif Value == "MM2" then
+            skinsec = "MM2 Barrett"
+        elseif Value == "声望" then
+            skinsec = "Prestige Barnett"
+        elseif Value == "酷化" then
+            skinsec = "Skin Walter"
+        elseif Value == "蒸汽" then
+            skinsec = "Steampunk"
+        elseif Value == "海盗" then
+            skinsec = "Pirate"
+        elseif Value == "玫瑰" then
+            skinsec = "Rose"
+        elseif Value == "黑玫瑰" then
+            skinsec = "Black Rose"
+        elseif Value == "激光" then
+            skinsec = "Hyperlaser"
+        elseif Value == "烟花" then
+            skinsec = "Firework"
+        elseif Value == "诅咒背瓜" then
+            skinsec = "Cursed Pumpkin"
+        elseif Value == "大炮" then
+            skinsec = "Cannon"
+        elseif Value == "财富" then
+            skinsec = "Firework"
+        elseif Value == "黄金大炮" then
+            skinsec = "Gold Cannon"
+        elseif Value == "四叶草" then
+            skinsec = "Lucky Clover"
+        elseif Value == "自由" then
+            skinsec = "Freedom"
+        elseif Value == "黑曜石" then
+            skinsec = "Obsidian"
+        elseif Value == "赛博朋克" then
+            skinsec = "Cyberpunk"
+        end
+    end
+})
+Tabs.MHTab:Toggle({
+    Title = "全部枪械美化",
+    Value = false,
+    Callback = function(start) 
+        autoskin = start
+        if autoskin then
+            local it = require(game:GetService("ReplicatedStorage").devv).load("v3item").inventory
+            local b1 = require(game:GetService('ReplicatedStorage').devv).load('v3item').inventory.items
+            for i, item in next, b1 do 
+                if item.type == "Gun" then
+                    it.skinUpdate(item.name, skinsec)
+                end
+            end
+        end
+    end
+})
+
+local items = {
+    "Golden Rose", "Black Rose", "Dollar Balloon", "Bat Balloon", "Bunny Balloon", "Clover Balloon",
+    "Ghost Balloon", "Gold Clover Balloon", "Heart Balloon", "Skull Balloon", "Snowflake Balloon",
+    "Admin AK-47", "Admin Nuke Launcher", "Admin RPG", "Void Gem", "Pulse Rifle", "Unusual Money Printer",
+    "Money Printer", "Trident", "NextBot Grenade", "El Fuego", "Kunai", "Spirit Kunai"
+}
+local itemDisplayNames = {
+    ["Golden Rose"] = "金玫瑰", ["Black Rose"] = "黑玫瑰", ["Dollar Balloon"] = "美元气球",
+    ["Bat Balloon"] = "蝙蝠气球", ["Bunny Balloon"] = "兔子气球", ["Clover Balloon"] = "三叶草气球",
+    ["Ghost Balloon"] = "幽灵气球", ["Gold Clover Balloon"] = "金三叶草气球", ["Heart Balloon"] = "爱心气球",
+    ["Skull Balloon"] = "骷髅气球", ["Snowflake Balloon"] = "雪花气球", ["Admin AK-47"] = "管理员黄金AK-47",
+    ["Admin Nuke Launcher"] = "管理员核弹发射器", ["Admin RPG"] = "管理员RPG", ["Void Gem"] = "虚空宝石",
+    ["Pulse Rifle"] = "脉冲步枪", ["Unusual Money Printer"] = "异常印钞机", ["Money Printer"] = "印钞机",
+    ["Trident"] = "三叉戟", ["NextBot Grenade"] = "NextBot手榴弹", ["El Fuego"] = "烈焰喷射器",
+    ["Kunai"] = "苦无", ["Spirit Kunai"] = "灵魂苦无"
+}
+local itemData = {}
+
+itemData["Bat Balloon"] = {name = "Bat Balloon", cost = 0, unpurchasable = true, multiplier = 0.625, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5.5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, math.pi, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Bunny Balloon"] = {name = "Bunny Balloon", cost = 0, unpurchasable = true, multiplier = 0.61, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 4.75, offset = CFrame.new(0, -0.25, 0), rotoffset = CFrame.Angles(0, 4.71238898038469, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Clover Balloon"] = {name = "Clover Balloon", cost = 200, unpurchasable = true, multiplier = 0.625, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Ghost Balloon"] = {name = "Ghost Balloon", cost = 0, unpurchasable = true, multiplier = 0.625, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 3.5, offset = CFrame.new(0, 0.5, 0), rotoffset = CFrame.Angles(0, math.pi, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Gold Clover Balloon"] = {name = "Gold Clover Balloon", cost = 250000, unpurchasable = true, multiplier = 0.6, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Heart Balloon"] = {name = "Heart Balloon", cost = 200, multiplier = 0.6, holdableType = "Balloon", unpurchasable = true, canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Skull Balloon"] = {name = "Skull Balloon", cost = 0, unpurchasable = true, multiplier = 0.625, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5.5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, -270, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Snowflake Balloon"] = {name = "Snowflake Balloon", cost = 0, unpurchasable = true, multiplier = 0.625, holdableType = "Balloon", canDrop = true, dropCooldown = 120, permanent = true, TPSOffsets = {hold = CFrame.new(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Golden Rose"] = {name = "Golden Rose", guid = "golden_rose_"..tostring(tick()), permanent = true, canDrop = true, dropCooldown = 120, multiplier = 0.625, holdableType = "Balloon", movespeedAdd = 5, TPSOffsets = {hold = CFrame.new(0, 0.5, 0)}, viewportOffsets = {hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)}, ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744467859455345, 0)}, slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}}}
+itemData["Black Rose"] = {name = "Black Rose", guid = "black_rose_"..tostring(tick()), permanent = true, canDrop = true, dropCooldown = 120, multiplier = 0.75, holdableType = "Balloon", movespeedAdd = 12, TPSOffsets = {hold = CFrame.new(0, 0.5, 0)}, viewportOffsets = {hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)}, ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744467859455345, 0)}, slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}}}
+itemData["Dollar Balloon"] = {name = "Dollar Balloon", cost = 100000000000, unpurchasable = true, multiplier = 0.8, holdableType = "Balloon", movespeedAdd = 8, cannotDiscard = true, TPSOffsets = {hold = CFrame.new(0, 0, 0) * CFrame.Angles(0, math.pi, 0)}, viewportOffsets = {hotbar = {dist = 4, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}, ammoHUD = {dist = 5, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 0, 0)}}}
+itemData["Admin AK-47"] = {name = "Admin AK-47", modelName = "Gold AK-47", subtype = "AK-47", adminOnly = true, canDrop = false, unpurchasable = true, damage = 10, ammo = 999999999, startAmmo = -1, maxAmmo = -1, firemode = "auto", numProjectiles = 8, fireDebounce = 0.01}
+itemData["Admin Nuke Launcher"] = {name = "Admin Nuke Launcher", modelName = "Nuke Launcher", subtype = "Nuke Launcher", adminOnly = true, canDrop = false, unpurchasable = true, ammo = 99999999, startAmmo = -1, maxAmmo = -1, overrideProjectileProperties = {disableNukeFlash = true}, reloadTime = 0, reloadType = "mag", firemode = "auto", numProjectiles = 1, fireDebounce = 0.2}
+itemData["Admin RPG"] = {canDrop = false, unpurchasable = true, name = "Admin RPG", modelName = "RPG", subtype = "RPG", adminOnly = true, ammo = 99999999, startAmmo = -1, maxAmmo = -1, reloadTime = 0, reloadType = "mag", firemode = "auto", numProjectiles = 1, fireDebounce = 0.02, recoilAdd = 0, maxRecoil = 0, recoilDiminishFactor = 0, recoilFastDiminishFactor = 0}
+itemData["Void Gem"] = {name = "Void Gem", subtype = "gem", maxAmmo = 3, adminLimit = 1, sellPrice = 25000, canDrop = true, dropCooldown = 300}
+itemData["Pulse Rifle"] = {name = "Pulse Rifle", subtype = "Raygun", unpurchasable = true, damage = 22, headshotMultiplier = 1.5, ammo = 50, startAmmo = -1, maxAmmo = -1, reloadTime = 3.5, reloadType = "mag", firemode = "auto", numProjectiles = 1, fireDebounce = 0.04, projectileLength = 20, projectileLifetime = 200, speedDropoff = 0.04, speedMax = 5, baseSpread = 3, baseAimSpread = 0.8, spread = 11, aimSpread = 2.4, recoilAdd = 0.05, maxRecoil = 0.4, recoilDiminishFactor = 0.95, recoilFastDiminishFactor = 0.85}
+itemData["Unusual Money Printer"] = {name = "Unusual Money Printer", cost = 500, ammo = 1, startAmmo = -1, maxAmmo = 1, hint = {computer = "Click to Place", console = "Click to Place"}, canDrop = true, dropCooldown = 600, isConsumable = true, TPSOffsets = {hold = CFrame.new(-0.1, 0, -0.75) * CFrame.Angles(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0.15, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}, ammoHUD = {dist = 3.25, offset = CFrame.new(0, 1, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)}}}
+itemData["Money Printer"] = {name = "Money Printer", ammo = 1, startAmmo = -1, maxAmmo = 1, adminLimit = 10, hint = {computer = "Click to Place", console = "Click to Place"}, canDrop = true, dropCooldown = 600, isConsumable = true, permanent = true, TPSOffsets = {hold = CFrame.new(-0.1, 0, -0.75) * CFrame.Angles(0, 0, 0)}, viewportOffsets = {hotbar = {dist = 5, offset = CFrame.new(0, 0.15, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}, ammoHUD = {dist = 3.25, offset = CFrame.new(0, 1, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}}}
+itemData["Trident"] = {name = "Trident", subtype = "RPG", unpurchasable = true, ammo = 1, startAmmo = 12, maxAmmo = 12, firemode = "semi", numProjectiles = 3, fireDebounce = 0.5, projectileLength = 4, projectileLifetime = 1000, speedDropoff = 0.04, speedMax = 5, baseSpread = 5, baseAimSpread = 1, spread = 10, aimSpread = 6, recoilAdd = 1, maxRecoil = 1.25, recoilDiminishFactor = 0.9, recoilFastDiminishFactor = 0.66}
+itemData["NextBot Grenade"] = {name = "NextBot Grenade", isNade = true, bounceSFX = "nadeBounce", canDrop = true, dropCooldown = 600, thrownOffset = CFrame.Angles(0, (math.pi/2), 0), ammo = 1, startAmmo = -1, maxAmmo = 1, permanent = true, throwDist = 50, TPSOffsets = {hold = CFrame.new(-0.1, 0.25, -0.125)}, viewportOffsets = {hotbar = {dist = 2.75, offset = CFrame.new(0, -0.125, 0), rotoffset = CFrame.Angles(0, 1.8849555921538759, 0)}, ammoHUD = {dist = 2, offset = CFrame.new(0, 0.1, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)}}}
+itemData["El Fuego"] = {name = "El Fuego", modelName = "El Fuego", subtype = "Flamethrower", unpurchasable = true, ammo = 600, startAmmo = 0, maxAmmo = 600, reloadTime = 6, reloadType = "mag", firemode = "auto", damage = 6, numProjectiles = 3, fireDebounce = 0.05, projectileLength = 4, projectileLifetime = 60, speedDropoff = 0.04, speedMax = 5, baseSpread = 4, baseAimSpread = 2, spread = 12, aimSpread = 6, recoilAdd = 0.1, maxRecoil = 1, recoilDiminishFactor = 0.95, recoilFastDiminishFactor = 0.8}
+itemData["Kunai"] = {name = "Kunai", permanent = true, canDrop = true, dropCooldown = 120, holdableType = "Kunai", movespeedAdd = 12, TPSOffsets = {hold = CFrame.new(0, -0.3, 0)}, viewportOffsets = {hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)}, ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)}, slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}}}
+itemData["Spirit Kunai"] = {name = "Spirit Kunai", permanent = true, canDrop = true, dropCooldown = 120, holdableType = "Kunai", movespeedAdd = 12, TPSOffsets = {hold = CFrame.new(0, -0.3, 0)}, viewportOffsets = {hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, 1.5707963, 0)}, ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744468, 0)}, slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.5707963, 0)}}}
+
+local function getItemList()
+    local itemList = {}
+    for _, itemName in ipairs(items) do
+        local displayName = itemDisplayNames[itemName] or itemName
+        table.insert(itemList, displayName)
+    end
+    return itemList
+end
+
+local selectedItem = ""
+Tabs.MHTab:Dropdown({
+    Title = "选择物品",
+    Desc = "从列表中选择要获得的物品",
+    Values = getItemList(),
+    Value = "",
+    Callback = function(value)
+        if value and value ~= "" then
+            selectedItem = value
+        else
+            selectedItem = ""
+        end
+    end
+})
+
+local function getItemNameByDisplayName(displayName)
+    for itemName, dispName in pairs(itemDisplayNames) do
+        if dispName == displayName then return itemName end
+    end
+    return displayName
+end
+
+local function addItem(itemName)
+    pcall(function()
+        local itemSystem = require(ReplicatedStorage.devv).load("v3item")
+        local inventory = itemSystem.inventory
+        if not itemData[itemName] then return end
+        local itemConfig = itemData[itemName]
+        local itemToAdd = {
+            name = itemConfig.name,
+            guid = itemName:lower():gsub(" ", "_").."_"..tostring(tick()),
+            permanent = itemConfig.permanent or true,
+            canDrop = itemConfig.canDrop or true,
+            dropCooldown = itemConfig.dropCooldown or 120,
+            multiplier = itemConfig.multiplier or 0.625,
+            holdableType = itemConfig.holdableType or "Balloon",
+            movespeedAdd = itemConfig.movespeedAdd or 0,
+            cannotDiscard = itemConfig.cannotDiscard or false,
+            TPSOffsets = itemConfig.TPSOffsets or {hold = CFrame.new(0, 0.5, 0)},
+            viewportOffsets = itemConfig.viewportOffsets or {
+                hotbar = {dist = 3, offset = CFrame.new(0, 0, 0), rotoffset = CFrame.Angles(0, (math.pi/2), 0)},
+                ammoHUD = {dist = 2, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, -1.3744467859455345, 0)},
+                slotButton = {dist = 1, offset = CFrame.new(-0.1, -0.2, 0), rotoffset = CFrame.Angles(0, (-math.pi/2), 0)}
+            }
+        }
+        if itemConfig.subtype then itemToAdd.subtype = itemConfig.subtype end
+        if itemConfig.modelName then itemToAdd.modelName = itemConfig.modelName end
+        if itemConfig.adminOnly then itemToAdd.adminOnly = itemConfig.adminOnly end
+        if itemConfig.damage then itemToAdd.damage = itemConfig.damage end
+        if itemConfig.ammo then itemToAdd.ammo = itemConfig.ammo end
+        if itemConfig.startAmmo then itemToAdd.startAmmo = itemConfig.startAmmo end
+        if itemConfig.maxAmmo then itemToAdd.maxAmmo = itemConfig.maxAmmo end
+        if itemConfig.reloadTime then itemToAdd.reloadTime = itemConfig.reloadTime end
+        if itemConfig.reloadType then itemToAdd.reloadType = itemConfig.reloadType end
+        if itemConfig.firemode then itemToAdd.firemode = itemConfig.firemode end
+        if itemConfig.numProjectiles then itemToAdd.numProjectiles = itemConfig.numProjectiles end
+        if itemConfig.fireDebounce then itemToAdd.fireDebounce = itemConfig.fireDebounce end
+        if itemConfig.projectileLength then itemToAdd.projectileLength = itemConfig.projectileLength end
+        if itemConfig.projectileLifetime then itemToAdd.projectileLifetime = itemConfig.projectileLifetime end
+        if itemConfig.headshotMultiplier then itemToAdd.headshotMultiplier = itemConfig.headshotMultiplier end
+        if itemConfig.hint then itemToAdd.hint = itemConfig.hint end
+        if itemConfig.isConsumable then itemToAdd.isConsumable = itemConfig.isConsumable end
+        if itemConfig.isNade then itemToAdd.isNade = itemConfig.isNade end
+        if itemConfig.throwDist then itemToAdd.throwDist = itemConfig.throwDist end
+        if itemConfig.sellPrice then itemToAdd.sellPrice = itemConfig.sellPrice end
+        if itemConfig.adminLimit then itemToAdd.adminLimit = itemConfig.adminLimit end
+        if itemConfig.overrideProjectileProperties then itemToAdd.overrideProjectileProperties = itemConfig.overrideProjectileProperties end
+        if itemConfig.recoilAdd then itemToAdd.recoilAdd = itemConfig.recoilAdd end
+        if itemConfig.maxRecoil then itemToAdd.maxRecoil = itemConfig.maxRecoil end
+        if itemConfig.recoilDiminishFactor then itemToAdd.recoilDiminishFactor = itemConfig.recoilDiminishFactor end
+        if itemConfig.recoilFastDiminishFactor then itemToAdd.recoilFastDiminishFactor = itemConfig.recoilFastDiminishFactor end
+        if inventory.add then
+            inventory.add(itemToAdd, false)
+            if inventory.currentItemsData then
+                table.insert(inventory.currentItemsData, itemToAdd)
+            end
+        end
+        if inventory.rerender then
+            inventory:rerender()
+        end
+    end)
+end
+
+Tabs.MHTab:Button({
+    Title = "免费获得选择的物品",
+    Callback = function()
+        if selectedItem and selectedItem ~= "" then
+            local itemName = getItemNameByDisplayName(selectedItem)
+            if itemName then
+                addItem(itemName)
+            end
+        end
+    end
+})
+
+local lanternEnabled = false
+Tabs.ACTab:Toggle({
+    Title = "自动领取所有灯笼",
+    Value = false,
+    Callback = function(state)
+        lanternEnabled = state
+        if state then
+            task.spawn(function()
+                local plr = game:GetService("Players").LocalPlayer
+                local char = plr.Character or plr.CharacterAdded:Wait()
+                local root = char:WaitForChild("HumanoidRootPart")
+                
+                while lanternEnabled do
+                    local targetFolder = workspace:FindFirstChild("LunarNewYear")
+                    if targetFolder then
+                        for _, obj in pairs(targetFolder:GetChildren()) do
+                            if not lanternEnabled then break end
+                            if obj:IsA("Model") or obj:IsA("BasePart") then
+                                local pos
+                                if obj:IsA("Model") and obj.PrimaryPart then
+                                    pos = obj.PrimaryPart.Position
+                                elseif obj:IsA("BasePart") then
+                                    pos = obj.Position
+                                end
+                                if pos then
+                                    root.CFrame = CFrame.new(pos)
+                                    task.wait(0.5)
+                                    local prompt = obj:FindFirstChild("ProximityPrompt", true)
+                                    if prompt then
+                                        fireproximityprompt(prompt)
+                                    end
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    else
+                        task.wait(0.5)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+Tabs.ACTab:Toggle({
+    Title = "反挂机(必开)",
+    Value = false,
+    Callback = function(state)
+        if state then
+            loadstring(game:HttpGet("https://pastebin.com/raw/9fFu43FF"))()
+        end
+    end
+})
+
+Tabs.ACTab:Paragraph({
+    Title = "以下是修改类",
+    Desc = "可以伪装成管理员 使用RPG再用此功能 直接给他们装一波逼 刚好也图一下新年的喜庆",
+    Image = "crown",
+    ImageSize = 42,
+})
+
+Tabs.ACTab:Button({
+    Title = "全枪无限子弹",
+    Callback = function()
+        local function setInfiniteAmmo()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
+            local itemSystem = require(ReplicatedStorage.devv).load("v3item")
+            local inventory = itemSystem.inventory
+            
+            for _, item in pairs(inventory.items) do
+                if item and item.ammoManager then
+                    item.ammoManager:setAmmo(9999)
+                    item.ammoManager:setAmmoOut(9999)
+                end
+            end
+        end
+        
+        setInfiniteAmmo()
+        
+        local infiniteAmmoLoop = task.spawn(function()
+            while true do
+                pcall(setInfiniteAmmo)
+                task.wait(25)
+            end
+        end)
+    end
+})
+
+Tabs.ACTab:Button({
+    Title = "全枪射速提升",
+    Callback = function()
+        local function increaseFireRate()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
+            local itemSystem = require(ReplicatedStorage.devv).load("v3item")
+            local inventory = itemSystem.inventory
+            
+            for _, item in pairs(inventory.items) do
+                if item then
+                    item.fireDebounce = 0.01
+                    item.reloadTime = 0.1
+                    if item.ammoManager then
+                        item.ammoManager.ammo = 9999
+                    end
+                end
+            end
+        end
+        
+        increaseFireRate()
+        
+        local fireRateLoop = task.spawn(function()
+            while true do
+                pcall(increaseFireRate)
+                task.wait(30)
+            end
+        end)
+    end
+})
+
+Tabs.ACTab:Button({
+    Title = "全枪无后坐力",
+    Callback = function()
+        local function removeRecoil()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
+            local itemSystem = require(ReplicatedStorage.devv).load("v3item")
+            local inventory = itemSystem.inventory
+            
+            for _, item in pairs(inventory.items) do
+                if item then
+                    item.recoilAdd = 0
+                    item.maxRecoil = 0
+                    item.recoilDiminishFactor = 0
+                    item.recoilFastDiminishFactor = 0
+                    item.baseSpread = 0
+                    item.baseAimSpread = 0
+                    item.spread = 0
+                    item.aimSpread = 0
+                end
+            end
+        end
+        
+        removeRecoil()
+        
+        local recoilLoop = task.spawn(function()
+            while true do
+                pcall(removeRecoil)
+                task.wait(30)
+            end
+        end)
+    end
+})
+
+Window:OnClose(function()
+    print("Hello world")
+end)
