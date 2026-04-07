@@ -231,7 +231,7 @@ local Ping = player:WaitForChild("Info"):WaitForChild("Ping")
 
 local loop
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "14",
     Title = "ping乱码",
     Value = false,
@@ -718,7 +718,7 @@ local multiUseCutscenesToggle = ReplicatedStorage.Settings.Toggles.MultiUseCutsc
 
 local defaultValue = false
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "30",
     Title = "艾斯帕大招技能多次使用(全角色通用)",
     Value = multiUseCutscenesToggle.Value,
