@@ -1,11 +1,11 @@
 --BY XI.team
-local Tab = Window:Tab({
+local TabA = Window:Tab({
     Title = "主要功能",
     Icon = "sword",
     Locked = false,
 })
 
-Tab:Button({
+TabA:Button({
     Flag = "1",
     Title = "篡改",
     Desc = "玩的时候第一先开启这个功能",
@@ -16,7 +16,7 @@ Tab:Button({
 
 local fakeBlockEnabled = false
 local loopRunning = false
-Tab:Toggle({
+TabA:Toggle({
     Flag = "2",
     Title = "假防(关闭功能后按一次防御即可取消假防)",
     Value = false,
@@ -61,7 +61,7 @@ Tab:Toggle({
 
 local defaultCooldown = game:GetService("ReplicatedStorage").Settings.Cooldowns.Dash.Value
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "3",
     Title = "侧闪无冷却",
     Value = false,
@@ -77,7 +77,7 @@ Tab:Toggle({
 })
 local defaultMeleeCooldown = game:GetService("ReplicatedStorage").Settings.Cooldowns.Melee.Value
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "4",
     Title = "近战无冷却",
     Value = false,
@@ -95,7 +95,7 @@ local rs = game:GetService("ReplicatedStorage")
 local settings = rs.Settings
 
 local defaultAbility = settings.Cooldowns.Ability.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "5",
     Title = "技能无冷却(仅宿傩角色)",
     Value = false,
@@ -127,7 +127,7 @@ local function stopEmoteClaim()
     end
 end
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "6",
     Title = "自动签到表情",
     Value = false,
@@ -146,7 +146,7 @@ local noSlowdownsToggle = ReplicatedStorage.Settings.Toggles.NoSlowdowns
 
 local defaultValue = false
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "7",
     Title = "无减速效果",
     Value = noSlowdownsToggle.Value,
@@ -161,7 +161,7 @@ Tab:Toggle({
 })
 
 local defaultDisableHitStun = settings.Toggles.DisableHitStun.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "8",
     Title = "取消被攻击硬直",
     Value = false,
@@ -172,7 +172,7 @@ Tab:Toggle({
 })
 
 local defaultDisableIntros = settings.Toggles.DisableIntros.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "9",
     Title = "跳过角色开场动作",
     Value = false,
@@ -183,7 +183,7 @@ Tab:Toggle({
 })
 
 local defaultNoStunOnMiss = settings.Toggles.NoStunOnMiss.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "10",
     Title = "普攻无僵直",
     Value = false,
@@ -194,7 +194,7 @@ Tab:Toggle({
 })
 
 local defaultRagdollTimer = settings.Multipliers.RagdollTimer.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "11",
     Title = "被别人击倒不会变成布娃娃",
     Value = false,
@@ -205,7 +205,7 @@ Tab:Toggle({
 })
 
 local defaultUltimateTimer = settings.Multipliers.UltimateTimer.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "12",
     Title = "延长大招时间",
     Value = false,
@@ -216,7 +216,7 @@ Tab:Toggle({
 })
 
 local defaultInstantTransformation = settings.Toggles.InstantTransformation.Value
-Tab:Toggle({
+TabA:Toggle({
     Flag = "13",
     Title = "秒开大",
     Value = false,
@@ -265,7 +265,7 @@ local MeleeDamage = ReplicatedStorage:WaitForChild("Settings"):WaitForChild("Mul
 
 MeleeDamage.Value = 100
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "15",
     Title = "一拳倒地",
     Value = false,
@@ -278,7 +278,7 @@ Tab:Toggle({
         end
     end
 })
-Tab:Toggle({
+TabA:Toggle({
     Flag = "16",
     Title = "一拳击飞",
     Value = false,
@@ -330,7 +330,7 @@ Tab:Toggle({
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local wallCombo = ReplicatedStorage.Settings.Cooldowns.WallCombo
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "17",
     Title = "墙打无冷却",
     Value = false,
@@ -385,7 +385,7 @@ end)
 setreadonly(mt,true)
 
 local followConnection = nil
-Tab:Toggle({
+TabA:Toggle({
     Flag = "18",
     Title = "随处墙打",
     Value = false,
@@ -411,7 +411,7 @@ Tab:Toggle({
 local originalData = {}
 local skyBackup = nil
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "19",
     Title = "防卡",
     Value = false,
@@ -562,7 +562,7 @@ local function ToggleInvisibility(state)
     end
 end
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "20",
     Title = "隐身",
     Value = false,
@@ -585,7 +585,7 @@ local function RainbowColor(t)
     return Color3.fromRGB(r, g, b)
 end
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "27",
     Title = "墙打/杀戮光环范围显示",
     Value = false,
@@ -659,7 +659,7 @@ Tab:Toggle({
     end
 })
 
-Tab:Button({
+TabA:Button({
     Flag = "28",
     Title = "删除墙打特效",
     Desc = "点了该功能就无法恢复墙打特效",
@@ -685,7 +685,7 @@ Tab:Button({
         end
     end
 })
-Tab:Button({
+TabA:Button({
     Flag = "29",
     Title = "删除击杀表情特效",
     Desc = "点击删除击杀表情的部分特效,不可恢复",
@@ -843,7 +843,7 @@ end
 
 local FLY_TOGGLE_STATE = false
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "31",
     Title = "飞行",
     Value = false,
@@ -858,7 +858,7 @@ Tab:Toggle({
     end
 })
 
-Tab:Slider({
+TabA:Slider({
     Flag = "32",
     Title = "飞行速度",
     Value = {
@@ -879,7 +879,7 @@ local LocalPlayer = Players.LocalPlayer
 local tpwalking = false
 local tpwalkSpeed = 100
 
-Tab:Toggle({
+TabA:Toggle({
     Flag = "33",
     Title = "速度",
     Value = false,
@@ -902,7 +902,7 @@ Tab:Toggle({
     end
 })
 
-Tab:Slider({
+TabA:Slider({
     Flag = "34",
     Title = "速度调节",
     Value = {
@@ -916,7 +916,7 @@ Tab:Slider({
     end
 })
 
-Tab:Slider({
+TabA:Slider({
     Flag = "35",
     Title = "冲刺加速(默认值100)",
     Value = {
@@ -929,7 +929,7 @@ Tab:Slider({
     end
 })
 
-Tab:Slider({
+TabA:Slider({
     Flag = "36",
     Title = "跳跃增强(默认值100)",
     Value = {
@@ -942,7 +942,7 @@ Tab:Slider({
     end
 })
 
-Tab:Slider({
+TabA:Slider({
     Flag = "37",
     Title = "攻击加速(默认值100)",
     Value = {
@@ -954,7 +954,7 @@ Tab:Slider({
         game:GetService("ReplicatedStorage").Settings.Multipliers.MeleeSpeed.Value = value
     end
 })
-local Tab = Window:Tab({  
+local TabB = Window:Tab({  
     Title = "暴力功能",  
     Icon = "hand-fist",  
     Locked = false,
@@ -1042,7 +1042,7 @@ task.spawn(function()
     end
 end)
 
-Tab:Toggle({
+TabB:Toggle({
     Flag = "21",
     Title = "无敌",
     Value = false,
@@ -1051,7 +1051,7 @@ Tab:Toggle({
         active = state
     end
 })
-Tab:Button({
+TabB:Button({
     Flag = "22",
     Title = "卡服",
     Callback = function()
@@ -1350,7 +1350,7 @@ _F.Stop = function()
     end
 end
 
-Tab:Toggle({
+TabB:Toggle({
     Title = "全图秒杀",
     Value = false,
     Callback = function(state)
@@ -1613,7 +1613,7 @@ local function stopAura()
     if conn then conn:Disconnect() conn = nil end
 end
 
-Tab:Toggle({
+TabB:Toggle({
     Flag = "23",
     Title = "杀戮光环v1(慢)",
     Value = false,
@@ -1736,7 +1736,7 @@ local function KillAura(count)
     end
 end
 
-Tab:Toggle({
+TabB:Toggle({
     Flag = "23.5",
     Title = "杀戮光环v2(快)",
     Value = false,
@@ -1755,7 +1755,7 @@ Tab:Toggle({
         end
     end
 })
-Tab:Toggle({
+TabB:Toggle({
     Flag = "24",
     Title = "杀戮光环忽略好友",
     Value = false,
@@ -1763,7 +1763,7 @@ Tab:Toggle({
         Configs.IgnoreFriends = state
     end
 })
-Tab:Toggle({
+TabB:Toggle({
     Flag = "25",
     Title = "墙打秒杀",
     Value = false,
@@ -1773,7 +1773,7 @@ Tab:Toggle({
     end
 })
 
-Tab:Toggle({
+TabB:Toggle({
     Flag = "26",
     Title = "墙打秒杀忽略好友",
     Value = false,
@@ -1782,7 +1782,7 @@ Tab:Toggle({
     end
 })
 
-local Tab = Window:Tab({
+local TabC = Window:Tab({
     Title = "碰撞箱扩大",
     Icon = "box",
     Locked = false,
@@ -1927,7 +1927,7 @@ function S:StopDashLoop()
     end
 end
 
-Tab:Toggle({
+TabC:Toggle({
     Title = "碰撞箱扩大",
     Desc = "如果你不会调参数这些你就直接开启碰撞箱扩大功能就行了",
     Value = false,
@@ -1944,7 +1944,7 @@ Tab:Toggle({
     end
 })
 
-Tab:Input({
+TabC:Input({
     Title = "碰撞箱X轴",
     Value = tostring(S.Cfg.X),
     Callback = function(v)
@@ -1955,7 +1955,7 @@ Tab:Input({
     end
 })
 
-Tab:Input({
+TabC:Input({
     Title = "碰撞箱Y轴",
     Value = tostring(S.Cfg.Y),
     Callback = function(v)
@@ -1966,7 +1966,7 @@ Tab:Input({
     end
 })
 
-Tab:Input({
+TabC:Input({
     Title = "碰撞箱Z轴",
     Value = tostring(S.Cfg.Z),
     Callback = function(v)
