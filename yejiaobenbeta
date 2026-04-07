@@ -4488,7 +4488,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "战争大亨（alienx）似乎不可用，但是作者是不可能修的😋",
+    Title = "战争大亨（alienx）有些功能不可用，但是作者是不可能修的😋",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/战争大亨"))()
@@ -4503,6 +4503,16 @@ TabAb:Button({
         end)
    end
 })
+TabAb:Button({
+    Title = "俄亥俄州（伊散）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/俄亥俄州"))()
+        end)
+   end
+})
+
+
 -- ================= 终止 =================
 local TabStop = Window:Tab({
     Title = "终止",
