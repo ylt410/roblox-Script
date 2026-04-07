@@ -2770,7 +2770,7 @@ pcall(function()
     WindUI:SetTheme(CurrentTheme)
 end)
 Window:Tag({
-    Title = "夜脚本V1.1测试版",
+    Title = "夜脚本V1.1",
     Icon = "github",
     Color = Color3.fromRGB(255, 204, 0), -- ⭐柔和黄色（推荐）
     Radius = 8,
@@ -4472,7 +4472,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "墨水游戏（大司马）",
+    Title = "墨水游戏（Rb）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/ink"))()
@@ -4487,10 +4487,22 @@ TabAb:Button({
         end)
    end
 })
-
-
-
-
+TabAb:Button({
+    Title = "战争大亨（alienx）似乎不可用，但是作者是不可能修的😋",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/战争大亨"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "99夜（Rb）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/99夜"))()
+        end)
+   end
+})
 -- ================= 终止 =================
 local TabStop = Window:Tab({
     Title = "终止",
