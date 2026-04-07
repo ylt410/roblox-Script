@@ -10,7 +10,33 @@ TabA:Button({
     Title = "篡改",
     Desc = "玩的时候第一先开启这个功能",
     Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/dream77239/ubg-script/refs/heads/main/%E6%8B%A6%E6%88%AA.txt"))()
+for _, fn in next, getgc(true) do
+    if type(fn) == "function" then
+        local info = debug.getinfo(fn)
+        if info and info.name and info.name:lower():find("customvalidation") then
+            local old
+            old = hookfunction(fn, function(...)
+                local success, result = pcall(old, ...)
+                if not success then
+                    return true
+                end
+                local t = typeof(result)
+                if t == "boolean" then
+                    return true
+                elseif t == "number" then
+                    return 999999
+                elseif t == "string" then
+                    return "validated"
+                elseif t == "table" then
+                    return {} 
+                else
+                    return result
+                end
+            end)
+            print("Hooked CustomValidation -> enhanced safe bypass")
+        end
+    end
+end
     end
 })
 
