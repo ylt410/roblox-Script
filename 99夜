@@ -3,47 +3,6 @@ game:GetService("StarterGui"):SetCore("SendNotification",{
 	Text = "正在加载...森林中的99夜...", 
 	Icon = "rbxassetid://119970903874014" 
 })()
-WindUI:Localization({
-    Enabled = true,
-    Prefix = "loc:",
-    DefaultLanguage = "ru",
-    Translations = {
-        ["ru"] = {
-            ["WINDUI_EXAMPLE"] = "WindUI Пример",
-            ["WELCOME"] = "Добро пожаловать в WindUI!",
-            ["LIB_DESC"] = "Библиотека для создания красивых интерфейсов",
-            ["SETTINGS"] = "Настройки",
-            ["APPEARANCE"] = "Внешний вид",
-            ["FEATURES"] = "Функционал",
-            ["UTILITIES"] = "Инструменты",
-            ["UI_ELEMENTS"] = "UI Элементы",
-            ["CONFIGURATION"] = "Конфигурация",
-            ["SAVE_CONFIG"] = "Сохранить конфигурацию",
-            ["LOAD_CONFIG"] = "Загрузить конфигурацию",
-            ["THEME_SELECT"] = "Выберите тему",
-            ["TRANSPARENCY"] = "Прозрачность окна"
-        },
-        ["en"] = {
-            ["WINDUI_EXAMPLE"] = "WindUI Example",
-            ["WELCOME"] = "Welcome to WindUI!",
-            ["LIB_DESC"] = "Beautiful UI library for Roblox",
-            ["SETTINGS"] = "Settings",
-            ["APPEARANCE"] = "Appearance",
-            ["FEATURES"] = "Features",
-            ["UTILITIES"] = "Utilities",
-            ["UI_ELEMENTS"] = "UI Elements",
-            ["CONFIGURATION"] = "Configuration",
-            ["SAVE_CONFIG"] = "Save Configuration",
-            ["LOAD_CONFIG"] = "Load Configuration",
-            ["THEME_SELECT"] = "Select Theme",
-            ["TRANSPARENCY"] = "Window Transparency"
-        }
-    }
-})
-
-WindUI.TransparencyValue = 0.2
-WindUI:SetTheme("Dark")
-
 local function gradient(text, startColor, endColor)
     local result = ""
     for i = 1, #text do
@@ -57,30 +16,6 @@ local function gradient(text, startColor, endColor)
 end
 
 local Confirmed = false
-
-WindUI:Popup({
-    Title = gradient("RbScript Hub", Color3.fromHex("#6A11CB"), Color3.fromHex("#2575FC")),
-    Icon = "sparkles",
-    IconThemed = true,
-    Content = "欢迎使用付费版！",
-    Buttons = {
-        {
-            Title = "取消",
-            --Icon = "",
-            Callback = function() end,
-            Variant = "Secondary", -- Primary, Secondary, Tertiary
-        },
-        {
-            Title = "确认",
-            Icon = "arrow-right",
-            Callback = function() Confirmed = true end,
-            Variant = "Primary", -- Primary, Secondary, Tertiary
-        }
-    }
-})
-
-repeat wait() until Confirmed
-
 local UserGui = Instance.new("ScreenGui", game.CoreGui)
 local UserLabel = Instance.new("TextLabel", UserGui)
 local UIGradient = Instance.new("UIGradient")
