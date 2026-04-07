@@ -2,7 +2,7 @@ game:GetService("StarterGui"):SetCore("SendNotification",{
 	Title = "Rb脚本中心付费版：", 
 	Text = "正在加载...森林中的99夜...", 
 	Icon = "rbxassetid://119970903874014" 
-})()
+})
 local function gradient(text, startColor, endColor)
     local result = ""
     for i = 1, #text do
@@ -57,24 +57,55 @@ local TweenService = game:GetService("TweenService")
 local tweeninfo = TweenInfo.new(7, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1)
 local tween = TweenService:Create(UIGradient, tweeninfo, {Rotation = 360})
 tween:Play()
-local Tabs = {
-    Main = Window:Section({ Title = "通用", Opened = true }),
-    gn = Window:Section({ Title = "功能", Opened = true }),
-    Settings = Window:Section({ Title = "UI设置", Opened = true }),
-    Utilities = Window:Section({ Title = "保存配置", Opened = true })
-}
-
 local TabHandles = {
-    xx = Tabs.Main:Tab({ Title = "游戏信息", Icon = "layout-grid" }),
-    Elements = Tabs.Main:Tab({ Title = "玩家功能", Icon = "layout-grid" }),
-    gn = Tabs.gn:Tab({ Title = "游戏功能", Icon = "layout-grid" }),
-    wpgn = Tabs.gn:Tab({ Title = "物品功能", Icon = "layout-grid" }),
-    tsgn = Tabs.gn:Tab({ Title = "透视功能", Icon = "layout-grid" }),
-    fzgn = Tabs.gn:Tab({ Title = "辅助功能", Icon = "layout-grid" }),
-    Appearance = Tabs.Settings:Tab({ Title = "UI外观", Icon = "brush" }),
-    Config = Tabs.Utilities:Tab({ Title = "调整配置", Icon = "settings" })
-}
+    xx = Window:Tab({
+        Title = "游戏信息",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
 
+    Elements = Window:Tab({
+        Title = "玩家功能",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
+
+    gn = Window:Tab({
+        Title = "游戏功能",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
+
+    wpgn = Window:Tab({
+        Title = "物品功能",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
+
+    tsgn = Window:Tab({
+        Title = "透视功能",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
+
+    fzgn = Window:Tab({
+        Title = "辅助功能",
+        Icon = "layout-grid",
+        Locked = false,
+    }),
+
+    Appearance = Window:Tab({
+        Title = "UI外观",
+        Icon = "brush",
+        Locked = false,
+    }),
+
+    Config = Window:Tab({
+        Title = "调整配置",
+        Icon = "settings",
+        Locked = false,
+    })
+}
 TabHandles.xx:Paragraph({
     Title = "您的游戏名称：",
     Desc = ""..game:GetService("Players").LocalPlayer.DisplayName.."",
