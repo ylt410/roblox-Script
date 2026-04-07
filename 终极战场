@@ -1,14 +1,4 @@
 --BY XI.team
-task.spawn(function()
-	while true do
-		local now = os.date("*t")
-		local hours = string.format("%02d", now.hour)
-		local minutes = string.format("%02d", now.min)
-		
-		TimeTag:SetTitle(hours .. ":" .. minutes)
-		task.wait(0.06)
-	end
-end)
 local Tab = Window:Tab({
     Title = "主要功能",
     Icon = "sword",
