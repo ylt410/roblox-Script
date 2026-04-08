@@ -3417,6 +3417,64 @@ end)
     end
 })
 
+TabOther:Button({
+    Title = "点击传送工具（夜脚本重制版）",
+    Callback = function()
+        local ok, err = pcall(function()
+-- 服务
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+-- 玩家
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- 工具
+local Tool = Instance.new("Tool")
+Tool.Name = "点击传送道具"
+Tool.RequiresHandle = false
+
+Tool.Activated:Connect(function()
+    local Character = LocalPlayer.Character
+    if not Character then return end
+
+    local HRP = Character:FindFirstChild("HumanoidRootPart")
+    if not HRP then return end
+
+    -- Raycast 参数（忽略自己）
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {Character}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+
+    -- 从相机朝鼠标方向发射射线
+    local unitRay = Camera:ScreenPointToRay(Mouse.X, Mouse.Y)
+    local rayOrigin = unitRay.Origin
+    local rayDirection = unitRay.Direction * 5000 -- 距离可调
+
+    local result = Workspace:Raycast(rayOrigin, rayDirection, params)
+
+    -- ❌ 没打到任何东西 = 空气 → 禁止传送
+    if not result then
+        warn("点到空气，取消传送")
+        return
+    end
+
+    -- ✅ 命中物体 → 直接传送到命中点上方一点
+    local hitPos = result.Position + Vector3.new(0, 3, 0)
+    HRP.CFrame = CFrame.new(hitPos)
+end)
+
+Tool.Parent = LocalPlayer:WaitForChild("Backpack")
+end)
+        if ok then
+            Notify("成功", "已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
 
 local TabVisual = Window:Tab({
     Title = "透视功能",
