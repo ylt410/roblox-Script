@@ -2783,8 +2783,8 @@ local MainTab = Window:Tab({
     })
 
 MainTab:Paragraph({
-        Title = "公告",
-        Desc = "夜脚本V1.1版本更新\n若干服务器功能\n一些新功能\n开启了新版wind UI界面\n优化了脚本\n实则没有优化😋", 
+        Title = "夜脚本V1.1版本更新",
+        Desc = "更新了若干服务器功能\n一些新功能\n开启了新版wind UI界面\n优化了脚本\n实则没有优化😋\n增加了自动检测俄亥俄州并加载其他脚本", 
     })
 MainTab:Paragraph({ Title="夜脚本主群", Desc ="1081045774" })
 MainTab:Button({
