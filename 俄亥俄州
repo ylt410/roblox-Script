@@ -15,6 +15,37 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     Humanoid = char:WaitForChild("Humanoid")
 end)
 
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Window = WindUI:CreateWindow({
+    Title = "塔菲喵脚本",
+    Author = "伊散塔菲喵",
+    Folder = "HackerHub",
+    Size = UDim2.fromOffset(200, 395),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = false,
+        Callback = function() print("clicked") end,
+        Anonymous = false
+    },
+    SideBarWidth = 135,
+    ScrollBarEnabled = true,
+    --Background = "",
+    BackgroundImageTransparency = 0.65,
+})
+
+Window:EditOpenButton({
+    Title = "打开伊散",
+    --Icon = "",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2.35,
+    Color = ColorSequence.new(
+        Color3.fromHex("3C1361"),
+        Color3.fromHex("6A0DAD")
+    ),
+    Draggable = true,
+})
+
 local Tabs = {}
 
 do
