@@ -160,7 +160,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n\n我们的主群被封了，\n请等待解封，或从脚本公告进入新群"
+    TextLabel.Text = "公告\n\n主群已解封可以正常进入"
     TextLabel.Parent = Frame
 
     -- 按钮
