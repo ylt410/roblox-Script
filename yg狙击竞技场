@@ -1,0 +1,1001 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+repeat task.wait() until LocalPlayer and LocalPlayer.Character   mf:GetPropertyChangedSignal("Visible"):Connect(applyBorderState)
+    applyBorderState()
+end)
+
+-- 全局状态
+getgenv().YG_Sniper = getgenv().YG_Sniper or {
+    SilentAim = {
+        Enabled = false,
+        HitChance = 100,
+        AimPart = "Head",
+        UsePrediction = false,
+        PredictionTime = 0.15,
+        SilentAimMode = "Raycast",
+        TeamCheck = true,
+        WallCheck = false,
+        SilentMark = false,
+    },
+    ESP = {
+        Enabled = false,
+        TeamCheck = true,
+        MaxDistance = 200,
+        FontSize = 11,
+        FadeOut = { OnDistance = true, OnDeath = false, OnLeave = false },
+        Options = {
+            Teamcheck = false, TeamcheckRGB = Color3.fromRGB(0,255,0),
+            Friendcheck = true, FriendcheckRGB = Color3.fromRGB(0,255,0),
+            Highlight = false, HighlightRGB = Color3.fromRGB(255,0,0),
+        },
+        Drawing = {
+            Chams = {
+                Enabled = true, Thermal = true,
+                FillRGB = Color3.fromRGB(119,120,255), Fill_Transparency = 100,
+                OutlineRGB = Color3.fromRGB(119,120,255), Outline_Transparency = 100,
+                VisibleCheck = true,
+            },
+            Names = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+            Flags = { Enabled = true },
+            Distances = {
+                Enabled = true,
+                Position = "Text",
+                RGB = Color3.fromRGB(255,255,255),
+            },
+            Weapons = {
+                Enabled = true, WeaponTextRGB = Color3.fromRGB(119,120,255),
+                Outlined = false,
+                Gradient = false,
+                GradientRGB1 = Color3.fromRGB(255,255,255), GradientRGB2 = Color3.fromRGB(119,120,255),
+            },
+            Healthbar = {
+                Enabled = true,
+                HealthText = true, Lerp = false, HealthTextRGB = Color3.fromRGB(119,120,255),
+                Width = 2.5,
+                Gradient = true,
+                GradientRGB1 = Color3.fromRGB(200,0,0), GradientRGB2 = Color3.fromRGB(60,60,125), GradientRGB3 = Color3.fromRGB(119,120,255),
+            },
+            Boxes = {
+                Animate = true,
+                RotationSpeed = 300,
+                Gradient = false, GradientRGB1 = Color3.fromRGB(119,120,255), GradientRGB2 = Color3.fromRGB(0,0,0),
+                GradientFill = true, GradientFillRGB1 = Color3.fromRGB(119,120,255), GradientFillRGB2 = Color3.fromRGB(0,0,0),
+                Filled = { Enabled = true, Transparency = 0.75, RGB = Color3.fromRGB(0,0,0) },
+                Full = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+                Corner = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+            },
+        },
+    },
+}
+local STATE = getgenv().YG_Sniper
+
+local function setupInputSpoof()
+    local UserInputService = game:GetService("UserInputService")
+    pcall(function()
+        local mt = getrawmetatable(UserInputService)
+        if mt then
+            local originalIndex = mt.__index
+            setreadonly(mt, false)
+            mt.__index = function(self, key)
+                if self == UserInputService then
+                    if key == "TouchEnabled" then return true end
+                    if key == "MouseEnabled" or key == "KeyboardEnabled" then return false end
+                end
+                return originalIndex(self, key)
+            end
+            setreadonly(mt, true)
+        end
+    end)
+end
+setupInputSpoof()
+
+-- 静默自瞄核心
+local silentAimActive = false
+local silentAimConnections = {}
+local silentAimTarget = nil
+local silentAimDecorations = {}
+local silentAimOriginalRaycast = nil
+local silentAimOriginalSpawnBullet = nil
+local silentMarkActive = false
+local silentMarkGuis = {}
+local markUpdateThread = nil
+local reinitThread = nil
+
+local silentAimConfig = {
+    fov_range = 900,
+    marker_chance = 10,
+    rotation_chance = 100,
+    path_adjust = true,
+    proximity_limit = 300,
+    assist_size = 4.0,
+}
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Thickness = 1
+fovCircle.Radius = silentAimConfig.fov_range
+fovCircle.Transparency = 0.7
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Filled = false
+fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+local targetDot = Drawing.new("Circle")
+targetDot.Visible = false
+targetDot.Thickness = 1
+targetDot.Radius = 4
+targetDot.Color = Color3.fromRGB(255, 0, 0)
+targetDot.Filled = true
+
+-- 查找根部件
+local function findRootPart(character, timeout)
+    timeout = timeout or 0
+    local parts = {"HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso", "Head"}
+    local start = tick()
+    repeat
+        for _, name in ipairs(parts) do
+            local part = character:FindFirstChild(name)
+            if part and part:IsA("BasePart") then
+                return part
+            end
+        end
+        if timeout > 0 and tick() - start > timeout then break end
+        task.wait(0.2)
+    until false
+    return nil
+end
+
+local function createDecoration(character)
+    if not character or not character.Parent then return nil end
+    local rootPart = findRootPart(character, 5)
+    if not rootPart then return nil end
+
+    if silentAimDecorations[character] and silentAimDecorations[character].Parent then
+        silentAimDecorations[character]:Destroy()
+    end
+
+    local decoration = Instance.new("Part")
+    local names = {"EffectNode", "ParticleAnchor", "SoundSource", "LightNode", "TrailStart"}
+    decoration.Name = names[math.random(1, #names)]
+    decoration.Size = Vector3.new(8, 8, 8) * silentAimConfig.assist_size
+    decoration.CFrame = rootPart.CFrame
+    decoration.Anchored = false
+    decoration.CanCollide = false
+    decoration.CanTouch = false
+    decoration.CanQuery = true
+    decoration.Transparency = 1
+    decoration.Parent = character
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = rootPart
+    weld.Part1 = decoration
+    weld.Parent = decoration
+
+    silentAimDecorations[character] = decoration
+    return decoration
+end
+
+local function removeDecoration(character)
+    if silentAimDecorations[character] then
+        silentAimDecorations[character]:Destroy()
+        silentAimDecorations[character] = nil
+    end
+end
+
+-- 标记GUI
+local function createMarkGui(character, hasMark)
+    if not character then return nil end
+    local head = character:FindFirstChild("Head")
+    if not head then return nil end
+    if silentMarkGuis[character] then
+        pcall(function() silentMarkGuis[character].gui:Destroy() end)
+        silentMarkGuis[character] = nil
+    end
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "SilentMark"
+    gui.Adornee = head
+    gui.Size = UDim2.new(0, 100, 0, 30)
+    gui.StudsOffset = Vector3.new(0, 2, 0)
+    gui.AlwaysOnTop = true
+    gui.LightInfluence = 0
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = head
+    local text = Instance.new("TextLabel")
+    text.Name = "Text"
+    text.Parent = gui
+    text.BackgroundTransparency = 1
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 16
+    if hasMark then
+        text.TextColor3 = Color3.fromRGB(0, 255, 0)
+        text.Text = "[已标记]"
+    else
+        text.TextColor3 = Color3.fromRGB(255, 0, 0)
+        text.Text = "[无法锁定]"
+    end
+    text.TextStrokeTransparency = 0.5
+    text.TextStrokeColor3 = Color3.new(0, 0, 0)
+    silentMarkGuis[character] = {gui = gui, text = text}
+    return gui
+end
+
+local function removeMarkGui(character)
+    if silentMarkGuis[character] then
+        pcall(function() silentMarkGuis[character].gui:Destroy() end)
+        silentMarkGuis[character] = nil
+    end
+end
+
+local function updateAllMarks()
+    if not silentMarkActive then
+        for char, _ in pairs(silentMarkGuis) do
+            pcall(function() silentMarkGuis[char].gui:Destroy() end)
+        end
+        silentMarkGuis = {}
+        return
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local hasMark = silentAimDecorations[char] ~= nil
+                    if hasMark then
+                        if not silentMarkGuis[char] then
+                            createMarkGui(char, true)
+                        end
+                    else
+                        if not silentMarkGuis[char] then
+                            createMarkGui(char, false)
+                        end
+                    end
+                else
+                    if silentMarkGuis[char] then
+                        removeMarkGui(char)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function markUpdateLoop()
+    while silentMarkActive do
+        pcall(updateAllMarks)
+        task.wait(0.5)
+    end
+end
+
+local function reinitAllDecorations()
+    while silentAimActive do
+        pcall(function()
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local char = player.Character
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        if not silentAimDecorations[char] or not silentAimDecorations[char].Parent then
+                            createDecoration(char)
+                        end
+                    else
+                        removeDecoration(char)
+                    end
+                end
+            end
+        end)
+        task.wait(3)
+    end
+end
+
+local function setupPlayerSupport(player)
+    if player == LocalPlayer then return end
+    local function handleCharacter(char)
+        if not char then return end
+        if char.Parent and silentAimActive then
+            createDecoration(char)
+        end
+        local humanoid = char:WaitForChild("Humanoid", 1)
+        if humanoid then
+            local diedConn = humanoid.Died:Connect(function()
+                removeDecoration(char)
+                if silentMarkActive then removeMarkGui(char) end
+            end)
+            table.insert(silentAimConnections, diedConn)
+            local healthConn = humanoid.HealthChanged:Connect(function(newHealth)
+                if newHealth > 0 and humanoid.Health > 0 then
+                    if not silentAimDecorations[char] then createDecoration(char) end
+                end
+            end)
+            table.insert(silentAimConnections, healthConn)
+        end
+    end
+    if player.Character then handleCharacter(player.Character) end
+    local addedConn = player.CharacterAdded:Connect(handleCharacter)
+    local removingConn = player.CharacterRemoving:Connect(function(char)
+        removeDecoration(char)
+        if silentMarkActive then removeMarkGui(char) end
+    end)
+    table.insert(silentAimConnections, addedConn)
+    table.insert(silentAimConnections, removingConn)
+end
+
+-- 目标计算
+local function getPotentialTargets()
+    local list = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if STATE.SilentAim.TeamCheck and LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then continue end
+            local char = player.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then table.insert(list, char) end
+            end
+        end
+    end
+    return list
+end
+
+local function calculateTargetPosition(char)
+    local primary = char:FindFirstChild("HumanoidRootPart")
+    local secondary = char:FindFirstChild("Head")
+    local part = primary or secondary
+    return part and part.Position
+end
+
+local function checkViewPosition(pos)
+    if not Camera then return false, math.huge end
+    local screenPos, visible = Camera:WorldToViewportPoint(pos)
+    if not visible then return false, math.huge end
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+    return distance <= silentAimConfig.fov_range, distance
+end
+
+local function findOptimalTarget()
+    if not LocalPlayer.Character then return nil end
+    local localPos = calculateTargetPosition(LocalPlayer.Character)
+    if not localPos then return nil end
+    local bestTarget, bestScore = nil, math.huge
+    for _, target in ipairs(getPotentialTargets()) do
+        local targetPos = calculateTargetPosition(target)
+        if targetPos then
+            local inView, viewDist = checkViewPosition(targetPos)
+            if inView then
+                local worldDist = (targetPos - localPos).Magnitude
+                local score = viewDist + worldDist * 0.5
+                if silentAimDecorations[target] then score = score * 0.7 end
+                if score < bestScore then
+                    bestScore = score
+                    bestTarget = target
+                end
+            end
+        end
+    end
+    return bestTarget
+end
+
+local bodySegments = {"UpperTorso", "LowerTorso", "HumanoidRootPart", "RightUpperArm", "LeftUpperArm", "RightUpperLeg", "LeftUpperLeg"}
+local function selectTargetPoint(char, preferHead)
+    if preferHead then
+        local head = char:FindFirstChild("Head")
+        if head then return head end
+    end
+    for _, segment in ipairs(bodySegments) do
+        local part = char:FindFirstChild(segment)
+        if part then return part end
+    end
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+-- 渲染循环
+local renderConn
+local function startRenderLoop()
+    if renderConn then renderConn:Disconnect() end
+    renderConn = RunService.RenderStepped:Connect(function()
+        Camera = workspace.CurrentCamera or Camera
+        fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+        fovCircle.Radius = silentAimConfig.fov_range
+        fovCircle.Visible = silentAimActive
+        if silentAimActive then
+            local targetChar = findOptimalTarget()
+            if targetChar then
+                local targetPos = calculateTargetPosition(targetChar)
+                if targetPos then
+                    local screenPos, visible = Camera:WorldToViewportPoint(targetPos)
+                    if visible then
+                        targetDot.Position = Vector2.new(screenPos.X, screenPos.Y)
+                        targetDot.Visible = true
+                        local preferHead = math.random(1, 100) <= silentAimConfig.marker_chance
+                        local targetPart = selectTargetPoint(targetChar, preferHead)
+                        silentAimTarget = {
+                            Reference = silentAimDecorations[targetChar] or targetPart,
+                            Location = (silentAimDecorations[targetChar] or targetPart).Position
+                        }
+                    else
+                        targetDot.Visible = false
+                        silentAimTarget = nil
+                    end
+                else
+                    targetDot.Visible = false
+                    silentAimTarget = nil
+                end
+            else
+                targetDot.Visible = false
+                silentAimTarget = nil
+            end
+        else
+            targetDot.Visible = false
+            silentAimTarget = nil
+        end
+    end)
+    table.insert(silentAimConnections, renderConn)
+end
+
+-- 射线钩子
+local function setupRaycastHook()
+    local raycastService
+    pcall(function() raycastService = require(ReplicatedStorage.Common.AsyncService.AsyncRaycast) end)
+    if raycastService and raycastService.Raycast then
+        silentAimOriginalRaycast = raycastService.Raycast
+        raycastService.Raycast = function(...)
+            local results = {silentAimOriginalRaycast(...)}
+            if not results[1] and silentAimActive and silentAimConfig.path_adjust and silentAimTarget then
+                local origin = ...
+                local direction = select(2, ...)
+                local params = select(3, ...)
+                local targetRef = silentAimTarget.Reference
+                if targetRef and targetRef:IsA("BasePart") then
+                    local targetPos = targetRef.Position
+                    local toTarget = targetPos - origin
+                    local projection = toTarget:Dot(direction.Unit)
+                    if projection > 0 then
+                        local nearestPoint = origin + direction.Unit * projection
+                        local offset = (nearestPoint - targetPos).Magnitude
+                        if offset <= silentAimConfig.proximity_limit then
+                            return true, {
+                                Position = nearestPoint,
+                                Instance = targetRef,
+                                Material = Enum.Material.Plastic,
+                                Normal = (nearestPoint - targetPos).Unit
+                            }
+                        end
+                    end
+                end
+            end
+            return unpack(results)
+        end
+    end
+end
+
+-- 子弹钩子
+local function setupSpawnBulletHook()
+    local shootComponent
+    pcall(function()
+        local path = ReplicatedStorage
+        path = path:FindFirstChild("Client")
+        if path then path = path:FindFirstChild("CombatController") end
+        if path then path = path:FindFirstChild("ClientComponent") end
+        if path then path = path:FindFirstChild("ClientShootableComponent") end
+        if path then shootComponent = require(path) end
+    end)
+    if not shootComponent then
+        pcall(function()
+            local path = ReplicatedStorage:FindFirstChild("Client")
+            if path then path = path:FindFirstChild("ClientShootableComponent") end
+            if path then shootComponent = require(path) end
+        end)
+    end
+    if shootComponent and shootComponent.SpawnBullet and hookfunction then
+        silentAimOriginalSpawnBullet = shootComponent.SpawnBullet
+        hookfunction(shootComponent.SpawnBullet, newcclosure(function(...)
+            if silentAimActive and math.random(1, 100) <= silentAimConfig.rotation_chance and silentAimTarget then
+                local char = LocalPlayer.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local myPos = root.Position
+                        local targetRef = silentAimTarget.Reference
+                        if targetRef then
+                            local targetPos = targetRef.Position
+                            local direction = (Vector3.new(targetPos.X, myPos.Y, targetPos.Z) - myPos).Unit
+                            if direction.Magnitude > 0.001 then
+                                root.CFrame = CFrame.lookAt(myPos, myPos + direction)
+                            end
+                        end
+                    end
+                end
+            end
+            return silentAimOriginalSpawnBullet(...)
+        end))
+    end
+end
+
+-- 监控线程
+local monitorThread
+local function startMonitor()
+    monitorThread = task.spawn(function()
+        while silentAimActive do
+            task.wait(3)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local char = player.Character
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 and not silentAimDecorations[char] then
+                        createDecoration(char)
+                    end
+                end
+            end
+            if silentMarkActive then updateAllMarks() end
+        end
+    end)
+end
+
+-- 启动/停止
+local function startSilentAim()
+    silentAimActive = true
+    fovCircle.Visible = true
+    for _, player in ipairs(Players:GetPlayers()) do setupPlayerSupport(player) end
+    local playerAddedConn = Players.PlayerAdded:Connect(setupPlayerSupport)
+    table.insert(silentAimConnections, playerAddedConn)
+    startRenderLoop()
+    setupRaycastHook()
+    setupSpawnBulletHook()
+    startMonitor()
+    reinitThread = task.spawn(reinitAllDecorations)
+    if STATE.SilentAim.SilentMark then
+        silentMarkActive = true
+        markUpdateThread = task.spawn(markUpdateLoop)
+    end
+end
+
+local function stopSilentAim()
+    silentAimActive = false
+    fovCircle.Visible = false
+    targetDot.Visible = false
+    for _, conn in ipairs(silentAimConnections) do pcall(function() conn:Disconnect() end) end
+    silentAimConnections = {}
+    for char, deco in pairs(silentAimDecorations) do pcall(function() deco:Destroy() end) end
+    silentAimDecorations = {}
+    for char, _ in pairs(silentMarkGuis) do pcall(function() silentMarkGuis[char].gui:Destroy() end) end
+    silentMarkGuis = {}
+    silentMarkActive = false
+    if markUpdateThread then task.cancel(markUpdateThread) markUpdateThread = nil end
+    if reinitThread then task.cancel(reinitThread) reinitThread = nil end
+    if silentAimOriginalRaycast then
+        pcall(function()
+            local raycastService = require(ReplicatedStorage.Common.AsyncService.AsyncRaycast)
+            if raycastService then raycastService.Raycast = silentAimOriginalRaycast end
+        end)
+        silentAimOriginalRaycast = nil
+    end
+    if silentAimOriginalSpawnBullet then
+        pcall(function()
+            local shootComponent = require(ReplicatedStorage.Client.ClientShootableComponent)
+            if shootComponent then shootComponent.SpawnBullet = silentAimOriginalSpawnBullet end
+        end)
+        silentAimOriginalSpawnBullet = nil
+    end
+    if monitorThread then task.cancel(monitorThread) monitorThread = nil end
+end
+
+local function toggleSilentAim(enabled)
+    STATE.SilentAim.Enabled = enabled
+    if enabled then startSilentAim() else stopSilentAim() end
+end
+
+local function toggleSilentMark(enabled)
+    STATE.SilentAim.SilentMark = enabled
+    if enabled then
+        silentMarkActive = true
+        if not markUpdateThread then markUpdateThread = task.spawn(markUpdateLoop) end
+        pcall(updateAllMarks)
+    else
+        silentMarkActive = false
+        for char, _ in pairs(silentMarkGuis) do pcall(function() silentMarkGuis[char].gui:Destroy() end) end
+        silentMarkGuis = {}
+        if markUpdateThread then task.cancel(markUpdateThread) markUpdateThread = nil end
+    end
+end
+
+-- ESP管理器
+local ESPManager = {}
+do
+    local Workspace, RunService, Players, CoreGui, Lighting = cloneref(game:GetService("Workspace")), cloneref(game:GetService("RunService")), cloneref(game:GetService("Players")), game:GetService("CoreGui"), cloneref(game:GetService("Lighting"))
+    local lplayer = Players.LocalPlayer
+    local camera = Workspace.CurrentCamera
+    local Cam = Workspace.CurrentCamera
+
+    local ScreenGui = nil
+    local Connections = {}
+    local RotationAngle = -45
+    local Tick = tick()
+
+    local function Create(Class, Properties)
+        local _Instance = typeof(Class) == 'string' and Instance.new(Class) or Class
+        for Property, Value in pairs(Properties) do
+            _Instance[Property] = Value
+        end
+        return _Instance
+    end
+
+    local function FadeOutOnDist(element, distance)
+        if not element then return end
+        local transparency = math.max(0.1, 1 - (distance / STATE.ESP.MaxDistance))
+        if element:IsA("TextLabel") then
+            element.TextTransparency = 1 - transparency
+        elseif element:IsA("ImageLabel") then
+            element.ImageTransparency = 1 - transparency
+        elseif element:IsA("UIStroke") then
+            element.Transparency = 1 - transparency
+        elseif element:IsA("Frame") then
+            element.BackgroundTransparency = 1 - transparency
+        elseif element:IsA("Highlight") then
+            element.FillTransparency = 1 - transparency
+            element.OutlineTransparency = 1 - transparency
+        end
+    end
+
+    local function CreatePlayerESP(plr)
+        if not ScreenGui then return end
+        if Connections[plr] then return end
+
+        local Name = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(0.5, 0, 0, -11), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0), RichText = true})
+        local Distance = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(0.5, 0, 0, 11), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0), RichText = true})
+        local Weapon = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(0.5, 0, 0, 31), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0), RichText = true})
+        local Box = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.75, BorderSizePixel = 0})
+        local Gradient1 = Create("UIGradient", {Parent = Box, Enabled = STATE.ESP.Drawing.Boxes.GradientFill, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, STATE.ESP.Drawing.Boxes.GradientFillRGB1), ColorSequenceKeypoint.new(1, STATE.ESP.Drawing.Boxes.GradientFillRGB2)}})
+        local Outline = Create("UIStroke", {Parent = Box, Enabled = STATE.ESP.Drawing.Boxes.Gradient, Transparency = 0, Color = Color3.fromRGB(255, 255, 255), LineJoinMode = Enum.LineJoinMode.Miter})
+        local Gradient2 = Create("UIGradient", {Parent = Outline, Enabled = STATE.ESP.Drawing.Boxes.Gradient, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, STATE.ESP.Drawing.Boxes.GradientRGB1), ColorSequenceKeypoint.new(1, STATE.ESP.Drawing.Boxes.GradientRGB2)}})
+        local Healthbar = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0})
+        local BehindHealthbar = Create("Frame", {Parent = ScreenGui, ZIndex = -1, BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0})
+        local HealthbarGradient = Create("UIGradient", {Parent = Healthbar, Enabled = STATE.ESP.Drawing.Healthbar.Gradient, Rotation = -90, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, STATE.ESP.Drawing.Healthbar.GradientRGB1), ColorSequenceKeypoint.new(0.5, STATE.ESP.Drawing.Healthbar.GradientRGB2), ColorSequenceKeypoint.new(1, STATE.ESP.Drawing.Healthbar.GradientRGB3)}})
+        local HealthText = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(0.5, 0, 0, 31), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0)})
+        local Chams = Create("Highlight", {Parent = ScreenGui, FillTransparency = 1, OutlineTransparency = 0, OutlineColor = Color3.fromRGB(119, 120, 255), DepthMode = "AlwaysOnTop"})
+        local WeaponIcon = Create("ImageLabel", {Parent = ScreenGui, BackgroundTransparency = 1, BorderColor3 = Color3.fromRGB(0, 0, 0), BorderSizePixel = 0, Size = UDim2.new(0, 40, 0, 40)})
+        local Gradient3 = Create("UIGradient", {Parent = WeaponIcon, Rotation = -90, Enabled = STATE.ESP.Drawing.Weapons.Gradient, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, STATE.ESP.Drawing.Weapons.GradientRGB1), ColorSequenceKeypoint.new(1, STATE.ESP.Drawing.Weapons.GradientRGB2)}})
+        local LeftTop = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local LeftSide = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local RightTop = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local RightSide = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local BottomSide = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local BottomDown = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local BottomRightSide = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local BottomRightDown = Create("Frame", {Parent = ScreenGui, BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB, Position = UDim2.new(0, 0, 0, 0)})
+        local Flag1 = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(1, 0, 0, 0), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0)})
+        local Flag2 = Create("TextLabel", {Parent = ScreenGui, Position = UDim2.new(1, 0, 0, 0), Size = UDim2.new(0, 100, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Code, TextSize = STATE.ESP.FontSize, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(0, 0, 0)})
+
+        local function HideESP()
+            Box.Visible = false
+            Name.Visible = false
+            Distance.Visible = false
+            Weapon.Visible = false
+            Healthbar.Visible = false
+            BehindHealthbar.Visible = false
+            HealthText.Visible = false
+            WeaponIcon.Visible = false
+            LeftTop.Visible = false
+            LeftSide.Visible = false
+            BottomSide.Visible = false
+            BottomDown.Visible = false
+            RightTop.Visible = false
+            RightSide.Visible = false
+            BottomRightSide.Visible = false
+            BottomRightDown.Visible = false
+            Flag1.Visible = false
+            Chams.Enabled = false
+            Flag2.Visible = false
+        end
+
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not STATE.ESP.Enabled then
+                HideESP()
+                return
+            end
+
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local HRP = plr.Character.HumanoidRootPart
+                local Humanoid = plr.Character:FindFirstChild("Humanoid")
+                if not Humanoid then return end
+
+                local Pos, OnScreen = Cam:WorldToScreenPoint(HRP.Position)
+                local Dist = (Cam.CFrame.Position - HRP.Position).Magnitude / 3.5714285714
+
+                if OnScreen and Dist <= STATE.ESP.MaxDistance then
+                    local Size = HRP.Size.Y
+                    local scaleFactor = (Size * Cam.ViewportSize.Y) / (Pos.Z * 2)
+                    local w, h = 3 * scaleFactor, 4.5 * scaleFactor
+
+                    if STATE.ESP.FadeOut.OnDistance then
+                        FadeOutOnDist(Box, Dist)
+                        FadeOutOnDist(Outline, Dist)
+                        FadeOutOnDist(Name, Dist)
+                        FadeOutOnDist(Distance, Dist)
+                        FadeOutOnDist(Weapon, Dist)
+                        FadeOutOnDist(Healthbar, Dist)
+                        FadeOutOnDist(BehindHealthbar, Dist)
+                        FadeOutOnDist(HealthText, Dist)
+                        FadeOutOnDist(WeaponIcon, Dist)
+                        FadeOutOnDist(LeftTop, Dist)
+                        FadeOutOnDist(LeftSide, Dist)
+                        FadeOutOnDist(BottomSide, Dist)
+                        FadeOutOnDist(BottomDown, Dist)
+                        FadeOutOnDist(RightTop, Dist)
+                        FadeOutOnDist(RightSide, Dist)
+                        FadeOutOnDist(BottomRightSide, Dist)
+                        FadeOutOnDist(BottomRightDown, Dist)
+                        FadeOutOnDist(Chams, Dist)
+                        FadeOutOnDist(Flag1, Dist)
+                        FadeOutOnDist(Flag2, Dist)
+                    end
+
+                    if STATE.ESP.TeamCheck and plr ~= lplayer and ((lplayer.Team ~= plr.Team and plr.Team) or (not lplayer.Team and not plr.Team)) then
+                        Chams.Adornee = plr.Character
+                        Chams.Enabled = STATE.ESP.Drawing.Chams.Enabled
+                        Chams.FillColor = STATE.ESP.Drawing.Chams.FillRGB
+                        Chams.OutlineColor = STATE.ESP.Drawing.Chams.OutlineRGB
+                        if STATE.ESP.Drawing.Chams.Thermal then
+                            local breathe_effect = math.atan(math.sin(tick() * 2)) * 2 / math.pi
+                            Chams.FillTransparency = STATE.ESP.Drawing.Chams.Fill_Transparency * breathe_effect * 0.01
+                            Chams.OutlineTransparency = STATE.ESP.Drawing.Chams.Outline_Transparency * breathe_effect * 0.01
+                        else
+                            Chams.FillTransparency = STATE.ESP.Drawing.Chams.Fill_Transparency * 0.01
+                            Chams.OutlineTransparency = STATE.ESP.Drawing.Chams.Outline_Transparency * 0.01
+                        end
+                        Chams.DepthMode = STATE.ESP.Drawing.Chams.VisibleCheck and "Occluded" or "AlwaysOnTop"
+
+                        LeftTop.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        LeftTop.Position = UDim2.new(0, Pos.X - w / 2, 0, Pos.Y - h / 2)
+                        LeftTop.Size = UDim2.new(0, w / 5, 0, 1)
+
+                        LeftSide.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        LeftSide.Position = UDim2.new(0, Pos.X - w / 2, 0, Pos.Y - h / 2)
+                        LeftSide.Size = UDim2.new(0, 1, 0, h / 5)
+
+                        BottomSide.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        BottomSide.Position = UDim2.new(0, Pos.X - w / 2, 0, Pos.Y + h / 2)
+                        BottomSide.Size = UDim2.new(0, 1, 0, h / 5)
+                        BottomSide.AnchorPoint = Vector2.new(0, 5)
+
+                        BottomDown.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        BottomDown.Position = UDim2.new(0, Pos.X - w / 2, 0, Pos.Y + h / 2)
+                        BottomDown.Size = UDim2.new(0, w / 5, 0, 1)
+                        BottomDown.AnchorPoint = Vector2.new(0, 1)
+
+                        RightTop.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        RightTop.Position = UDim2.new(0, Pos.X + w / 2, 0, Pos.Y - h / 2)
+                        RightTop.Size = UDim2.new(0, w / 5, 0, 1)
+                        RightTop.AnchorPoint = Vector2.new(1, 0)
+
+                        RightSide.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        RightSide.Position = UDim2.new(0, Pos.X + w / 2 - 1, 0, Pos.Y - h / 2)
+                        RightSide.Size = UDim2.new(0, 1, 0, h / 5)
+                        RightSide.AnchorPoint = Vector2.new(0, 0)
+
+                        BottomRightSide.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        BottomRightSide.Position = UDim2.new(0, Pos.X + w / 2, 0, Pos.Y + h / 2)
+                        BottomRightSide.Size = UDim2.new(0, 1, 0, h / 5)
+                        BottomRightSide.AnchorPoint = Vector2.new(1, 1)
+
+                        BottomRightDown.Visible = STATE.ESP.Drawing.Boxes.Corner.Enabled
+                        BottomRightDown.Position = UDim2.new(0, Pos.X + w / 2, 0, Pos.Y + h / 2)
+                        BottomRightDown.Size = UDim2.new(0, w / 5, 0, 1)
+                        BottomRightDown.AnchorPoint = Vector2.new(1, 1)
+
+                        Box.Position = UDim2.new(0, Pos.X - w / 2, 0, Pos.Y - h / 2)
+                        Box.Size = UDim2.new(0, w, 0, h)
+                        Box.Visible = STATE.ESP.Drawing.Boxes.Full.Enabled
+                        if STATE.ESP.Drawing.Boxes.Filled.Enabled then
+                            Box.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Filled.RGB
+                            Box.BackgroundTransparency = STATE.ESP.Drawing.Boxes.Filled.Transparency
+                        else
+                            Box.BackgroundTransparency = 1
+                        end
+
+                        RotationAngle = RotationAngle + (tick() - Tick) * STATE.ESP.Drawing.Boxes.RotationSpeed * math.cos(math.pi / 4 * tick() - math.pi / 2)
+                        if STATE.ESP.Drawing.Boxes.Animate then
+                            Gradient1.Rotation = RotationAngle
+                            Gradient2.Rotation = RotationAngle
+                        else
+                            Gradient1.Rotation = -45
+                            Gradient2.Rotation = -45
+                        end
+                        Tick = tick()
+
+                        local health = Humanoid.Health / Humanoid.MaxHealth
+                        Healthbar.Visible = STATE.ESP.Drawing.Healthbar.Enabled
+                        Healthbar.Position = UDim2.new(0, Pos.X - w / 2 - 6, 0, Pos.Y - h / 2 + h * (1 - health))
+                        Healthbar.Size = UDim2.new(0, STATE.ESP.Drawing.Healthbar.Width, 0, h * health)
+
+                        BehindHealthbar.Visible = STATE.ESP.Drawing.Healthbar.Enabled
+                        BehindHealthbar.Position = UDim2.new(0, Pos.X - w / 2 - 6, 0, Pos.Y - h / 2)
+                        BehindHealthbar.Size = UDim2.new(0, STATE.ESP.Drawing.Healthbar.Width, 0, h)
+
+                        if STATE.ESP.Drawing.Healthbar.HealthText then
+                            local healthPercentage = math.floor(Humanoid.Health / Humanoid.MaxHealth * 100)
+                            HealthText.Position = UDim2.new(0, Pos.X - w / 2 - 6, 0, Pos.Y - h / 2 + h * (1 - healthPercentage / 100) + 3)
+                            HealthText.Text = tostring(healthPercentage)
+                            HealthText.Visible = Humanoid.Health < Humanoid.MaxHealth
+                            if STATE.ESP.Drawing.Healthbar.Lerp then
+                                local color = health >= 0.75 and Color3.fromRGB(0, 255, 0) or health >= 0.5 and Color3.fromRGB(255, 255, 0) or health >= 0.25 and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(255, 0, 0)
+                                HealthText.TextColor3 = color
+                            else
+                                HealthText.TextColor3 = STATE.ESP.Drawing.Healthbar.HealthTextRGB
+                            end
+                        else
+                            HealthText.Visible = false
+                        end
+
+                        Name.Visible = STATE.ESP.Drawing.Names.Enabled
+                        if STATE.ESP.Options.Friendcheck and lplayer:IsFriendsWith(plr.UserId) then
+                            Name.Text = string.format('(<font color="rgb(%d, %d, %d)">F</font>) %s', STATE.ESP.Options.FriendcheckRGB.R * 255, STATE.ESP.Options.FriendcheckRGB.G * 255, STATE.ESP.Options.FriendcheckRGB.B * 255, plr.Name)
+                        else
+                            Name.Text = string.format('(<font color="rgb(%d, %d, %d)">E</font>) %s', 255, 0, 0, plr.Name)
+                        end
+                        Name.Position = UDim2.new(0, Pos.X, 0, Pos.Y - h / 2 - 9)
+
+                        if STATE.ESP.Drawing.Distances.Enabled then
+                            if STATE.ESP.Drawing.Distances.Position == "Bottom" then
+                                Weapon.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h / 2 + 18)
+                                WeaponIcon.Position = UDim2.new(0, Pos.X - 21, 0, Pos.Y + h / 2 + 15)
+                                Distance.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h / 2 + 7)
+                                Distance.Text = string.format("%d meters", math.floor(Dist))
+                                Distance.Visible = true
+                            elseif STATE.ESP.Drawing.Distances.Position == "Text" then
+                                Weapon.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h / 2 + 8)
+                                WeaponIcon.Position = UDim2.new(0, Pos.X - 21, 0, Pos.Y + h / 2 + 5)
+                                Distance.Visible = false
+                                if STATE.ESP.Options.Friendcheck and lplayer:IsFriendsWith(plr.UserId) then
+                                    Name.Text = string.format('(<font color="rgb(%d, %d, %d)">F</font>) %s [%d]', STATE.ESP.Options.FriendcheckRGB.R * 255, STATE.ESP.Options.FriendcheckRGB.G * 255, STATE.ESP.Options.FriendcheckRGB.B * 255, plr.Name, math.floor(Dist))
+                                else
+                                    Name.Text = string.format('(<font color="rgb(%d, %d, %d)">E</font>) %s [%d]', 255, 0, 0, plr.Name, math.floor(Dist))
+                                end
+                                Name.Visible = STATE.ESP.Drawing.Names.Enabled
+                            end
+                        end
+
+                        Weapon.Text = "none"
+                        Weapon.Visible = STATE.ESP.Drawing.Weapons.Enabled
+                    else
+                        HideESP()
+                    end
+                else
+                    HideESP()
+                end
+            else
+                HideESP()
+            end
+        end)
+
+        Connections[plr] = {connection}
+    end
+
+    function ESPManager:Start()
+        if ScreenGui then return end
+        ScreenGui = Create("ScreenGui", {
+            Parent = CoreGui,
+            Name = "YG_ESPHolder",
+        })
+
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= lplayer and not Connections[v] then
+                CreatePlayerESP(v)
+            end
+        end
+
+        Connections.PlayerAdded = Players.PlayerAdded:Connect(function(v)
+            if v ~= lplayer and not Connections[v] then
+                CreatePlayerESP(v)
+            end
+        end)
+    end
+
+    function ESPManager:Stop()
+        if ScreenGui then
+            ScreenGui:Destroy()
+            ScreenGui = nil
+        end
+        for _, conn in pairs(Connections) do
+            if type(conn) == "table" then
+                for _, c in ipairs(conn) do
+                    c:Disconnect()
+                end
+            else
+                conn:Disconnect()
+            end
+        end
+        Connections = {}
+    end
+
+    function ESPManager:SetEnabled(enabled)
+        STATE.ESP.Enabled = enabled
+        if enabled then
+            self:Start()
+        else
+            self:Stop()
+        end
+    end
+end
+
+-- UI设置
+local SettingsTab = Window:Tab({ Title = "UI设置", Icon = "crown" })
+local SilentAimTab = Window:Tab({ Title = "瞄准辅助", Icon = "target" })
+local ESPTab = Window:Tab({ Title = "华丽ESP", Icon = "eye" })
+local AboutTab = Window:Tab({ Title = "关于", Icon = "info" })
+
+SettingsTab:Toggle({ Title = "启用边框", Value = borderEnabled, Callback = function(v) borderEnabled = v; applyBorderState(); WindUI:Notify({ Title="YG | 边框", Content=v and "已开启" or "已关闭", Duration=2 }) end })
+SettingsTab:Dropdown({ Title = "边框配色", Values = colorSchemeNames, Value = "Blue White", Callback = function(v) currentBorderColorScheme = v; local mf = Window.UIElements and Window.UIElements.Main; if mf then local rs = mf:FindFirstChild("RainbowStroke"); if rs then local ge = rs:FindFirstChild("GlowEffect"); if ge and COLOR_SCHEMES[v] then ge.Color = COLOR_SCHEMES[v][1] end end end end })
+SettingsTab:Slider({ Title = "边框速度", Value = { Min=1, Max=10, Default=6 }, Callback = function(v) animationSpeed = v; if rainbowBorderAnimation then rainbowBorderAnimation:Disconnect(); rainbowBorderAnimation = nil end; local mf = Window.UIElements and Window.UIElements.Main; if mf and mf.Visible and borderEnabled then local rs = mf:FindFirstChild("RainbowStroke"); if rs and rs.Enabled then startBorderAnimation(Window, animationSpeed) end end end })
+SettingsTab:Slider({ Title = "边框粗细", Value = { Min=1, Max=5, Default=2.65, Step=0.5 }, Callback = function(v) local mf = Window.UIElements and Window.UIElements.Main; if mf then local rs = mf:FindFirstChild("RainbowStroke"); if rs then rs.Thickness = v end end end })
+SettingsTab:Slider({ Title = "圆角大小", Value = { Min=0, Max=20, Default=17 }, Callback = function(v) local mf = Window.UIElements and Window.UIElements.Main; if mf then local cr = mf:FindFirstChildOfClass("UICorner"); if not cr then cr = Instance.new("UICorner"); cr.Parent = mf end; cr.CornerRadius = UDim.new(0, v) end end })
+
+SilentAimTab:Toggle({ Title = "启用静默自瞄", Value = STATE.SilentAim.Enabled, Callback = toggleSilentAim })
+SilentAimTab:Toggle({ Title = "静默标记", Value = STATE.SilentAim.SilentMark, Callback = toggleSilentMark })
+SilentAimTab:Paragraph({
+    Title = "功能说明",
+    Desc = "由于技术限制，我们无法做到限制Fov(原电脑功能)\n若掉吸附、掉追踪，请自杀或ReJoin",
+    Image = "info",
+    ImageSize = 24,
+    Color = "Blue"
+})
+
+-- ESP选项卡
+local ESPGroup = ESPTab:Section({ Title = "ESP总控制", Opened = true })
+ESPGroup:Toggle({ Title = "启用ESP", Value = STATE.ESP.Enabled, Callback = function(v) ESPManager:SetEnabled(v) end })
+ESPGroup:Divider()
+ESPGroup:Toggle({ Title = "队伍检测", Value = STATE.ESP.TeamCheck, Callback = function(v) STATE.ESP.TeamCheck = v end })
+ESPGroup:Slider({ Title = "最大距离", Value = { Min=50, Max=500, Default=STATE.ESP.MaxDistance, Step=10 }, Callback = function(v) STATE.ESP.MaxDistance = v end })
+ESPGroup:Slider({ Title = "字体大小", Value = { Min=8, Max=20, Default=STATE.ESP.FontSize, Step=1 }, Callback = function(v) STATE.ESP.FontSize = v end })
+
+local fadeGroup = ESPTab:Section({ Title = "淡出效果", Opened = true })
+fadeGroup:Toggle({ Title = "距离淡出", Value = STATE.ESP.FadeOut.OnDistance, Callback = function(v) STATE.ESP.FadeOut.OnDistance = v end })
+fadeGroup:Toggle({ Title = "死亡淡出", Value = STATE.ESP.FadeOut.OnDeath, Callback = function(v) STATE.ESP.FadeOut.OnDeath = v end })
+fadeGroup:Toggle({ Title = "离开淡出", Value = STATE.ESP.FadeOut.OnLeave, Callback = function(v) STATE.ESP.FadeOut.OnLeave = v end })
+
+local friendGroup = ESPTab:Section({ Title = "好友标记", Opened = true })
+friendGroup:Toggle({ Title = "启用好友检测", Value = STATE.ESP.Options.Friendcheck, Callback = function(v) STATE.ESP.Options.Friendcheck = v end })
+
+local chamsGroup = ESPTab:Section({ Title = "Chams", Opened = true })
+chamsGroup:Toggle({ Title = "启用Chams", Value = STATE.ESP.Drawing.Chams.Enabled, Callback = function(v) STATE.ESP.Drawing.Chams.Enabled = v end })
+chamsGroup:Toggle({ Title = "呼吸效果", Value = STATE.ESP.Drawing.Chams.Thermal, Callback = function(v) STATE.ESP.Drawing.Chams.Thermal = v end })
+chamsGroup:Slider({ Title = "填充透明度(%)", Value = { Min=0, Max=100, Default=STATE.ESP.Drawing.Chams.Fill_Transparency, Step=5 }, Callback = function(v) STATE.ESP.Drawing.Chams.Fill_Transparency = v end })
+chamsGroup:Slider({ Title = "描边透明度(%)", Value = { Min=0, Max=100, Default=STATE.ESP.Drawing.Chams.Outline_Transparency, Step=5 }, Callback = function(v) STATE.ESP.Drawing.Chams.Outline_Transparency = v end })
+chamsGroup:Toggle({ Title = "仅遮挡可见", Value = STATE.ESP.Drawing.Chams.VisibleCheck, Callback = function(v) STATE.ESP.Drawing.Chams.VisibleCheck = v end })
+
+local nameGroup = ESPTab:Section({ Title = "名字", Opened = true })
+nameGroup:Toggle({ Title = "显示名字", Value = STATE.ESP.Drawing.Names.Enabled, Callback = function(v) STATE.ESP.Drawing.Names.Enabled = v end })
+
+local distGroup = ESPTab:Section({ Title = "距离", Opened = true })
+distGroup:Toggle({ Title = "显示距离", Value = STATE.ESP.Drawing.Distances.Enabled, Callback = function(v) STATE.ESP.Drawing.Distances.Enabled = v end })
+distGroup:Dropdown({ Title = "位置", Values = {"Text","Bottom"}, Value = STATE.ESP.Drawing.Distances.Position, Multi = false, Callback = function(v) STATE.ESP.Drawing.Distances.Position = v end })
+
+local weaponGroup = ESPTab:Section({ Title = "武器", Opened = true })
+weaponGroup:Toggle({ Title = "显示武器", Value = STATE.ESP.Drawing.Weapons.Enabled, Callback = function(v) STATE.ESP.Drawing.Weapons.Enabled = v end })
+weaponGroup:Toggle({ Title = "渐变", Value = STATE.ESP.Drawing.Weapons.Gradient, Callback = function(v) STATE.ESP.Drawing.Weapons.Gradient = v end })
+
+local healthGroup = ESPTab:Section({ Title = "血条", Opened = true })
+healthGroup:Toggle({ Title = "显示血条", Value = STATE.ESP.Drawing.Healthbar.Enabled, Callback = function(v) STATE.ESP.Drawing.Healthbar.Enabled = v end })
+healthGroup:Toggle({ Title = "血量文字", Value = STATE.ESP.Drawing.Healthbar.HealthText, Callback = function(v) STATE.ESP.Drawing.Healthbar.HealthText = v end })
+healthGroup:Toggle({ Title = "动态颜色", Value = STATE.ESP.Drawing.Healthbar.Lerp, Callback = function(v) STATE.ESP.Drawing.Healthbar.Lerp = v end })
+healthGroup:Slider({ Title = "血条宽度", Value = { Min=1, Max=10, Default=STATE.ESP.Drawing.Healthbar.Width, Step=0.5 }, Callback = function(v) STATE.ESP.Drawing.Healthbar.Width = v end })
+healthGroup:Toggle({ Title = "渐变血条", Value = STATE.ESP.Drawing.Healthbar.Gradient, Callback = function(v) STATE.ESP.Drawing.Healthbar.Gradient = v end })
+
+local boxGroup = ESPTab:Section({ Title = "方框", Opened = true })
+boxGroup:Toggle({ Title = "显示完整方框", Value = STATE.ESP.Drawing.Boxes.Full.Enabled, Callback = function(v) STATE.ESP.Drawing.Boxes.Full.Enabled = v end })
+boxGroup:Toggle({ Title = "显示填充", Value = STATE.ESP.Drawing.Boxes.Filled.Enabled, Callback = function(v) STATE.ESP.Drawing.Boxes.Filled.Enabled = v end })
+boxGroup:Slider({ Title = "填充透明度", Value = { Min=0, Max=1, Default=STATE.ESP.Drawing.Boxes.Filled.Transparency, Step=0.05 }, Callback = function(v) STATE.ESP.Drawing.Boxes.Filled.Transparency = v end })
+boxGroup:Toggle({ Title = "显示角框", Value = STATE.ESP.Drawing.Boxes.Corner.Enabled, Callback = function(v) STATE.ESP.Drawing.Boxes.Corner.Enabled = v end })
+boxGroup:Toggle({ Title = "动画框", Value = STATE.ESP.Drawing.Boxes.Animate, Callback = function(v) STATE.ESP.Drawing.Boxes.Animate = v end })
+boxGroup:Slider({ Title = "动画速度", Value = { Min=100, Max=500, Default=STATE.ESP.Drawing.Boxes.RotationSpeed, Step=10 }, Callback = function(v) STATE.ESP.Drawing.Boxes.RotationSpeed = v end })
+boxGroup:Toggle({ Title = "渐变描边", Value = STATE.ESP.Drawing.Boxes.Gradient, Callback = function(v) STATE.ESP.Drawing.Boxes.Gradient = v end })
+boxGroup:Toggle({ Title = "填充渐变", Value = STATE.ESP.Drawing.Boxes.GradientFill, Callback = function(v) STATE.ESP.Drawing.Boxes.GradientFill = v end })
+
+AboutTab:Paragraph({ Title = "YG 狙击竞技场", Desc = "版本: 1.1.0\n作者: YG团队", Image = "award", ImageSize = 32, Color = "Orange" })
+
+WindUI:Notify({ Title = "YG 狙击竞技场", Content ="v1.1.0 加载成功", Duration = 2 })
