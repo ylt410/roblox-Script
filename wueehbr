@@ -900,6 +900,7 @@ local PLAYER_ESP = {
 local FOV = 120              -- 自瞄范围（和圈同步）
 local Smoothness = 0.18      -- 平滑程度
 local AimPart = "Head"
+local ShowFOVCircle = true -- ⭐FOV圈显示开关（新增）
 
 -- ⭐可选部位列表（顺便做容错）
 local AimPartsList = {
@@ -3793,7 +3794,18 @@ TabAimbot:Toggle({
 
     end
 })
-
+local FOVToggle = TabAimbot:Toggle({
+    Title = "显示FOV圈",
+    Default = true,
+    Callback = function(v)
+        ShowFOVCircle = v
+    end
+})
+task.delay(0.1, function()
+    if FOVToggle then
+        FOVToggle:Set(ShowFOVCircle) -- ⭐用变量覆盖UI
+    end
+end)
 -- ================= 队伍检测 =================
 TabAimbot:Toggle({
     Title = "队伍检测",
@@ -3850,15 +3862,26 @@ TabAimbot:Toggle({
 })
 
 -- ================= 瞄准部位 =================
-TabAimbot:Dropdown({
+local AimPartDropdown = TabAimbot:Dropdown({
     Title = "瞄准部位",
     Values = AimPartsList,
-    Default = AimPart,
+    Default = nil, -- ❗不要用Default
     Callback = function(v)
-        AimPart = v
-    end
-})
 
+    -- ⭐兼容WindUI返回结构（关键）
+    if typeof(v) == "table" then
+        v = v.Value or v[1]
+    end
+
+    if not v then return end
+
+    AimPart = v
+
+end
+})
+task.defer(function()
+    AimPart = "Head"
+end)
 -- ================= 指定目标 =================
 TabAimbot:Toggle({
     Title = "指定自瞄目标",
@@ -4562,13 +4585,22 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "俄亥俄州（伊散）",
+    Title = "狙击竞技场（YG）这里非常感谢YG作者允许我缝合好吧😋",
     Callback = function()
         local ok, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/俄亥俄州"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/yg狙击竞技场"))()
         end)
    end
 })
+TabAb:Button({
+    Title = "L&C（这个虽然没有源码但是真的特别牛逼必须缝合，第一次加载会久一点）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/XOTRXONY/AUREATE/main/lc.lua"))()
+        end)
+   end
+})
+
 
 
 -- ================= 终止 =================
@@ -4719,16 +4751,16 @@ TabConfig:Button({
 AimbotConnection = RunService.RenderStepped:Connect(function()
 
     -- UI FOV圈更新
-    if circle then
-        local size = FOV * 2
-        circle.Size = UDim2.new(0, size, 0, size)
+if circle then
+    local size = FOV * 2
+    circle.Size = UDim2.new(0, size, 0, size)
 
-        -- ⭐只在变化时更新（防闪）
-        if circle.Visible ~= ESP_SETTINGS.HighlightEnabled then
-            circle.Visible = ESP_SETTINGS.HighlightEnabled
-        end
+    local shouldShow = ESP_SETTINGS.HighlightEnabled and ShowFOVCircle
+
+    if circle.Visible ~= shouldShow then
+        circle.Visible = shouldShow
     end
-    
+end    
 if not Camera then return end
 
 
