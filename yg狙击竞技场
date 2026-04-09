@@ -5,7 +5,11 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-repeat task.wait() until LocalPlayer and LocalPlayer.Character   mf:GetPropertyChangedSignal("Visible"):Connect(applyBorderState)
+repeat task.wait() until LocalPlayer and LocalPlayer.Character
+spawn(function()
+    local mf = Window.UIElements and Window.UIElements.Main
+    if not mf then repeat task.wait(); mf = Window.UIElements and Window.UIElements.Main until mf end
+    mf:GetPropertyChangedSignal("Visible"):Connect(applyBorderState)
     applyBorderState()
 end)
 
