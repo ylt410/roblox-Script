@@ -253,70 +253,169 @@ local function Notify(title, content, duration, icon)
 
 end
 -- ================= 主题注册 =================
-
--- 🖤 奢侈黑金（Luxury版）
+-- 🖤 BlackGold
 WindUI:AddTheme({
     Name = "BlackGold",
 
-    -- ⭐ 低饱和金（偏暖，像真金）
-    Accent = Color3.fromRGB(200, 160, 60),
+    Background = Color3.fromRGB(8,8,10),
 
-    Background = Color3.fromRGB(8,8,10), -- 更深，更“贵”
-    Text = Color3.fromRGB(240,240,240),
+    -- ⭐关键：卡片层（必须明显存在）
+    ElementBackground = Color3.fromRGB(98,98,100),
 
-    Outline = Color3.fromRGB(35,35,40),
-    Button = Color3.fromRGB(18,18,22),
+    -- ⭐控件层（再亮一层）
+    Button = Color3.fromRGB(140,125,100),
 
-    Icon = Color3.fromRGB(200,160,60),
-    Placeholder = Color3.fromRGB(110,110,120),
-})
+    Hover = Color3.fromRGB(255,255,255),
 
--- 🌈 高级版彩虹主题（替换原来的Rainbow）
-WindUI:AddTheme({
-    Name = "Rainbow Pro",
-
-    -- ✔ 改成高级紫色（核心）
-    Accent = Color3.fromRGB(140, 80, 255),
-
-    Background = Color3.fromRGB(18,18,22), -- 更深一点更高级
     Text = Color3.fromRGB(235,235,235),
-    Outline = Color3.fromRGB(45,45,55),
-    Button = Color3.fromRGB(28,28,35),
-    Icon = Color3.fromRGB(200,200,255),
-    Placeholder = Color3.fromRGB(130,130,150),
+    Placeholder = Color3.fromRGB(120,120,130),
+    Icon = Color3.fromRGB(200,160,80),
+
+    Outline = Color3.fromRGB(70,70,75),
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(200,160,80), Transparency = 0.5 },
+        ["100"] = { Color = Color3.fromRGB(120,90,40), Transparency = 0.5 },
+    }),
+
+    WindowBackground = Color3.fromRGB(8,8,10),
+
+    TabTitle = Color3.fromRGB(235,235,235),
+    TabIcon = Color3.fromRGB(200,160,80),
+
+    ElementTitle = Color3.fromRGB(235,235,235),
+    ElementDesc = Color3.fromRGB(150,150,160),
+
+    Toggle = Color3.fromRGB(90,70,40),
+    ToggleBar = Color3.fromRGB(255,255,255),
+
+    Slider = Color3.fromRGB(90,70,40),
+    SliderThumb = Color3.fromRGB(255,255,255),
+
+    Checkbox = Color3.fromRGB(90,70,40),
+    CheckboxIcon = Color3.fromRGB(255,255,255),
 })
--- 🟢 青色主题
+
+
+-- 🌌 Aurora
+WindUI:AddTheme({
+    Name = "Aurora",
+
+    Background = Color3.fromRGB(18,18,22),
+
+    ElementBackground = Color3.fromRGB(98,98,102),
+    Button = Color3.fromRGB(155,145,210),
+
+    Hover = Color3.fromRGB(255,255,255),
+
+    Text = Color3.fromRGB(235,235,235),
+    Placeholder = Color3.fromRGB(140,140,160),
+    Icon = Color3.fromRGB(170,150,255),
+
+    Outline = Color3.fromRGB(80,80,100),
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(140,100,255), Transparency = 0.5 },
+        ["100"] = { Color = Color3.fromRGB(80,60,200), Transparency = 0.5 },
+    }),
+
+    WindowBackground = Color3.fromRGB(18,18,22),
+
+    TabTitle = Color3.fromRGB(235,235,235),
+    TabIcon = Color3.fromRGB(170,150,255),
+
+    ElementTitle = Color3.fromRGB(235,235,235),
+    ElementDesc = Color3.fromRGB(150,150,170),
+
+    Toggle = Color3.fromRGB(100,90,160),
+    ToggleBar = Color3.fromRGB(255,255,255),
+
+    Slider = Color3.fromRGB(100,90,160),
+    SliderThumb = Color3.fromRGB(255,255,255),
+
+    Checkbox = Color3.fromRGB(100,90,160),
+    CheckboxIcon = Color3.fromRGB(255,255,255),
+})
+
+
+-- 🌊 Cyan
 WindUI:AddTheme({
     Name = "Cyan",
 
+    Background = Color3.fromRGB(10,18,20),
+
+  ElementBackground = Color3.fromRGB(105,120,120),
+    Button = Color3.fromRGB(130,170,180),
+
+    Hover = Color3.fromRGB(255,255,255),
+
+    Text = Color3.fromRGB(210,240,240),
+    Placeholder = Color3.fromRGB(130,170,170),
+    Icon = Color3.fromRGB(80,220,200),
+
+    Outline = Color3.fromRGB(80,110,110),
+
     Accent = WindUI:Gradient({
-        ["0"] = { Color = Color3.fromRGB(0,255,200), Transparency = 0.2 },
-        ["100"] = { Color = Color3.fromRGB(0,150,255), Transparency = 0.2 },
+        ["0"] = { Color = Color3.fromRGB(0,200,180), Transparency = 0.5 },
+        ["100"] = { Color = Color3.fromRGB(0,120,200), Transparency = 0.5 },
     }, { Rotation = 45 }),
 
-    Background = Color3.fromRGB(10,20,20),
-    Text = Color3.fromRGB(200,255,255),
-    Outline = Color3.fromRGB(30,60,60),
-    Button = Color3.fromRGB(15,30,30),
-    Icon = Color3.fromRGB(0,255,200),
-    Placeholder = Color3.fromRGB(120,180,180),
+    WindowBackground = Color3.fromRGB(10,18,20),
+
+    TabTitle = Color3.fromRGB(210,240,240),
+    TabIcon = Color3.fromRGB(80,220,200),
+
+    ElementTitle = Color3.fromRGB(210,240,240),
+    ElementDesc = Color3.fromRGB(150,190,190),
+
+    Toggle = Color3.fromRGB(90,130,130),
+    ToggleBar = Color3.fromRGB(255,255,255),
+
+    Slider = Color3.fromRGB(90,130,130),
+    SliderThumb = Color3.fromRGB(255,255,255),
+
+    Checkbox = Color3.fromRGB(90,130,130),
+    CheckboxIcon = Color3.fromRGB(255,255,255),
 })
 
--- 🔵 蓝色主题
+
+-- 🔵 Blue
 WindUI:AddTheme({
     Name = "Blue",
 
-    Accent = WindUI:Gradient({
-        ["0"] = { Color = Color3.fromRGB(0,120,255), Transparency = 0.2 },
-        ["100"] = { Color = Color3.fromRGB(0,60,200), Transparency = 0.2 },
-    }, { Rotation = 0 }),
+    Background = Color3.fromRGB(8,10,18),
+  ElementBackground = Color3.fromRGB(120,136,188),
+    Button = Color3.fromRGB(120,140,200),
 
-    Background = Color3.fromRGB(10,15,25),
-    Text = Color3.fromRGB(220,230,255),
-    Outline = Color3.fromRGB(30,40,70),
-    Button = Color3.fromRGB(15,20,35),
-    Icon = Color3.fromRGB(100,150,255),
-    Placeholder = Color3.fromRGB(120,140,180),
+    Hover = Color3.fromRGB(255,255,255),
+
+    Text = Color3.fromRGB(235,240,255),
+    Placeholder = Color3.fromRGB(130,140,170),
+    Icon = Color3.fromRGB(120,160,255),
+
+    Outline = Color3.fromRGB(90,100,130),
+
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromRGB(120,160,255), Transparency = 0.5 },
+        ["100"] = { Color = Color3.fromRGB(60,100,200), Transparency = 0.5 },
+    }),
+
+    WindowBackground = Color3.fromRGB(8,10,18),
+
+    TabTitle = Color3.fromRGB(235,240,255),
+    TabIcon = Color3.fromRGB(120,160,255),
+
+    ElementTitle = Color3.fromRGB(235,240,255),
+    ElementDesc = Color3.fromRGB(150,160,180),
+
+    Toggle = Color3.fromRGB(60,70,90),
+    ToggleBar = Color3.fromRGB(255,255,255),
+
+    Slider = Color3.fromRGB(100,120,180),
+    SliderThumb = Color3.fromRGB(255,255,255),
+
+    Checkbox = Color3.fromRGB(100,120,180),
+    CheckboxIcon = Color3.fromRGB(255,255,255),
 })
 local ThemeFile = "NightTheme.txt"
 local CurrentTheme = "Dark"
@@ -2631,30 +2730,47 @@ end)
 
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
-    Icon = "rbxassetid://4483362748",
-    IconTransparency = 0.5,
-    IconThemed = true,
+    Icon = "solar:moon-bold", -- ⭐不要用rbxasset，换现代图标
     Author = "作者:夜",
     Folder = "NightHub",
-    Size = UDim2.fromOffset(320, 240),
+
+    Size = UDim2.fromOffset(520, 420), -- ⭐变大（关键）
+
     Transparent = true,
-    Theme = CurrentTheme, 
-    User = {
-        Enabled = true,
-        Callback = function() print("clicked") end,
-        Anonymous = false
+    Theme = CurrentTheme,
+
+    -- ⭐核心：开启新UI系统
+    NewElements = true,
+
+   
+    -- ⭐浮动按钮（iOS风格）
+    OpenButton = {
+        CornerRadius = UDim.new(1,0),
+        Scale = 1,
+        Draggable = true,
+
+        Color = ColorSequence.new(
+            Color3.fromRGB(120,80,255),
+            Color3.fromRGB(0,200,255)
+        )
     },
 
-    SideBarWidth = 130,
-    ScrollBarEnabled = true
+    SideBarWidth = 150, -- ⭐稍微加宽
+    ScrollBarEnabled = false, -- ⭐关掉更像mac
+
+    User = {
+        Enabled = true,
+        Anonymous = false
+    }
 })
+
 
 -- ⭐再补一层保险（防UI初始化不同步）
 pcall(function()
     WindUI:SetTheme(CurrentTheme)
 end)
 Window:Tag({
-    Title = "V1.0",
+    Title = "夜脚本V1.1",
     Icon = "github",
     Color = Color3.fromRGB(255, 204, 0), -- ⭐柔和黄色（推荐）
     Radius = 8,
@@ -2668,14 +2784,14 @@ local MainTab = Window:Tab({
 
 MainTab:Paragraph({
         Title = "公告",
-        Desc = "感谢所有支持夜脚本的人，我们的群已经100人了", 
+        Desc = "夜脚本V1.1版本更新\n若干服务器功能\n一些新功能\n开启了新版wind UI界面\n优化了脚本\n实则没有优化😋", 
     })
-MainTab:Paragraph({ Title="夜脚本主群", Desc ="1082866627" })
+MainTab:Paragraph({ Title="夜脚本主群", Desc ="1081045774" })
 MainTab:Button({
     Title = "复制QQ群",
     Callback = function()
         if setclipboard then
-            setclipboard("1082866627")
+            setclipboard("1081045774")
         end
 end
 })
@@ -3293,6 +3409,64 @@ pcall(function()
 end)
         end)
 
+        if ok then
+            Notify("成功", "已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
+TabOther:Button({
+    Title = "点击传送工具（夜脚本重制版）",
+    Callback = function()
+        local ok, err = pcall(function()
+-- 服务
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+-- 玩家
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- 工具
+local Tool = Instance.new("Tool")
+Tool.Name = "点击传送道具"
+Tool.RequiresHandle = false
+
+Tool.Activated:Connect(function()
+    local Character = LocalPlayer.Character
+    if not Character then return end
+
+    local HRP = Character:FindFirstChild("HumanoidRootPart")
+    if not HRP then return end
+
+    -- Raycast 参数（忽略自己）
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {Character}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+
+    -- 从相机朝鼠标方向发射射线
+    local unitRay = Camera:ScreenPointToRay(Mouse.X, Mouse.Y)
+    local rayOrigin = unitRay.Origin
+    local rayDirection = unitRay.Direction * 5000 -- 距离可调
+
+    local result = Workspace:Raycast(rayOrigin, rayDirection, params)
+
+    -- ❌ 没打到任何东西 = 空气 → 禁止传送
+    if not result then
+        warn("点到空气，取消传送")
+        return
+    end
+
+    -- ✅ 命中物体 → 直接传送到命中点上方一点
+    local hitPos = result.Position + Vector3.new(0, 3, 0)
+    HRP.CFrame = CFrame.new(hitPos)
+end)
+
+Tool.Parent = LocalPlayer:WaitForChild("Backpack")
+end)
         if ok then
             Notify("成功", "已加载", 2, "success")
         else
@@ -4329,6 +4503,74 @@ TabTP:Slider({
         SpinSpeed = v
     end
 })
+local TabAb = Window:Tab({
+    Title = "服务器功能",
+    Icon = "info",
+    Locked = false,
+})
+TabAb:Paragraph({
+        Title = "提示",
+        Desc = "我只会缝合有源码的并且会表明出处，如果需要删除请先不要挂我，加入夜脚本主群联系作者删除哦\n所有源码都不是我开源的，谁开的找谁去", 
+    })
+
+TabAb:Button({
+    Title = "竞争对手（伊散）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/weiifnrnfj"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "最强战场（凌乱）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/最强战场"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "墨水游戏（Rb）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/ink"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "终极战场（kanl）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/终极战场"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "战争大亨（alienx）有些功能不可用，但是作者是不可能修的😋",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/战争大亨"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "99夜（Rb）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/99夜"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "俄亥俄州（伊散）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/俄亥俄州"))()
+        end)
+   end
+})
+
+
 -- ================= 终止 =================
 local TabStop = Window:Tab({
     Title = "终止",
@@ -4415,7 +4657,7 @@ pcall(function()
 end)
 
 -- ⭐手动加入自定义主题
-local CustomThemes = {"Rainbow", "Cyan", "Blue", "BlackGold"}
+local CustomThemes = {"Aurora", "Cyan", "Blue", "BlackGold"}
 
 for _, v in ipairs(CustomThemes) do
     if not table.find(ThemeList, v) then
