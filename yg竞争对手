@@ -1,0 +1,1029 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+repeat task.wait() until LocalPlayer and LocalPlayer.Character
+
+-- ========== 彩虹边框配置 ==========
+local COLOR_SCHEMES = {
+    ["Blue White"] = {ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromHex("FFFFFF")),ColorSequenceKeypoint.new(0.5,Color3.fromHex("1E90FF")),ColorSequenceKeypoint.new(1,Color3.fromHex("FFFFFF"))}),"droplet"},
+    ["Neon"] = {ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromHex("FF00FF")),ColorSequenceKeypoint.new(0.25,Color3.fromHex("00FFFF")),ColorSequenceKeypoint.new(0.5,Color3.fromHex("FFFF00")),ColorSequenceKeypoint.new(0.75,Color3.fromHex("FF00FF")),ColorSequenceKeypoint.new(1,Color3.fromHex("00FFFF"))}),"sparkles"},
+    ["Sakura Mist"] = {ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromHex("FFF5F8")),ColorSequenceKeypoint.new(0.5,Color3.fromHex("FFE0E9")),ColorSequenceKeypoint.new(1,Color3.fromHex("FFB6C1"))}),"light_cherry"},
+    ["Purple Haze"] = {ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromHex("E6E6FA")),ColorSequenceKeypoint.new(0.5,Color3.fromHex("9370DB")),ColorSequenceKeypoint.new(1,Color3.fromHex("4B0082"))}),"cloud"},
+    ["Sunset"] = {ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromHex("FF4500")),ColorSequenceKeypoint.new(0.5,Color3.fromHex("FFD700")),ColorSequenceKeypoint.new(1,Color3.fromHex("FF69B4"))}),"sun"},
+}
+local colorSchemeNames = {}
+for n in pairs(COLOR_SCHEMES) do table.insert(colorSchemeNames, n) end
+table.sort(colorSchemeNames)
+
+local rainbowBorderAnimation, currentBorderColorScheme, borderEnabled, animationSpeed = nil, "Sakura Mist", true, 2
+
+local function createRainbowBorder(w)
+    if not w or not w.UIElements then wait(1); if not w or not w.UIElements then return end end
+    local mf = w.UIElements.Main; if not mf then return end
+    local ex = mf:FindFirstChild("RainbowStroke")
+    if ex then
+        local ge = ex:FindFirstChild("GlowEffect")
+        if ge and COLOR_SCHEMES[currentBorderColorScheme] then ge.Color = COLOR_SCHEMES[currentBorderColorScheme][1] end
+        return ex
+    end
+    if not mf:FindFirstChildOfClass("UICorner") then
+        Instance.new("UICorner", mf).CornerRadius = UDim.new(0,16)
+    end
+    local rs = Instance.new("UIStroke")
+    rs.Name = "RainbowStroke"; rs.Thickness = 1.5; rs.Color = Color3.new(1,1,1); rs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rs.LineJoinMode = Enum.LineJoinMode.Round; rs.Enabled = borderEnabled; rs.Parent = mf
+    local ge = Instance.new("UIGradient")
+    ge.Name = "GlowEffect"; ge.Color = COLOR_SCHEMES[currentBorderColorScheme] and COLOR_SCHEMES[currentBorderColorScheme][1] or COLOR_SCHEMES["Blue White"][1]
+    ge.Rotation = 0; ge.Parent = rs
+    return rs
+end
+
+local function startBorderAnimation(w, s)
+    if not w or not w.UIElements then return end
+    local mf = w.UIElements.Main; if not mf then return end
+    local rs = mf:FindFirstChild("RainbowStroke"); if not rs or not rs.Enabled then return end
+    local ge = rs:FindFirstChild("GlowEffect"); if not ge then return end
+    if rainbowBorderAnimation then rainbowBorderAnimation:Disconnect(); rainbowBorderAnimation = nil end
+    local a
+    a = RunService.Heartbeat:Connect(function()
+        if not rs or rs.Parent == nil or not rs.Enabled then a:Disconnect(); return end
+        ge.Rotation = (tick() * s * 60) % 360
+    end)
+    rainbowBorderAnimation = a
+end
+
+local function setBorderActive(a)
+    local mf = Window.UIElements and Window.UIElements.Main; if not mf then return end
+    local rs = mf:FindFirstChild("RainbowStroke")
+    if a then
+        if not rs then rs = createRainbowBorder(Window) end
+        if rs then
+            rs.Enabled = true
+            if not rainbowBorderAnimation then startBorderAnimation(Window, animationSpeed) end
+        end
+    else
+        if rs then rs.Enabled = false end
+        if rainbowBorderAnimation then rainbowBorderAnimation:Disconnect(); rainbowBorderAnimation = nil end
+    end
+end
+
+local function applyBorderState()
+    local mf = Window.UIElements and Window.UIElements.Main; if not mf then return end
+    setBorderActive(mf.Visible and borderEnabled)
+end
+spawn(function()
+    local mf = Window.UIElements and Window.UIElements.Main
+    if not mf then repeat wait(); mf = Window.UIElements and Window.UIElements.Main until mf end
+    mf:GetPropertyChangedSignal("Visible"):Connect(applyBorderState)
+    applyBorderState()
+end)
+
+-- ========== 全局状态 ==========
+getgenv().YG_Ragebot = getgenv().YG_Ragebot or {
+    Basic = {
+        AutoFire = false, BulletTracer = false, BulletTrack = false, CheckObstacles = false,
+        FOV = 150, Smooth = false, Speed = 300, Distance = 1000, ShowFOV = false,
+        AimPart = "Head", FireInterval = 0.1, FireRemote = nil, AutoRotate = false,
+        AdvancedMode = false, Prediction = { Enabled = false, Time = 0.15, MaxSpeed = 200 },
+        FireConfirm = false,
+    },
+    ESP = {
+        Enabled = false,
+        TeamCheck = true,
+        MaxDistance = 200,
+        FontSize = 11,
+        FadeOut = { OnDistance = true, OnDeath = false, OnLeave = false },
+        Options = {
+            Teamcheck = false, TeamcheckRGB = Color3.fromRGB(0,255,0),
+            Friendcheck = true, FriendcheckRGB = Color3.fromRGB(0,255,0),
+            Highlight = false, HighlightRGB = Color3.fromRGB(255,0,0),
+        },
+        Drawing = {
+            Chams = {
+                Enabled = true, Thermal = true,
+                FillRGB = Color3.fromRGB(119,120,255), Fill_Transparency = 100,
+                OutlineRGB = Color3.fromRGB(119,120,255), Outline_Transparency = 100,
+                VisibleCheck = true,
+            },
+            Names = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+            Flags = { Enabled = true },
+            Distances = {
+                Enabled = true,
+                Position = "Text",  -- "Text" 或 "Bottom"
+                RGB = Color3.fromRGB(255,255,255),
+            },
+            Weapons = {
+                Enabled = true, WeaponTextRGB = Color3.fromRGB(119,120,255),
+                Outlined = false,
+                Gradient = false,
+                GradientRGB1 = Color3.fromRGB(255,255,255), GradientRGB2 = Color3.fromRGB(119,120,255),
+            },
+            Healthbar = {
+                Enabled = true,
+                HealthText = true, Lerp = false, HealthTextRGB = Color3.fromRGB(119,120,255),
+                Width = 2.5,
+                Gradient = true,
+                GradientRGB1 = Color3.fromRGB(200,0,0), GradientRGB2 = Color3.fromRGB(60,60,125), GradientRGB3 = Color3.fromRGB(119,120,255),
+            },
+            Boxes = {
+                Animate = true,
+                RotationSpeed = 300,
+                Gradient = false,
+                GradientRGB1 = Color3.fromRGB(119,120,255), GradientRGB2 = Color3.fromRGB(0,0,0),
+                GradientFill = true,
+                GradientFillRGB1 = Color3.fromRGB(119,120,255), GradientFillRGB2 = Color3.fromRGB(0,0,0),
+                Filled = { Enabled = true, Transparency = 0.75, RGB = Color3.fromRGB(0,0,0) },
+                Full = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+                Corner = { Enabled = true, RGB = Color3.fromRGB(255,255,255) },
+            },
+        },
+    },
+    Threads = {
+        AutoFire = nil, BulletTrack = nil, FOVCircle = nil, AutoRotate = nil, WeaponScanner = nil,
+        ESP = nil,
+    },
+    Cache = {
+        Enemies = {}, LastUpdate = 0, CurrentTarget = nil,
+        TargetVelocities = {}, LastPositions = {},
+    },
+    UI = { Visible = true },
+}
+local STATE = getgenv().YG_Ragebot
+
+-- 高级模式变量（用于特定游戏）
+local LocalFighter, CurrentWeapon, AdvancedFireRemote = nil, nil, nil
+local function initAdvancedMode()
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" and rawget(v, "LocalFighter") then
+            LocalFighter = v.LocalFighter; break
+        end
+    end
+    AdvancedFireRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Replication") and ReplicatedStorage.Remotes.Replication:FindFirstChild("Fighter") and ReplicatedStorage.Remotes.Replication.Fighter:FindFirstChild("UseItem")
+end
+
+-- ========== 辅助函数 ==========
+local function getCharacter() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
+local function getRootPart() local c = getCharacter(); return c and c:FindFirstChild("HumanoidRootPart") end
+local function getHumanoid() local c = getCharacter(); return c and c:FindFirstChildOfClass("Humanoid") end
+local function clamp(v, mn, mx) return math.max(mn, math.min(mx, v)) end
+
+local function isPlayerValid(p)
+    if not p or p == LocalPlayer then return false end
+    if not p.Character then return false end
+    local h = p.Character:FindFirstChild("Humanoid")
+    if not h or h.Health <= 0 then return false end
+    return p.Character:FindFirstChild("HumanoidRootPart") ~= nil
+end
+
+local function getValidEnemies()
+    local e = {}
+    if STATE.Basic.AdvancedMode then
+        for _, o in ipairs(Workspace:GetChildren()) do
+            if o ~= getCharacter() and o:FindFirstChild("Humanoid") and o:FindFirstChild("HumanoidRootPart") then
+                local h = o:FindFirstChild("Humanoid")
+                if h and h.Health > 0 then table.insert(e, o) end
+            end
+        end
+    else
+        for _, p in ipairs(Players:GetPlayers()) do if isPlayerValid(p) then table.insert(e, p) end end
+    end
+    return e
+end
+
+local function hasObstacle(targetPos, targetObj)
+    local cam = Camera; if not cam then return true end
+    local camPos = cam.CFrame.Position
+    local dir = (targetPos - camPos).Unit
+    local dist = (targetPos - camPos).Magnitude
+    local ray = Workspace:Raycast(camPos, dir * dist, {
+        FilterDescendantsInstances = {LocalPlayer.Character, cam},
+        FilterType = Enum.RaycastFilterType.Blacklist,
+        IgnoreWater = true
+    })
+    if ray then
+        local hit = ray.Instance
+        if hit then
+            local owner = Players:GetPlayerFromCharacter(hit:FindFirstAncestorOfClass("Model"))
+            if STATE.Basic.AdvancedMode then
+                if hit:FindFirstAncestorOfClass("Model") ~= targetObj then return true end
+            else
+                if owner and owner ~= targetObj then return true elseif not owner then return true end
+            end
+        end
+    end
+    return false
+end
+
+-- 速度预测
+local function updateTargetVelocities()
+    for _, e in ipairs(getValidEnemies()) do
+        local hrp = (STATE.Basic.AdvancedMode and e:FindFirstChild("HumanoidRootPart")) or (e:IsA("Player") and e.Character and e.Character:FindFirstChild("HumanoidRootPart"))
+        if hrp then
+            local cur = hrp.Position
+            local last = STATE.Cache.LastPositions[e]
+            if last then
+                local vel = (cur - last) / 0.05
+                if vel.Magnitude < STATE.Basic.Prediction.MaxSpeed then
+                    STATE.Cache.TargetVelocities[e] = vel
+                else
+                    STATE.Cache.TargetVelocities[e] = Vector3.new(0,0,0)
+                end
+            end
+            STATE.Cache.LastPositions[e] = cur
+        end
+    end
+end
+task.spawn(function() while true do pcall(updateTargetVelocities); task.wait(0.05) end end)
+
+local function getTargetInFOV(usePred)
+    local hrp = getRootPart(); if not hrp or not Camera then return nil,nil end
+    local fov = STATE.Basic.FOV; local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local closest, closestPos, closestDist = nil, nil, fov
+    for _, e in ipairs(getValidEnemies()) do
+        local part
+        if STATE.Basic.AdvancedMode then
+            part = e:FindFirstChild(STATE.Basic.AimPart) or e:FindFirstChild("HumanoidRootPart")
+        else
+            if e:IsA("Player") then
+                part = e.Character and (e.Character:FindFirstChild(STATE.Basic.AimPart) or e.Character:FindFirstChild("HumanoidRootPart"))
+            else
+                part = e:FindFirstChild(STATE.Basic.AimPart) or e:FindFirstChild("HumanoidRootPart")
+            end
+        end
+        if part then
+            local pos = part.Position
+            if usePred and STATE.Basic.Prediction.Enabled then
+                local vel = STATE.Cache.TargetVelocities[e]
+                if vel then pos = pos + vel * STATE.Basic.Prediction.Time end
+            end
+            local dist = (pos - hrp.Position).Magnitude
+            if dist <= STATE.Basic.Distance then
+                local p2d, on = Camera:WorldToViewportPoint(pos)
+                if on and p2d.Z > 0 then
+                    local sp = Vector2.new(p2d.X, p2d.Y)
+                    local dc = (center - sp).Magnitude
+                    if dc <= fov then
+                        if STATE.Basic.CheckObstacles and hasObstacle(pos, e) then continue end
+                        if dc < closestDist then closestDist, closest, closestPos = dc, e, pos end
+                    end
+                end
+            end
+        end
+    end
+    STATE.Cache.CurrentTarget = closest
+    return closest, closestPos
+end
+
+-- 高级开火参数构造
+local function advancedFire(targetPos, targetObj)
+    if not AdvancedFireRemote or not CurrentWeapon or not targetObj then return end
+    local hrp = getRootPart(); if not hrp then return end
+    local head = targetObj:FindFirstChild("Head"); if not head then return end
+    local cp = hrp.Position + Vector3.new(0,1.5,0); local tp = head.Position; local dir = (tp - cp).Unit
+    if STATE.Basic.CheckObstacles and hasObstacle(tp, targetObj) then return end
+    local function encf(p, t)
+        local cf = CFrame.lookAt(p, t); local rx,ry,rz = cf:ToOrientation()
+        return {["\x00"]=p.X,["\x01"]=p.Y,["\x02"]=p.Z,["\x03"]=rx,["\x04"]=ry,["\x05"]=rz}
+    end
+    local args = {
+        ["\x01"] = {
+            ["\x00"] = encf(cp, tp),
+            ["\x01"] = encf(tp, cp),
+            ["\x02"] = head,
+            ["\x03"] = {["\x00"]=dir.X,["\x01"]=dir.Y,["\x02"]=dir.Z,["\x03"]=-dir.X,["\x04"]=-dir.Y,["\x05"]=-dir.Z},
+        },
+        ["\x02"] = true,
+        ["\x03"] = true,
+    }
+    AdvancedFireRemote:FireServer(CurrentWeapon:Get("ObjectID"), "\x1A", args, nil)
+end
+
+local function genericFire(p)
+    if not STATE.Basic.FireRemote then return end
+    local s = pcall(function() STATE.Basic.FireRemote:FireServer(p) end)
+    if not s then pcall(function() STATE.Basic.FireRemote:FireServer(Camera.CFrame.Position, p) end) end
+    if not s then pcall(function() STATE.Basic.FireRemote:FireServer(STATE.Cache.CurrentTarget) end) end
+    if not s then pcall(function() STATE.Basic.FireRemote:FireServer() end) end
+end
+
+-- 子弹特效（保留高级蓝色特效）
+local function createBulletTracer(s, e, style)
+    if style == "advanced" then
+        local d = (s - e).Magnitude
+        local mb = Instance.new("Part", Workspace); mb.Material = Enum.Material.Neon; mb.BrickColor = BrickColor.new("Bright blue")
+        mb.Anchored = true; mb.CanCollide = false; mb.Transparency = 0.3; mb.Size = Vector3.new(0.15,0.15,d)
+        mb.CFrame = CFrame.lookAt(s, e) * CFrame.new(0,0,-d/2)
+        local fb = Instance.new("Beam", mb)
+        fb.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(0,200,255)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(100,230,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(0,200,255))})
+        fb.Width0, fb.Width1 = 0.25,0.25; fb.Texture = "rbxassetid://446111271"; fb.TextureSpeed = 3; fb.TextureLength = 2
+        fb.LightEmission = 0.8; fb.LightInfluence = 0
+        local a0 = Instance.new("Attachment", mb); a0.Position = Vector3.new(0,0,-d/2)
+        local a1 = Instance.new("Attachment", mb); a1.Position = Vector3.new(0,0,d/2)
+        fb.Attachment0, fb.Attachment1 = a0, a1
+        local pl = Instance.new("PointLight", mb); pl.Brightness = 2; pl.Range = 8; pl.Color = Color3.fromRGB(0,200,255)
+        local pe = Instance.new("ParticleEmitter", mb); pe.Rate = 50; pe.Speed = NumberRange.new(2,5)
+        pe.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(0.5,0.15),NumberSequenceKeypoint.new(1,0)})
+        pe.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.3),NumberSequenceKeypoint.new(0.5,0.5),NumberSequenceKeypoint.new(1,1)})
+        pe.Lifetime = NumberRange.new(0.3,0.6); pe.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(0,150,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(100,230,255))})
+        local sb = Instance.new("Part", Workspace); sb.Material = Enum.Material.Neon; sb.BrickColor = BrickColor.new("Cyan")
+        sb.Anchored = true; sb.CanCollide = false; sb.Transparency = 0.5; sb.Size = Vector3.new(0.08,0.08,d)
+        sb.CFrame = CFrame.lookAt(s, e) * CFrame.new(0,0,-d/2)
+        Instance.new("PointLight", sb).Brightness = 1; Instance.new("PointLight", sb).Range = 5; Instance.new("PointLight", sb).Color = Color3.fromRGB(0,200,255)
+        Debris:AddItem(mb, 1.2); Debris:AddItem(sb, 1.2)
+    else
+        local p = Instance.new("Part", Workspace); p.Size = Vector3.new(0.2,0.2,0.2); p.Anchored = true; p.CanCollide = false; p.Transparency = 1; p.CFrame = CFrame.new(s)
+        local a0 = Instance.new("Attachment", p); local a1 = Instance.new("Attachment", Workspace.Terrain); a1.WorldPosition = e
+        local b = Instance.new("Beam", p); b.Attachment0, b.Attachment1 = a0, a1
+        b.Color = ColorSequence.new(Color3.fromRGB(255,100,0)); b.Width0, b.Width1 = 0.3,0.3; b.FaceCamera = true; b.LightEmission = 1
+        Debris:AddItem(p, 0.2)
+    end
+end
+
+-- 自动开火循环
+local function autoFireLoop()
+    while STATE.Basic.AutoFire do
+        pcall(function()
+            local t, pos = getTargetInFOV(true)
+            if t and pos then
+                if STATE.Basic.FireConfirm then
+                    local _, cur = getTargetInFOV(false)
+                    if not cur then task.wait(0.01); return end
+                end
+                local s = Camera.CFrame.Position
+                if STATE.Basic.AdvancedMode and AdvancedFireRemote and CurrentWeapon then advancedFire(pos, t)
+                else genericFire(pos) end
+                if STATE.Basic.BulletTracer then createBulletTracer(s, pos, STATE.Basic.AdvancedMode and "advanced" or "simple") end
+                if STATE.Basic.AdvancedMode then
+                    local snd = Instance.new("Sound", Workspace)
+                    snd.SoundId = "rbxassetid://8679627751"; snd.Volume = 1; snd.PlayOnRemove = true
+                    Debris:AddItem(snd, 1)
+                end
+            end
+        end)
+        task.wait(STATE.Basic.FireInterval)
+    end
+end
+
+-- 子弹追踪
+local function bulletTrackLoop()
+    while STATE.Basic.BulletTrack do
+        pcall(function()
+            local t, pos = getTargetInFOV(STATE.Basic.Prediction.Enabled)
+            if t and pos and Camera then
+                local camPos = Camera.CFrame.Position
+                local targetCF = CFrame.lookAt(camPos, pos)
+                if STATE.Basic.Smooth and STATE.Basic.Speed > 0 then
+                    local sp = (STATE.Basic.Speed / 500) * 0.2
+                    sp = clamp(sp, 0.02, 0.2)
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCF, sp)
+                else
+                    Camera.CFrame = targetCF
+                end
+            end
+        end)
+        task.wait()
+    end
+end
+
+-- 自动转向
+local function autoRotateLoop()
+    while STATE.Basic.AutoRotate do
+        pcall(function()
+            local t = STATE.Cache.CurrentTarget
+            if t then
+                local hrp = getRootPart()
+                local targetPos
+                if STATE.Basic.AdvancedMode then
+                    targetPos = t:FindFirstChild("HumanoidRootPart") and t.HumanoidRootPart.Position
+                else
+                    if t:IsA("Player") then
+                        targetPos = t.Character and t.Character:FindFirstChild("HumanoidRootPart") and t.Character.HumanoidRootPart.Position
+                    else
+                        targetPos = t:FindFirstChild("HumanoidRootPart") and t.HumanoidRootPart.Position
+                    end
+                end
+                if hrp and targetPos then
+                    local myPos = hrp.Position
+                    local lookAt = Vector3.new(targetPos.X, myPos.Y, targetPos.Z)
+                    hrp.CFrame = CFrame.lookAt(myPos, lookAt)
+                end
+            end
+        end)
+        task.wait()
+    end
+end
+
+-- FOV圈
+local fovCircle = nil
+local function createFOVCircle()
+    if fovCircle then pcall(function() fovCircle:Destroy() end) end
+    local parent = CoreGui or LocalPlayer:FindFirstChild("PlayerGui")
+    if not parent then return end
+    fovCircle = Instance.new("ScreenGui")
+    fovCircle.Name = "YGRagebotFOV"
+    fovCircle.Parent = parent
+    fovCircle.IgnoreGuiInset = true
+    fovCircle.DisplayOrder = 999999
+    fovCircle.Enabled = STATE.Basic.ShowFOV
+    fovCircle.ResetOnSpawn = false
+    local frame = Instance.new("Frame")
+    frame.Name = "FOVFrame"
+    frame.Size = UDim2.new(0, STATE.Basic.FOV*2, 0, STATE.Basic.FOV*2)
+    frame.Position = UDim2.new(0.5, -STATE.Basic.FOV, 0.5, -STATE.Basic.FOV)
+    frame.BackgroundTransparency = 1
+    frame.Parent = fovCircle
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1,0)
+    uiCorner.Parent = frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(255,0,0)
+    stroke.Transparency = 0.3
+    stroke.Parent = frame
+    if STATE.Threads.FOVCircle then task.cancel(STATE.Threads.FOVCircle) end
+    STATE.Threads.FOVCircle = task.spawn(function()
+        while fovCircle and fovCircle.Parent and STATE.Basic.ShowFOV do
+            pcall(function()
+                if fovCircle and fovCircle.FOVFrame then
+                    local d = STATE.Basic.FOV*2
+                    fovCircle.FOVFrame.Size = UDim2.new(0,d,0,d)
+                    fovCircle.FOVFrame.Position = UDim2.new(0.5,-STATE.Basic.FOV,0.5,-STATE.Basic.FOV)
+                    local t,_ = getTargetInFOV(false)
+                    fovCircle.FOVFrame.UIStroke.Color = t and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                end
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+createFOVCircle()
+
+-- ========== 华丽ESP系统 (移植自美丽的绘制.lua) ==========
+local ESPManager = {}
+do
+    local lplayer = LocalPlayer
+    local camera = Camera
+    local Connections = {}
+    local ScreenGui = nil
+    local RotationAngle = -45
+    local Tick = tick()
+
+    local function FadeOutOnDist(element, distance)
+        if not element then return end
+        local trans = math.max(0.1, 1 - (distance / STATE.ESP.MaxDistance))
+        if element:IsA("TextLabel") then
+            element.TextTransparency = 1 - trans
+        elseif element:IsA("ImageLabel") then
+            element.ImageTransparency = 1 - trans
+        elseif element:IsA("UIStroke") then
+            element.Transparency = 1 - trans
+        elseif element:IsA("Frame") then
+            element.BackgroundTransparency = 1 - trans
+        elseif element:IsA("Highlight") then
+            element.FillTransparency = 1 - trans
+            element.OutlineTransparency = 1 - trans
+        end
+    end
+
+    local function CreatePlayerESP(plr)
+        if not ScreenGui then return end
+        if Connections[plr] then return end
+
+        local Name = Instance.new("TextLabel")
+        Name.Parent = ScreenGui
+        Name.Position = UDim2.new(0.5,0,0,-11)
+        Name.Size = UDim2.new(0,100,0,20)
+        Name.AnchorPoint = Vector2.new(0.5,0.5)
+        Name.BackgroundTransparency = 1
+        Name.TextColor3 = STATE.ESP.Drawing.Names.RGB
+        Name.Font = Enum.Font.Code
+        Name.TextSize = STATE.ESP.FontSize
+        Name.TextStrokeTransparency = 0
+        Name.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+        Name.RichText = true
+
+        local Distance = Instance.new("TextLabel")
+        Distance.Parent = ScreenGui
+        Distance.Position = UDim2.new(0.5,0,0,11)
+        Distance.Size = UDim2.new(0,100,0,20)
+        Distance.AnchorPoint = Vector2.new(0.5,0.5)
+        Distance.BackgroundTransparency = 1
+        Distance.TextColor3 = STATE.ESP.Drawing.Distances.RGB
+        Distance.Font = Enum.Font.Code
+        Distance.TextSize = STATE.ESP.FontSize
+        Distance.TextStrokeTransparency = 0
+        Distance.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+
+        local Weapon = Instance.new("TextLabel")
+        Weapon.Parent = ScreenGui
+        Weapon.Position = UDim2.new(0.5,0,0,31)
+        Weapon.Size = UDim2.new(0,100,0,20)
+        Weapon.AnchorPoint = Vector2.new(0.5,0.5)
+        Weapon.BackgroundTransparency = 1
+        Weapon.TextColor3 = STATE.ESP.Drawing.Weapons.WeaponTextRGB
+        Weapon.Font = Enum.Font.Code
+        Weapon.TextSize = STATE.ESP.FontSize
+        Weapon.TextStrokeTransparency = 0
+        Weapon.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+
+        local Box = Instance.new("Frame")
+        Box.Parent = ScreenGui
+        Box.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Filled.RGB
+        Box.BackgroundTransparency = STATE.ESP.Drawing.Boxes.Filled.Transparency
+        Box.BorderSizePixel = 0
+
+        local Gradient1 = Instance.new("UIGradient")
+        Gradient1.Parent = Box
+        Gradient1.Enabled = STATE.ESP.Drawing.Boxes.GradientFill
+        Gradient1.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,STATE.ESP.Drawing.Boxes.GradientFillRGB1), ColorSequenceKeypoint.new(1,STATE.ESP.Drawing.Boxes.GradientFillRGB2)})
+
+        local Outline = Instance.new("UIStroke")
+        Outline.Parent = Box
+        Outline.Enabled = STATE.ESP.Drawing.Boxes.Gradient
+        Outline.Transparency = 0
+        Outline.Color = Color3.fromRGB(255,255,255)
+        Outline.LineJoinMode = Enum.LineJoinMode.Miter
+
+        local Gradient2 = Instance.new("UIGradient")
+        Gradient2.Parent = Outline
+        Gradient2.Enabled = STATE.ESP.Drawing.Boxes.Gradient
+        Gradient2.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,STATE.ESP.Drawing.Boxes.GradientRGB1), ColorSequenceKeypoint.new(1,STATE.ESP.Drawing.Boxes.GradientRGB2)})
+
+        local Healthbar = Instance.new("Frame")
+        Healthbar.Parent = ScreenGui
+        Healthbar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        Healthbar.BackgroundTransparency = 0
+
+        local BehindHealthbar = Instance.new("Frame")
+        BehindHealthbar.Parent = ScreenGui
+        BehindHealthbar.ZIndex = -1
+        BehindHealthbar.BackgroundColor3 = Color3.fromRGB(0,0,0)
+        BehindHealthbar.BackgroundTransparency = 0
+
+        local HealthbarGradient = Instance.new("UIGradient")
+        HealthbarGradient.Parent = Healthbar
+        HealthbarGradient.Enabled = STATE.ESP.Drawing.Healthbar.Gradient
+        HealthbarGradient.Rotation = -90
+        HealthbarGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0,STATE.ESP.Drawing.Healthbar.GradientRGB1),
+            ColorSequenceKeypoint.new(0.5,STATE.ESP.Drawing.Healthbar.GradientRGB2),
+            ColorSequenceKeypoint.new(1,STATE.ESP.Drawing.Healthbar.GradientRGB3)
+        })
+
+        local HealthText = Instance.new("TextLabel")
+        HealthText.Parent = ScreenGui
+        HealthText.Position = UDim2.new(0.5,0,0,31)
+        HealthText.Size = UDim2.new(0,100,0,20)
+        HealthText.AnchorPoint = Vector2.new(0.5,0.5)
+        HealthText.BackgroundTransparency = 1
+        HealthText.TextColor3 = STATE.ESP.Drawing.Healthbar.HealthTextRGB
+        HealthText.Font = Enum.Font.Code
+        HealthText.TextSize = STATE.ESP.FontSize
+        HealthText.TextStrokeTransparency = 0
+        HealthText.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+
+        local Chams = Instance.new("Highlight")
+        Chams.Parent = ScreenGui
+        Chams.FillTransparency = 1
+        Chams.OutlineTransparency = 0
+        Chams.OutlineColor = STATE.ESP.Drawing.Chams.OutlineRGB
+        Chams.DepthMode = STATE.ESP.Drawing.Chams.VisibleCheck and Enum.HighlightDepthMode.Occluded or Enum.HighlightDepthMode.AlwaysOnTop
+
+        local WeaponIcon = Instance.new("ImageLabel")
+        WeaponIcon.Parent = ScreenGui
+        WeaponIcon.BackgroundTransparency = 1
+        WeaponIcon.BorderColor3 = Color3.fromRGB(0,0,0)
+        WeaponIcon.BorderSizePixel = 0
+        WeaponIcon.Size = UDim2.new(0,40,0,40)
+
+        local Gradient3 = Instance.new("UIGradient")
+        Gradient3.Parent = WeaponIcon
+        Gradient3.Rotation = -90
+        Gradient3.Enabled = STATE.ESP.Drawing.Weapons.Gradient
+        Gradient3.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,STATE.ESP.Drawing.Weapons.GradientRGB1), ColorSequenceKeypoint.new(1,STATE.ESP.Drawing.Weapons.GradientRGB2)})
+
+        -- 角框组件（简化，仅列出必要）
+        local LeftTop = Instance.new("Frame", ScreenGui); LeftTop.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local LeftSide = Instance.new("Frame", ScreenGui); LeftSide.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local RightTop = Instance.new("Frame", ScreenGui); RightTop.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local RightSide = Instance.new("Frame", ScreenGui); RightSide.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local BottomSide = Instance.new("Frame", ScreenGui); BottomSide.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local BottomDown = Instance.new("Frame", ScreenGui); BottomDown.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local BottomRightSide = Instance.new("Frame", ScreenGui); BottomRightSide.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local BottomRightDown = Instance.new("Frame", ScreenGui); BottomRightDown.BackgroundColor3 = STATE.ESP.Drawing.Boxes.Corner.RGB
+        local Flag1 = Instance.new("TextLabel", ScreenGui); Flag1.BackgroundTransparency = 1; Flag1.Font = Enum.Font.Code; Flag1.TextSize = STATE.ESP.FontSize; Flag1.TextStrokeTransparency = 0
+        local Flag2 = Instance.new("TextLabel", ScreenGui); Flag2.BackgroundTransparency = 1; Flag2.Font = Enum.Font.Code; Flag2.TextSize = STATE.ESP.FontSize; Flag2.TextStrokeTransparency = 0
+
+        local function HideESP()
+            Box.Visible = false; Name.Visible = false; Distance.Visible = false; Weapon.Visible = false
+            Healthbar.Visible = false; BehindHealthbar.Visible = false; HealthText.Visible = false; WeaponIcon.Visible = false
+            LeftTop.Visible = false; LeftSide.Visible = false; RightTop.Visible = false; RightSide.Visible = false
+            BottomSide.Visible = false; BottomDown.Visible = false; BottomRightSide.Visible = false; BottomRightDown.Visible = false
+            Flag1.Visible = false; Flag2.Visible = false; Chams.Enabled = false
+        end
+
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not STATE.ESP.Enabled then
+                HideESP()
+                return
+            end
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local HRP = plr.Character.HumanoidRootPart
+                local Humanoid = plr.Character:FindFirstChild("Humanoid")
+                if not Humanoid then return end
+
+                local Pos, OnScreen = camera:WorldToScreenPoint(HRP.Position)
+                local Dist = (camera.CFrame.Position - HRP.Position).Magnitude / 3.5714285714
+
+                if OnScreen and Dist <= STATE.ESP.MaxDistance then
+                    local Size = HRP.Size.Y
+                    local scaleFactor = (Size * camera.ViewportSize.Y) / (Pos.Z * 2)
+                    local w, h = 3 * scaleFactor, 4.5 * scaleFactor
+
+                    if STATE.ESP.FadeOut.OnDistance then
+                        for _, elem in ipairs({Box, Outline, Name, Distance, Weapon, Healthbar, BehindHealthbar, HealthText, WeaponIcon, LeftTop, LeftSide, RightTop, RightSide, BottomSide, BottomDown, BottomRightSide, BottomRightDown, Chams, Flag1, Flag2}) do
+                            FadeOutOnDist(elem, Dist)
+                        end
+                    end
+
+                    -- 团队检测（简化：仅判断是否不同队伍）
+                    local isEnemy = true
+                    if STATE.ESP.TeamCheck and plr ~= lplayer then
+                        if lplayer.Team and plr.Team then
+                            isEnemy = lplayer.Team ~= plr.Team
+                        end
+                    end
+
+                    if isEnemy then
+                        -- Chams
+                        Chams.Adornee = plr.Character
+                        Chams.Enabled = STATE.ESP.Drawing.Chams.Enabled
+                        Chams.FillColor = STATE.ESP.Drawing.Chams.FillRGB
+                        Chams.OutlineColor = STATE.ESP.Drawing.Chams.OutlineRGB
+                        if STATE.ESP.Drawing.Chams.Thermal then
+                            local breathe = math.atan(math.sin(tick() * 2)) * 2 / math.pi
+                            Chams.FillTransparency = STATE.ESP.Drawing.Chams.Fill_Transparency * breathe * 0.01
+                            Chams.OutlineTransparency = STATE.ESP.Drawing.Chams.Outline_Transparency * breathe * 0.01
+                        end
+                        Chams.DepthMode = STATE.ESP.Drawing.Chams.VisibleCheck and Enum.HighlightDepthMode.Occluded or Enum.HighlightDepthMode.AlwaysOnTop
+
+                        -- 角框
+                        if STATE.ESP.Drawing.Boxes.Corner.Enabled then
+                            LeftTop.Visible = true; LeftTop.Position = UDim2.new(0, Pos.X - w/2, 0, Pos.Y - h/2); LeftTop.Size = UDim2.new(0, w/5, 0, 1)
+                            LeftSide.Visible = true; LeftSide.Position = UDim2.new(0, Pos.X - w/2, 0, Pos.Y - h/2); LeftSide.Size = UDim2.new(0, 1, 0, h/5)
+                            BottomSide.Visible = true; BottomSide.Position = UDim2.new(0, Pos.X - w/2, 0, Pos.Y + h/2); BottomSide.Size = UDim2.new(0, 1, 0, h/5); BottomSide.AnchorPoint = Vector2.new(0,5)
+                            BottomDown.Visible = true; BottomDown.Position = UDim2.new(0, Pos.X - w/2, 0, Pos.Y + h/2); BottomDown.Size = UDim2.new(0, w/5, 0, 1); BottomDown.AnchorPoint = Vector2.new(0,1)
+                            RightTop.Visible = true; RightTop.Position = UDim2.new(0, Pos.X + w/2, 0, Pos.Y - h/2); RightTop.Size = UDim2.new(0, w/5, 0, 1); RightTop.AnchorPoint = Vector2.new(1,0)
+                            RightSide.Visible = true; RightSide.Position = UDim2.new(0, Pos.X + w/2 - 1, 0, Pos.Y - h/2); RightSide.Size = UDim2.new(0, 1, 0, h/5); RightSide.AnchorPoint = Vector2.new(0,0)
+                            BottomRightSide.Visible = true; BottomRightSide.Position = UDim2.new(0, Pos.X + w/2, 0, Pos.Y + h/2); BottomRightSide.Size = UDim2.new(0, 1, 0, h/5); BottomRightSide.AnchorPoint = Vector2.new(1,1)
+                            BottomRightDown.Visible = true; BottomRightDown.Position = UDim2.new(0, Pos.X + w/2, 0, Pos.Y + h/2); BottomRightDown.Size = UDim2.new(0, w/5, 0, 1); BottomRightDown.AnchorPoint = Vector2.new(1,1)
+                        end
+
+                        -- 主框
+                        Box.Position = UDim2.new(0, Pos.X - w/2, 0, Pos.Y - h/2)
+                        Box.Size = UDim2.new(0, w, 0, h)
+                        Box.Visible = STATE.ESP.Drawing.Boxes.Full.Enabled
+                        if STATE.ESP.Drawing.Boxes.Filled.Enabled then
+                            Box.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                            Box.BackgroundTransparency = STATE.ESP.Drawing.Boxes.GradientFill and STATE.ESP.Drawing.Boxes.Filled.Transparency or 1
+                            Box.BorderSizePixel = 1
+                        else
+                            Box.BackgroundTransparency = 1
+                        end
+
+                        -- 框动画
+                        RotationAngle = RotationAngle + (tick() - Tick) * STATE.ESP.Drawing.Boxes.RotationSpeed * math.cos(math.pi/4 * tick() - math.pi/2)
+                        if STATE.ESP.Drawing.Boxes.Animate then
+                            Gradient1.Rotation = RotationAngle
+                            Gradient2.Rotation = RotationAngle
+                        else
+                            Gradient1.Rotation = -45
+                            Gradient2.Rotation = -45
+                        end
+                        Tick = tick()
+
+                        -- 血条
+                        local health = Humanoid.Health / Humanoid.MaxHealth
+                        Healthbar.Visible = STATE.ESP.Drawing.Healthbar.Enabled
+                        Healthbar.Position = UDim2.new(0, Pos.X - w/2 - 6, 0, Pos.Y - h/2 + h * (1 - health))
+                        Healthbar.Size = UDim2.new(0, STATE.ESP.Drawing.Healthbar.Width, 0, h * health)
+
+                        BehindHealthbar.Visible = STATE.ESP.Drawing.Healthbar.Enabled
+                        BehindHealthbar.Position = UDim2.new(0, Pos.X - w/2 - 6, 0, Pos.Y - h/2)
+                        BehindHealthbar.Size = UDim2.new(0, STATE.ESP.Drawing.Healthbar.Width, 0, h)
+
+                        if STATE.ESP.Drawing.Healthbar.HealthText then
+                            local hpPct = math.floor(Humanoid.Health / Humanoid.MaxHealth * 100)
+                            HealthText.Position = UDim2.new(0, Pos.X - w/2 - 6, 0, Pos.Y - h/2 + h * (1 - hpPct/100) + 3)
+                            HealthText.Text = tostring(hpPct)
+                            HealthText.Visible = Humanoid.Health < Humanoid.MaxHealth
+                            if STATE.ESP.Drawing.Healthbar.Lerp then
+                                local c = health >= 0.75 and Color3.fromRGB(0,255,0) or health >= 0.5 and Color3.fromRGB(255,255,0) or health >= 0.25 and Color3.fromRGB(255,170,0) or Color3.fromRGB(255,0,0)
+                                HealthText.TextColor3 = c
+                            else
+                                HealthText.TextColor3 = STATE.ESP.Drawing.Healthbar.HealthTextRGB
+                            end
+                        else
+                            HealthText.Visible = false
+                        end
+
+                        -- 名字
+                        Name.Visible = STATE.ESP.Drawing.Names.Enabled
+                        if STATE.ESP.Options.Friendcheck and lplayer:IsFriendsWith(plr.UserId) then
+                            Name.Text = string.format('(<font color="rgb(%d,%d,%d)">F</font>) %s', STATE.ESP.Options.FriendcheckRGB.R*255, STATE.ESP.Options.FriendcheckRGB.G*255, STATE.ESP.Options.FriendcheckRGB.B*255, plr.Name)
+                        else
+                            Name.Text = string.format('(<font color="rgb(%d,%d,%d)">E</font>) %s', 255,0,0, plr.Name)
+                        end
+                        Name.Position = UDim2.new(0, Pos.X, 0, Pos.Y - h/2 - 9)
+
+                        -- 距离显示
+                        if STATE.ESP.Drawing.Distances.Enabled then
+                            if STATE.ESP.Drawing.Distances.Position == "Bottom" then
+                                Weapon.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h/2 + 18)
+                                WeaponIcon.Position = UDim2.new(0, Pos.X - 21, 0, Pos.Y + h/2 + 15)
+                                Distance.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h/2 + 7)
+                                Distance.Text = string.format("%d meters", math.floor(Dist))
+                                Distance.Visible = true
+                            else
+                                Weapon.Position = UDim2.new(0, Pos.X, 0, Pos.Y + h/2 + 8)
+                                WeaponIcon.Position = UDim2.new(0, Pos.X - 21, 0, Pos.Y + h/2 + 5)
+                                Distance.Visible = false
+                                if STATE.ESP.Options.Friendcheck and lplayer:IsFriendsWith(plr.UserId) then
+                                    Name.Text = string.format('(<font color="rgb(%d,%d,%d)">F</font>) %s [%d]', STATE.ESP.Options.FriendcheckRGB.R*255, STATE.ESP.Options.FriendcheckRGB.G*255, STATE.ESP.Options.FriendcheckRGB.B*255, plr.Name, math.floor(Dist))
+                                else
+                                    Name.Text = string.format('(<font color="rgb(%d,%d,%d)">E</font>) %s [%d]', 255,0,0, plr.Name, math.floor(Dist))
+                                end
+                            end
+                        end
+
+                        -- 武器（暂留空）
+                        Weapon.Text = "none"
+                        Weapon.Visible = STATE.ESP.Drawing.Weapons.Enabled
+                    else
+                        HideESP()
+                    end
+                else
+                    HideESP()
+                end
+            else
+                HideESP()
+            end
+        end)
+
+        Connections[plr] = {connection}
+    end
+
+    function ESPManager:Start()
+        if ScreenGui then return end
+        ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Parent = CoreGui
+        ScreenGui.Name = "YGRagebotESP"
+        ScreenGui.ResetOnSpawn = false
+
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= lplayer and not Connections[v] then
+                CreatePlayerESP(v)
+            end
+        end
+
+        Connections.PlayerAdded = Players.PlayerAdded:Connect(function(v)
+            if v ~= lplayer and not Connections[v] then
+                CreatePlayerESP(v)
+            end
+        end)
+    end
+
+    function ESPManager:Stop()
+        if ScreenGui then
+            ScreenGui:Destroy()
+            ScreenGui = nil
+        end
+        for _, conn in pairs(Connections) do
+            if type(conn) == "table" then
+                for _, c in ipairs(conn) do
+                    c:Disconnect()
+                end
+            else
+                conn:Disconnect()
+            end
+        end
+        Connections = {}
+    end
+
+    function ESPManager:SetEnabled(enabled)
+        if enabled then self:Start() else self:Stop() end
+    end
+end
+
+-- ========== 开关控制函数 ==========
+local function toggleBulletTrack(state)
+    STATE.Basic.BulletTrack = state
+    if state then
+        if STATE.Threads.BulletTrack then task.cancel(STATE.Threads.BulletTrack) end
+        STATE.Threads.BulletTrack = task.spawn(bulletTrackLoop)
+    else
+        if STATE.Threads.BulletTrack then task.cancel(STATE.Threads.BulletTrack); STATE.Threads.BulletTrack = nil end
+    end
+end
+
+local function toggleAutoFire(state)
+    STATE.Basic.AutoFire = state
+    if state then
+        if STATE.Threads.AutoFire then task.cancel(STATE.Threads.AutoFire) end
+        STATE.Threads.AutoFire = task.spawn(autoFireLoop)
+    else
+        if STATE.Threads.AutoFire then task.cancel(STATE.Threads.AutoFire); STATE.Threads.AutoFire = nil end
+    end
+end
+
+local function toggleAutoRotate(state)
+    STATE.Basic.AutoRotate = state
+    if state then
+        if STATE.Threads.AutoRotate then task.cancel(STATE.Threads.AutoRotate) end
+        STATE.Threads.AutoRotate = task.spawn(autoRotateLoop)
+    else
+        if STATE.Threads.AutoRotate then task.cancel(STATE.Threads.AutoRotate); STATE.Threads.AutoRotate = nil end
+    end
+end
+
+local function toggleAdvancedMode(state)
+    STATE.Basic.AdvancedMode = state
+    if state then
+        initAdvancedMode()
+        if STATE.Threads.WeaponScanner then task.cancel(STATE.Threads.WeaponScanner) end
+        STATE.Threads.WeaponScanner = task.spawn(function()
+            while STATE.Basic.AdvancedMode do
+                pcall(scanWeapon)
+                task.wait(0.5)
+            end
+        end)
+    else
+        if STATE.Threads.WeaponScanner then task.cancel(STATE.Threads.WeaponScanner); STATE.Threads.WeaponScanner = nil end
+        CurrentWeapon = nil; LocalFighter = nil; AdvancedFireRemote = nil
+    end
+end
+
+local function scanWeapon()
+    if not STATE.Basic.AdvancedMode or not LocalFighter then return end
+    if LocalFighter.Items then
+        for _, v in pairs(LocalFighter.Items) do
+            if v.IsEquipped and v.Info and v.Info.MaxAmmo then
+                CurrentWeapon = v; break
+            end
+        end
+    end
+end
+
+-- ========== UI构建 ==========
+local SettingsTab = Window:Tab({ Title = "UI设置", Icon = "crown" })
+local BasicTab = Window:Tab({ Title = "基础功能", Icon = "zap" })
+local ESPTab = Window:Tab({ Title = "华丽ESP", Icon = "eye" })
+local AdvancedTab = Window:Tab({ Title = "高级模式", Icon = "settings" })
+local AboutTab = Window:Tab({ Title = "关于", Icon = "info" })
+
+-- UI设置选项卡（略，保持原样）
+SettingsTab:Toggle({ Title = "启用边框", Value = borderEnabled, Callback = function(v) borderEnabled = v; applyBorderState(); WindUI:Notify({ Title="YG | 边框", Content=v and "已开启" or "已关闭", Duration=2 }) end })
+SettingsTab:Dropdown({ Title = "边框配色", Values = colorSchemeNames, Value = "Sakura Mist", Callback = function(v) currentBorderColorScheme = v; local mf = Window.UIElements and Window.UIElements.Main; if mf then local rs = mf:FindFirstChild("RainbowStroke"); if rs then local ge = rs:FindFirstChild("GlowEffect"); if ge and COLOR_SCHEMES[v] then ge.Color = COLOR_SCHEMES[v][1] end end end end })
+SettingsTab:Slider({ Title = "边框速度", Value = { Min=1, Max=10, Default=6 }, Callback = function(v) animationSpeed = v; if rainbowBorderAnimation then rainbowBorderAnimation:Disconnect(); rainbowBorderAnimation = nil end; local mf = Window.UIElements and Window.UIElements.Main; if mf and mf.Visible and borderEnabled then local rs = mf:FindFirstChild("RainbowStroke"); if rs and rs.Enabled then startBorderAnimation(Window, animationSpeed) end end end })
+SettingsTab:Slider({ Title = "边框粗细", Value = { Min=1, Max=5, Default=2.65, Step=0.5 }, Callback = function(v) local mf = Window.UIElements and Window.UIElements.Main; if mf then local rs = mf:FindFirstChild("RainbowStroke"); if rs then rs.Thickness = v end end end })
+SettingsTab:Slider({ Title = "圆角大小", Value = { Min=0, Max=20, Default=17 }, Callback = function(v) local mf = Window.UIElements and Window.UIElements.Main; if mf then local cr = mf:FindFirstChildOfClass("UICorner"); if not cr then cr = Instance.new("UICorner"); cr.Parent = mf end; cr.CornerRadius = UDim.new(0, v) end end })
+SettingsTab:Button({ Title = "随机颜色", Icon = "palette", Callback = function() local rand = colorSchemeNames[math.random(#colorSchemeNames)]; currentBorderColorScheme = rand; local mf = Window.UIElements and Window.UIElements.Main; if mf then local rs = mf:FindFirstChild("RainbowStroke"); if rs then local ge = rs:FindFirstChild("GlowEffect"); if ge and COLOR_SCHEMES[rand] then ge.Color = COLOR_SCHEMES[rand][1] end end end; WindUI:Notify({ Title="YG | 随机颜色", Content="已切换为: "..rand, Duration=2 }) end })
+
+-- 基础功能选项卡（包含所有瞄准相关）
+BasicTab:Section({ Title = "核心功能", Opened = true })
+BasicTab:Toggle({ Title = "子弹射线", Desc = "显示子弹轨迹", Value = STATE.Basic.BulletTracer, Callback = function(s) STATE.Basic.BulletTracer = s end })
+BasicTab:Toggle({ Title = "子弹追踪", Desc = "自动瞄准", Value = STATE.Basic.BulletTrack, Callback = toggleBulletTrack })
+BasicTab:Toggle({ Title = "自动开火", Desc = "自动开枪", Value = STATE.Basic.AutoFire, Callback = toggleAutoFire })
+BasicTab:Divider()
+BasicTab:Toggle({ Title = "自动转向", Desc = "角色面向目标", Value = STATE.Basic.AutoRotate, Callback = toggleAutoRotate })
+BasicTab:Divider()
+BasicTab:Toggle({ Title = "掩体判断", Desc = "只攻击可见目标", Value = STATE.Basic.CheckObstacles, Callback = function(s) STATE.Basic.CheckObstacles = s end })
+BasicTab:Toggle({ Title = "显示FOV圈", Desc = "显示瞄准范围", Value = STATE.Basic.ShowFOV, Callback = function(s) STATE.Basic.ShowFOV = s; if s then if not fovCircle then createFOVCircle() else fovCircle.Enabled = true end else if fovCircle then fovCircle.Enabled = false end end })
+BasicTab:Slider({ Title = "FOV大小", Value = { Min=30, Max=500, Default=STATE.Basic.FOV, Step=5 }, Callback = function(v) STATE.Basic.FOV = v; if fovCircle and fovCircle.FOVFrame then pcall(function() local d=v*2; fovCircle.FOVFrame.Size = UDim2.new(0,d,0,d); fovCircle.FOVFrame.Position = UDim2.new(0.5,-v,0.5,-v) end) end end })
+BasicTab:Divider()
+BasicTab:Toggle({ Title = "平滑追踪", Value = STATE.Basic.Smooth, Callback = function(s) STATE.Basic.Smooth = s end })
+BasicTab:Slider({ Title = "追踪速度", Value = { Min=100, Max=500, Default=STATE.Basic.Speed, Step=10 }, Callback = function(v) STATE.Basic.Speed = v end })
+BasicTab:Slider({ Title = "瞄准距离", Value = { Min=100, Max=5000, Default=STATE.Basic.Distance, Step=100 }, Callback = function(v) STATE.Basic.Distance = v end })
+BasicTab:Slider({ Title = "开火间隔(秒)", Value = { Min=0.01, Max=1, Default=STATE.Basic.FireInterval, Step=0.01 }, Callback = function(v) STATE.Basic.FireInterval = v end })
+BasicTab:Divider()
+BasicTab:Dropdown({ Title = "瞄准部位", Values = {"Head","HumanoidRootPart","Torso","UpperTorso","LowerTorso","LeftHand","RightHand"}, Value = STATE.Basic.AimPart, Multi = false, Callback = function(v) STATE.Basic.AimPart = v end })
+BasicTab:Input({ Title = "通用远程事件", Desc = "填入开火事件完整路径", Value = "", Callback = function(v) if v ~= "" then STATE.Basic.FireRemote = loadstring("return "..v)() end end })
+BasicTab:Divider()
+BasicTab:Section({ Title = "追踪增强", Opened = true })
+BasicTab:Toggle({ Title = "目标预测", Desc = "根据移动预判", Value = STATE.Basic.Prediction.Enabled, Callback = function(s) STATE.Basic.Prediction.Enabled = s end })
+BasicTab:Slider({ Title = "预测时间(秒)", Value = { Min=0.01, Max=0.5, Default=STATE.Basic.Prediction.Time, Step=0.01 }, Callback = function(v) STATE.Basic.Prediction.Time = v end })
+BasicTab:Toggle({ Title = "开火确认", Desc = "开火前再次检查", Value = STATE.Basic.FireConfirm, Callback = function(s) STATE.Basic.FireConfirm = s end })
+
+-- ESP选项卡（华丽ESP）
+local function setupESPTab()
+    local espSection = ESPTab:Section({ Title = "ESP总控制", Opened = true })
+    espSection:Toggle({ Title = "启用ESP", Value = STATE.ESP.Enabled, Callback = function(s) STATE.ESP.Enabled = s; ESPManager:SetEnabled(s) end })
+    espSection:Divider()
+    espSection:Toggle({ Title = "队伍检测", Value = STATE.ESP.TeamCheck, Callback = function(s) STATE.ESP.TeamCheck = s end })
+    espSection:Slider({ Title = "最大距离", Value = { Min=50, Max=500, Default=STATE.ESP.MaxDistance, Step=10 }, Callback = function(v) STATE.ESP.MaxDistance = v end })
+    espSection:Slider({ Title = "字体大小", Value = { Min=8, Max=20, Default=STATE.ESP.FontSize, Step=1 }, Callback = function(v) STATE.ESP.FontSize = v end })
+
+    local fadeSection = ESPTab:Section({ Title = "淡出效果", Opened = true })
+    fadeSection:Toggle({ Title = "距离淡出", Value = STATE.ESP.FadeOut.OnDistance, Callback = function(s) STATE.ESP.FadeOut.OnDistance = s end })
+    fadeSection:Toggle({ Title = "死亡淡出", Value = STATE.ESP.FadeOut.OnDeath, Callback = function(s) STATE.ESP.FadeOut.OnDeath = s end })
+    fadeSection:Toggle({ Title = "离开淡出", Value = STATE.ESP.FadeOut.OnLeave, Callback = function(s) STATE.ESP.FadeOut.OnLeave = s end })
+
+    local friendSection = ESPTab:Section({ Title = "好友标记", Opened = true })
+    friendSection:Toggle({ Title = "启用好友检测", Value = STATE.ESP.Options.Friendcheck, Callback = function(s) STATE.ESP.Options.Friendcheck = s end })
+    friendSection:ColorPicker({ Title = "好友颜色", Value = STATE.ESP.Options.FriendcheckRGB, Callback = function(c) STATE.ESP.Options.FriendcheckRGB = c end })
+
+    -- Chams
+    local chamsSection = ESPTab:Section({ Title = "Chams", Opened = true })
+    chamsSection:Toggle({ Title = "启用Chams", Value = STATE.ESP.Drawing.Chams.Enabled, Callback = function(s) STATE.ESP.Drawing.Chams.Enabled = s end })
+    chamsSection:Toggle({ Title = "呼吸效果", Value = STATE.ESP.Drawing.Chams.Thermal, Callback = function(s) STATE.ESP.Drawing.Chams.Thermal = s end })
+    chamsSection:ColorPicker({ Title = "填充颜色", Value = STATE.ESP.Drawing.Chams.FillRGB, Callback = function(c) STATE.ESP.Drawing.Chams.FillRGB = c end })
+    chamsSection:Slider({ Title = "填充透明度(%)", Value = { Min=0, Max=100, Default=STATE.ESP.Drawing.Chams.Fill_Transparency, Step=5 }, Callback = function(v) STATE.ESP.Drawing.Chams.Fill_Transparency = v end })
+    chamsSection:ColorPicker({ Title = "描边颜色", Value = STATE.ESP.Drawing.Chams.OutlineRGB, Callback = function(c) STATE.ESP.Drawing.Chams.OutlineRGB = c end })
+    chamsSection:Slider({ Title = "描边透明度(%)", Value = { Min=0, Max=100, Default=STATE.ESP.Drawing.Chams.Outline_Transparency, Step=5 }, Callback = function(v) STATE.ESP.Drawing.Chams.Outline_Transparency = v end })
+    chamsSection:Toggle({ Title = "仅遮挡可见", Value = STATE.ESP.Drawing.Chams.VisibleCheck, Callback = function(s) STATE.ESP.Drawing.Chams.VisibleCheck = s end })
+
+    -- 名字
+    local nameSection = ESPTab:Section({ Title = "名字", Opened = true })
+    nameSection:Toggle({ Title = "显示名字", Value = STATE.ESP.Drawing.Names.Enabled, Callback = function(s) STATE.ESP.Drawing.Names.Enabled = s end })
+    nameSection:ColorPicker({ Title = "名字颜色", Value = STATE.ESP.Drawing.Names.RGB, Callback = function(c) STATE.ESP.Drawing.Names.RGB = c end })
+
+    -- 距离
+    local distSection = ESPTab:Section({ Title = "距离", Opened = true })
+    distSection:Toggle({ Title = "显示距离", Value = STATE.ESP.Drawing.Distances.Enabled, Callback = function(s) STATE.ESP.Drawing.Distances.Enabled = s end })
+    distSection:Dropdown({ Title = "位置", Values = {"Text","Bottom"}, Value = STATE.ESP.Drawing.Distances.Position, Multi = false, Callback = function(v) STATE.ESP.Drawing.Distances.Position = v end })
+    distSection:ColorPicker({ Title = "距离颜色", Value = STATE.ESP.Drawing.Distances.RGB, Callback = function(c) STATE.ESP.Drawing.Distances.RGB = c end })
+
+    -- 武器
+    local weaponSection = ESPTab:Section({ Title = "武器", Opened = true })
+    weaponSection:Toggle({ Title = "显示武器", Value = STATE.ESP.Drawing.Weapons.Enabled, Callback = function(s) STATE.ESP.Drawing.Weapons.Enabled = s end })
+    weaponSection:ColorPicker({ Title = "武器文字颜色", Value = STATE.ESP.Drawing.Weapons.WeaponTextRGB, Callback = function(c) STATE.ESP.Drawing.Weapons.WeaponTextRGB = c end })
+    weaponSection:Toggle({ Title = "渐变", Value = STATE.ESP.Drawing.Weapons.Gradient, Callback = function(s) STATE.ESP.Drawing.Weapons.Gradient = s end })
+    weaponSection:ColorPicker({ Title = "渐变颜色1", Value = STATE.ESP.Drawing.Weapons.GradientRGB1, Callback = function(c) STATE.ESP.Drawing.Weapons.GradientRGB1 = c end })
+    weaponSection:ColorPicker({ Title = "渐变颜色2", Value = STATE.ESP.Drawing.Weapons.GradientRGB2, Callback = function(c) STATE.ESP.Drawing.Weapons.GradientRGB2 = c end })
+
+    -- 血条
+    local healthSection = ESPTab:Section({ Title = "血条", Opened = true })
+    healthSection:Toggle({ Title = "显示血条", Value = STATE.ESP.Drawing.Healthbar.Enabled, Callback = function(s) STATE.ESP.Drawing.Healthbar.Enabled = s end })
+    healthSection:Toggle({ Title = "血量文字", Value = STATE.ESP.Drawing.Healthbar.HealthText, Callback = function(s) STATE.ESP.Drawing.Healthbar.HealthText = s end })
+    healthSection:Toggle({ Title = "动态颜色", Value = STATE.ESP.Drawing.Healthbar.Lerp, Callback = function(s) STATE.ESP.Drawing.Healthbar.Lerp = s end })
+    healthSection:ColorPicker({ Title = "文字颜色", Value = STATE.ESP.Drawing.Healthbar.HealthTextRGB, Callback = function(c) STATE.ESP.Drawing.Healthbar.HealthTextRGB = c end })
+    healthSection:Slider({ Title = "血条宽度", Value = { Min=1, Max=10, Default=STATE.ESP.Drawing.Healthbar.Width, Step=0.5 }, Callback = function(v) STATE.ESP.Drawing.Healthbar.Width = v end })
+    healthSection:Toggle({ Title = "渐变血条", Value = STATE.ESP.Drawing.Healthbar.Gradient, Callback = function(s) STATE.ESP.Drawing.Healthbar.Gradient = s end })
+    healthSection:ColorPicker({ Title = "渐变颜色1", Value = STATE.ESP.Drawing.Healthbar.GradientRGB1, Callback = function(c) STATE.ESP.Drawing.Healthbar.GradientRGB1 = c end })
+    healthSection:ColorPicker({ Title = "渐变颜色2", Value = STATE.ESP.Drawing.Healthbar.GradientRGB2, Callback = function(c) STATE.ESP.Drawing.Healthbar.GradientRGB2 = c end })
+    healthSection:ColorPicker({ Title = "渐变颜色3", Value = STATE.ESP.Drawing.Healthbar.GradientRGB3, Callback = function(c) STATE.ESP.Drawing.Healthbar.GradientRGB3 = c end })
+
+    -- 方框
+    local boxSection = ESPTab:Section({ Title = "方框", Opened = true })
+    boxSection:Toggle({ Title = "显示完整方框", Value = STATE.ESP.Drawing.Boxes.Full.Enabled, Callback = function(s) STATE.ESP.Drawing.Boxes.Full.Enabled = s end })
+    boxSection:ColorPicker({ Title = "方框颜色", Value = STATE.ESP.Drawing.Boxes.Full.RGB, Callback = function(c) STATE.ESP.Drawing.Boxes.Full.RGB = c end })
+    boxSection:Toggle({ Title = "显示填充", Value = STATE.ESP.Drawing.Boxes.Filled.Enabled, Callback = function(s) STATE.ESP.Drawing.Boxes.Filled.Enabled = s end })
+    boxSection:Slider({ Title = "填充透明度", Value = { Min=0, Max=1, Default=STATE.ESP.Drawing.Boxes.Filled.Transparency, Step=0.05 }, Callback = function(v) STATE.ESP.Drawing.Boxes.Filled.Transparency = v end })
+    boxSection:ColorPicker({ Title = "填充颜色", Value = STATE.ESP.Drawing.Boxes.Filled.RGB, Callback = function(c) STATE.ESP.Drawing.Boxes.Filled.RGB = c end })
+    boxSection:Toggle({ Title = "显示角框", Value = STATE.ESP.Drawing.Boxes.Corner.Enabled, Callback = function(s) STATE.ESP.Drawing.Boxes.Corner.Enabled = s end })
+    boxSection:ColorPicker({ Title = "角框颜色", Value = STATE.ESP.Drawing.Boxes.Corner.RGB, Callback = function(c) STATE.ESP.Drawing.Boxes.Corner.RGB = c end })
+    boxSection:Toggle({ Title = "动画框", Value = STATE.ESP.Drawing.Boxes.Animate, Callback = function(s) STATE.ESP.Drawing.Boxes.Animate = s end })
+    boxSection:Slider({ Title = "动画速度", Value = { Min=100, Max=500, Default=STATE.ESP.Drawing.Boxes.RotationSpeed, Step=10 }, Callback = function(v) STATE.ESP.Drawing.Boxes.RotationSpeed = v end })
+    boxSection:Toggle({ Title = "渐变描边", Value = STATE.ESP.Drawing.Boxes.Gradient, Callback = function(s) STATE.ESP.Drawing.Boxes.Gradient = s end })
+    boxSection:ColorPicker({ Title = "描边渐变1", Value = STATE.ESP.Drawing.Boxes.GradientRGB1, Callback = function(c) STATE.ESP.Drawing.Boxes.GradientRGB1 = c end })
+    boxSection:ColorPicker({ Title = "描边渐变2", Value = STATE.ESP.Drawing.Boxes.GradientRGB2, Callback = function(c) STATE.ESP.Drawing.Boxes.GradientRGB2 = c end })
+    boxSection:Toggle({ Title = "填充渐变", Value = STATE.ESP.Drawing.Boxes.GradientFill, Callback = function(s) STATE.ESP.Drawing.Boxes.GradientFill = s end })
+    boxSection:ColorPicker({ Title = "填充渐变1", Value = STATE.ESP.Drawing.Boxes.GradientFillRGB1, Callback = function(c) STATE.ESP.Drawing.Boxes.GradientFillRGB1 = c end })
+    boxSection:ColorPicker({ Title = "填充渐变2", Value = STATE.ESP.Drawing.Boxes.GradientFillRGB2, Callback = function(c) STATE.ESP.Drawing.Boxes.GradientFillRGB2 = c end })
+end
+setupESPTab()
+
+-- 高级模式选项卡
+AdvancedTab:Section({ Title = "专用模式", Opened = true })
+AdvancedTab:Paragraph({ Title = "说明", Desc = "开启后自动适配特定游戏，使用专用开火事件和高级特效", Image = "info", ImageSize = 16 })
+AdvancedTab:Toggle({ Title = "启用高级模式", Value = STATE.Basic.AdvancedMode, Callback = toggleAdvancedMode })
+AdvancedTab:Divider()
+AdvancedTab:Paragraph({ Title = "状态", Desc = "若自动获取失败，请手动填入下方远程事件", Image = "eye", ImageSize = 16 })
+AdvancedTab:Input({ Title = "专用远程事件", Desc = "例如: game:GetService('ReplicatedStorage').Remotes.Replication.Fighter.UseItem", Value = "", Callback = function(v) if v ~= "" then AdvancedFireRemote = loadstring("return "..v)() end end })
+
+-- 关于选项卡
+AboutTab:Paragraph({ Title = "YG Ragebot 豪华版", Desc = "版本: 2.5.0\n作者: YG团队\n\n整合华丽ESP系统\n支持目标预测、高级开火", Image = "award", ImageSize = 32, Color = "Orange" })
+
+-- ========== 初始化 ==========
+if STATE.Basic.AdvancedMode then toggleAdvancedMode(true) end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if STATE.Basic.BulletTrack then toggleBulletTrack(true) end
+    if STATE.Basic.AutoFire then toggleAutoFire(true) end
+    if STATE.Basic.AutoRotate then toggleAutoRotate(true) end
+    if STATE.ESP.Enabled then ESPManager:Start() end
+end)
+
+Window:OnClose(function() end)
+
+WindUI:Notify({ Title = "YG 竞争对手", Content = "加载成功", Duration = 2 })
