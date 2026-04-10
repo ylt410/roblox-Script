@@ -2797,13 +2797,12 @@ MainTab:Button({
 end
 })
 local TabAttr = Window:Tab({
-    Title = "属性修改",
+    Title = "玩家功能",
     Icon = "zap",
     Locked = false,
 })
 
 -- ================= 速度 =================
-
 TabAttr:Toggle({
     Title = "开启速度修改",
     Default = false,
@@ -2823,21 +2822,25 @@ TabAttr:Toggle({
     end
 })
 
-TabAttr:Slider({
+TabAttr:Input({
     Title = "速度数值",
-    Value = {
-        Min = 0,
-        Max = 400,
-        Default = 16,
-    },
-    Increment = 1,
+    Desc = "请输入 0 - 400 之间的数值",
+    Placeholder = "默认 16",
     Callback = function(value)
-        TargetWalkSpeed = value
+        -- 将输入的字符串转换为数字
+        local numValue = tonumber(value)
+        
+        if numValue then
+            -- 限制数值范围（可选，为了防止数值过大导致崩溃）
+            numValue = math.clamp(numValue, 0, 400)
+            TargetWalkSpeed = numValue
 
-        if SpeedEnabled then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed = value
+            if SpeedEnabled then
+                local char = game:GetService("Players").LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.WalkSpeed = numValue
+                end
             end
         end
     end
@@ -2885,9 +2888,7 @@ TabAttr:Input({
         if num then
             num = math.clamp(num, 0, 200) -- ⭐限制范围
             Speed = num
-        else
-            Notify("输入错误", "请输入数字", 2, "error")
-        end
+               end
 
     end
 })
