@@ -4600,6 +4600,15 @@ TabAb:Button({
         end)
    end
 })
+TabAb:Button({
+    Title = "子弹追踪（非常牛逼）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/子追"))()
+        end)
+   end
+})
+
 
 
 
