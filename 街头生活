@@ -1,0 +1,221 @@
+-- =================== 街头生活重制版（完整版） ===================
+
+local StreetModule = {
+    Enabled = false,
+    AutoReload = false,
+    AutoTarget = false,
+    TeamCheck = false,
+    Loop = nil
+}
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage.Modules.GunFramework.Remotes
+
+local ReloadRemote = Remotes:WaitForChild("Reload")
+local UpdateRemote = Remotes:WaitForChild("Update")
+
+local ShootRemote = nil
+for _, v in pairs(Remotes:GetChildren()) do
+    if string.match(v.Name, "^%x%x%x%x%x%x%x%x%-") then
+        ShootRemote = v
+        break
+    end
+end
+
+-- ================= 安全值 =================
+local function RefreshSecurityValues()
+
+    for _, v in pairs(getgc()) do
+        if type(v) == "function" and islclosure(v) then
+            local ups = debug.getupvalues(v)
+
+            if ups[3] == ShootRemote then
+                _G.G_Code = ups[4]
+                _G.G_Token = ups[6]
+                _G.G_Remote = ShootRemote
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+RefreshSecurityValues()
+
+UpdateRemote.OnClientEvent:Connect(function(mode, val)
+    if mode == "Token" then
+        _G.G_Token = val
+    end
+end)
+
+-- ================= 选人 =================
+local function getBestTarget()
+
+    local closestDist = math.huge
+    local targetHead = nil
+
+    for _, p in pairs(Players:GetPlayers()) do
+
+        if p ~= lp and p.Character and p.Character:FindFirstChild("Head") then
+
+            -- 队伍检测
+            if StreetModule.TeamCheck and p.Team == lp.Team then
+                continue
+            end
+
+            local char = p.Character
+
+            local safe = char:FindFirstChild("SafeField")
+            local ff = char:FindFirstChildOfClass("ForceField")
+
+            if not (safe and safe.Value == true) and not ff then
+
+                local head = char.Head
+                local dist = (head.Position - Camera.CFrame.Position).Magnitude
+
+                if dist < closestDist then
+                    closestDist = dist
+                    targetHead = head
+                end
+            end
+        end
+    end
+
+    return targetHead
+end
+
+-- ================= 补弹 =================
+local function HandleReload(tool)
+
+    local ammo = tool:GetAttribute("Ammo_Server")
+
+    if not ammo or ammo > 0 then return false end
+
+    if not StreetModule.AutoReload then return true end
+
+    game:GetService("ReplicatedStorage").Remotes.GunBuy:FireServer("Pistol Ammo",50)
+    ReloadRemote:FireServer()
+
+    local t = 0
+
+    while tool and tool.Parent and tool:GetAttribute("Ammo_Server") == 0 and t < 20 do
+        task.wait(0.1)
+        t += 1
+    end
+
+    return true
+end
+
+-- ================= 射击 =================
+local function shootOnce()
+
+    local char = lp.Character
+    if not char then return end
+
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    -- 防切枪 / 丢失
+    if not char:FindFirstChild(tool.Name) then return end
+
+    -- 补弹处理
+    if HandleReload(tool) then return end
+
+    local gunId = tool:GetAttribute("Id")
+    if not gunId then return end
+
+    local target = StreetModule.AutoTarget and getBestTarget()
+    if not target then return end
+
+    -- Token失效自动修复
+    if not (_G.G_Code and _G.G_Token and _G.G_Remote) then
+        if not RefreshSecurityValues() then return end
+    end
+
+    local origin = Camera.CFrame.Position
+    local direction = (target.Position - origin).Unit
+
+    -- 双Remote打击
+    Remotes.Fire:FireServer(_G.G_Code, origin, direction)
+
+    _G.G_Remote:FireServer(
+        _G.G_Code,
+        gunId,
+        target,
+        direction,
+        nil,
+        _G.G_Token
+    )
+end
+
+-- ================= 主循环 =================
+local function EnableStreet()
+
+    if StreetModule.Loop then return end
+
+    StreetModule.Enabled = true
+
+    StreetModule.Loop = task.spawn(function()
+
+        while StreetModule.Enabled do
+
+            pcall(shootOnce)
+
+            -- ⭐随机延迟（防检测）
+            task.wait(math.random(5,10)/100)
+
+        end
+
+    end)
+end
+
+local function DisableStreet()
+
+    StreetModule.Enabled = false
+
+    if StreetModule.Loop then
+        task.cancel(StreetModule.Loop)
+        StreetModule.Loop = nil
+    end
+end
+StreetTab:Toggle({
+    Title = "隔山打牛",
+    Default = false,
+    Callback = function(v)
+
+        if v then
+            EnableStreet()
+            AddFeature("隔山打牛")
+        else
+            DisableStreet()
+            RemoveFeature("隔山打牛")
+        end
+
+    end
+})
+StreetTab:Toggle({
+    Title = "自动补弹",
+    Default = true,
+    Callback = function(v)
+        StreetModule.AutoReload = v
+    end
+})
+StreetTab:Toggle({
+    Title = "自动锁头",
+    Default = true,
+    Callback = function(v)
+        StreetModule.AutoTarget = v
+    end
+})
+StreetTab:Toggle({
+    Title = "队伍过滤",
+    Default = false,
+    Callback = function(v)
+        StreetModule.TeamCheck = v
+    end
+})
