@@ -2925,6 +2925,62 @@ LocalPlayer.CharacterAdded:Connect(function()
     if VisualModule.SuperNightVision then ApplySuperNightVision(true) end
     if VisualModule.NoFog then ApplyNoFog(true) end
 end)
+-- ================= 防摔落伤害2（平滑位移补偿） =================
+
+local AntiFall2Enabled = false
+local AntiFall2Connection = nil
+
+local function StartAntiFall2(character)
+
+    if AntiFall2Connection then
+        AntiFall2Connection:Disconnect()
+        AntiFall2Connection = nil
+    end
+
+    local root = character:WaitForChild("HumanoidRootPart")
+
+    local lastY = root.Position.Y
+    local CHECK_INTERVAL = 14
+
+    AntiFall2Connection = game:GetService("RunService").Heartbeat:Connect(function()
+
+        if not AntiFall2Enabled then return end
+        if not character.Parent then return end
+
+        local currentPosition = root.Position
+        local fallDistance = lastY - currentPosition.Y
+
+        -- 触发保护
+        if fallDistance >= CHECK_INTERVAL then
+
+            local currentVel = root.AssemblyLinearVelocity
+
+            -- ⭐核心补偿（防抖）
+            root.CFrame = root.CFrame * CFrame.new(0, -0.5, 0)
+
+            -- ⭐速度重置
+            root.AssemblyLinearVelocity = Vector3.new(currentVel.X, -10, currentVel.Z)
+
+            lastY = root.Position.Y
+        end
+
+        -- 上升时刷新安全高度
+        if currentPosition.Y > lastY then
+            lastY = currentPosition.Y
+        end
+
+    end)
+end
+
+-- 启动监听
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    StartAntiFall2(char)
+end)
+
+if game.Players.LocalPlayer.Character then
+    StartAntiFall2(game.Players.LocalPlayer.Character)
+end
 -- =================== 防摔落伤害模块 (新逻辑) ===================
 
 local AntiFallEnabled = false
@@ -3349,7 +3405,7 @@ TabOther:Slider({
         Freecam.Speed = value
     end
 })
--- ================= 杀戮光环 =================
+--[[ ================= 杀戮光环 =================
 
 TabOther:Toggle({
     Title = "杀戮光环",
@@ -3366,6 +3422,7 @@ TabOther:Toggle({
 
     end
 })
+]]
 
 -- ================= 防摔 =================
 
@@ -3385,7 +3442,22 @@ TabOther:Toggle({
     end
 })
 TabOther:Toggle({
-    Title = "瞬移工具",
+    Title = "防摔落伤害2（1没用再开）",
+    Default = false,
+    Callback = function(state)
+        AntiFall2Enabled = state
+
+        if state then
+            Notify("防摔落伤害2", "已开启", 3)
+            AddFeature("防摔落伤害2")
+        else
+            Notify("防摔落伤害2", "已关闭", 3)
+            RemoveFeature("防摔落伤害2")
+        end
+    end
+})
+TabOther:Toggle({
+    Title = "闪电尖兵大招",
     Default = false,
     Callback = function(v)
 
@@ -3726,7 +3798,7 @@ Tool.Activated:Connect(function()
     -- 从相机朝鼠标方向发射射线
     local unitRay = Camera:ScreenPointToRay(Mouse.X, Mouse.Y)
     local rayOrigin = unitRay.Origin
-    local rayDirection = unitRay.Direction * 5000 -- 距离可调
+    local rayDirection = unitRay.Direction * 100000 -- 距离可调
 
     local result = Workspace:Raycast(rayOrigin, rayDirection, params)
 
