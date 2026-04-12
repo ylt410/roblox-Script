@@ -252,6 +252,266 @@ local function Notify(title, content, duration, icon)
     end)
 
 end
+-- ================= 瞬移模块（可开关版）=================
+
+local TP_Module = {}
+local TP_Loaded = false
+
+function EnableTPUI()
+
+    -- 已创建 → 直接显示
+    if TP_Loaded then
+        if TP_Module.Gui then
+            TP_Module.Gui.Enabled = true
+        end
+        return
+    end
+
+    TP_Loaded = true
+
+    -- ================= 服务 =================
+    local Players = game:GetService("Players")
+    local UIS = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+    local Workspace = game:GetService("Workspace")
+
+    local LP = Players.LocalPlayer
+    local Camera = Workspace.CurrentCamera
+
+    -- ================= 状态 =================
+    local Mode = false
+    local Root, Hum
+
+    local OldCF, OldType
+    local FixedY = 0
+
+    local MoveInput = Vector2.zero
+    local TouchMove, TouchStart
+
+    local Speed = 3
+    local HeightSpeed = 4
+
+    -- ================= UI =================
+    local Gui = Instance.new("ScreenGui")
+    Gui.Parent = game.CoreGui
+    Gui.IgnoreGuiInset = true
+    Gui.Enabled = true
+
+    TP_Module.Gui = Gui -- ⭐关键保存
+
+    -- 主按钮
+    local Btn = Instance.new("TextButton", Gui)
+    Btn.Size = UDim2.new(0,80,0,40)
+    Btn.Position = UDim2.new(1,-90,0.35,0)
+    Btn.Text = "瞬移"
+    Btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Btn.TextColor3 = Color3.new(1,1,1)
+
+    -- 准心
+    local Cross = Instance.new("Frame", Gui)
+    Cross.Size = UDim2.new(0,8,0,8)
+    Cross.AnchorPoint = Vector2.new(0.5,0.5)
+    Cross.Position = UDim2.new(0.5,0,0.5,0)
+    Cross.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    Cross.Visible = false
+    Instance.new("UICorner", Cross).CornerRadius = UDim.new(1,0)
+
+    -- 上按钮
+    local UpBtn = Instance.new("TextButton", Gui)
+    UpBtn.Size = UDim2.new(0,60,0,60)
+    UpBtn.Position = UDim2.new(1,-80,0.7,-70)
+    UpBtn.Text = "↑"
+    UpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    UpBtn.Visible = false
+
+    -- 下按钮
+    local DownBtn = Instance.new("TextButton", Gui)
+    DownBtn.Size = UDim2.new(0,60,0,60)
+    DownBtn.Position = UDim2.new(1,-80,0.7,10)
+    DownBtn.Text = "↓"
+    DownBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    DownBtn.Visible = false
+
+    -- ================= 跳跃按钮 =================
+    local JumpButton = nil
+
+    local function HideJump()
+        local gui = LP:FindFirstChild("PlayerGui")
+        if not gui then return end
+        for _,v in pairs(gui:GetDescendants()) do
+            if v:IsA("ImageButton") and v.Name == "JumpButton" then
+                JumpButton = v
+                v.Visible = false
+            end
+        end
+    end
+
+    local function ShowJump()
+        if JumpButton then
+            JumpButton.Visible = true
+        end
+    end
+
+    -- ================= 核心 =================
+    local function LockChar()
+        local char = LP.Character
+        if not char then return end
+        Root = char:FindFirstChild("HumanoidRootPart")
+        Hum = char:FindFirstChildOfClass("Humanoid")
+
+        if Root then Root.Anchored = true end
+        if Hum then
+            Hum.AutoRotate = false
+            Hum.PlatformStand = true
+        end
+    end
+
+    local function UnlockChar()
+        if Root then Root.Anchored = false end
+        if Hum then
+            Hum.AutoRotate = true
+            Hum.PlatformStand = false
+        end
+    end
+
+    local function Enter()
+        local char = LP.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        OldCF = Camera.CFrame
+        OldType = Camera.CameraType
+
+        Camera.CameraType = Enum.CameraType.Scriptable
+        FixedY = root.Position.Y + 150
+
+        Camera.CFrame =
+            CFrame.new(root.Position + Vector3.new(0,150,0))
+            * CFrame.Angles(math.rad(-90), 0, 0)
+
+        LockChar()
+        Cross.Visible = true
+        UpBtn.Visible = true
+        DownBtn.Visible = true
+        HideJump()
+    end
+
+    local function Exit()
+        UnlockChar()
+        Camera.CameraType = OldType or Enum.CameraType.Custom
+        if OldCF then Camera.CFrame = OldCF end
+        Cross.Visible = false
+
+        UpBtn.Visible = false
+        DownBtn.Visible = false
+        ShowJump()
+    end
+
+    -- ================= 相机 =================
+    RunService.RenderStepped:Connect(function()
+        if not Mode then return end
+
+        local move = Vector3.new(MoveInput.X, 0, MoveInput.Y) * Speed
+        local pos = Camera.CFrame.Position + move
+
+        Camera.CFrame =
+            CFrame.new(Vector3.new(pos.X, FixedY, pos.Z))
+            * CFrame.Angles(math.rad(-90), 0, 0)
+    end)
+
+    -- 高度
+    local UpHolding = false
+    local DownHolding = false
+
+    UpBtn.MouseButton1Down:Connect(function() UpHolding = true end)
+    UpBtn.MouseButton1Up:Connect(function() UpHolding = false end)
+    DownBtn.MouseButton1Down:Connect(function() DownHolding = true end)
+    DownBtn.MouseButton1Up:Connect(function() DownHolding = false end)
+
+    RunService.RenderStepped:Connect(function()
+        if not Mode then return end
+        if UpHolding then FixedY += HeightSpeed end
+        if DownHolding then FixedY -= HeightSpeed end
+    end)
+
+    -- 摇杆
+    UIS.TouchStarted:Connect(function(t)
+        if not Mode then return end
+        if t.Position.X < Camera.ViewportSize.X/2 then
+            TouchMove = t
+            TouchStart = t.Position
+        end
+    end)
+
+    UIS.TouchMoved:Connect(function(t)
+        if t ~= TouchMove then return end
+        local delta = t.Position - TouchStart
+        MoveInput = Vector2.new(
+            math.clamp(delta.X/50, -1, 1),
+            math.clamp(delta.Y/50, -1, 1)
+        )
+    end)
+
+    UIS.TouchEnded:Connect(function(t)
+        if t == TouchMove then
+            TouchMove = nil
+            MoveInput = Vector2.zero
+        end
+    end)
+
+    -- 射线
+    local function GetCenterRay()
+        local absPos = Cross.AbsolutePosition
+        local absSize = Cross.AbsoluteSize
+
+        local x = absPos.X + absSize.X/2
+        local y = absPos.Y + absSize.Y/2
+
+        local ray = Camera:ViewportPointToRay(x, y)
+
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LP.Character}
+
+        local result = Workspace:Raycast(
+            ray.Origin,
+            Vector3.new(0,-5000,0),
+            params
+        )
+
+        return result and result.Position or ray.Origin
+    end
+
+    local function TP()
+        if not Root then return end
+        local pos = GetCenterRay()
+        Root.Anchored = false
+        Root.CFrame = CFrame.new(pos + Vector3.new(0,3,0))
+    end
+
+    -- 按钮
+    Btn.MouseButton1Click:Connect(function()
+        if not Mode then
+            Mode = true
+            Btn.Text = "确认地点"
+            Btn.BackgroundColor3 = Color3.fromRGB(200,0,0)
+            Enter()
+        else
+            Mode = false
+            Btn.Text = "瞬移"
+            Btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            TP()
+            Exit()
+        end
+    end)
+
+end
+
+function DisableTPUI()
+    if TP_Module.Gui then
+        TP_Module.Gui.Enabled = false
+    end
+end
 -- ================= 主题注册 =================
 -- 🖤 BlackGold
 WindUI:AddTheme({
@@ -3124,7 +3384,21 @@ TabOther:Toggle({
 
     end
 })
+TabOther:Toggle({
+    Title = "瞬移工具",
+    Default = false,
+    Callback = function(v)
 
+        if v then
+            EnableTPUI()
+            AddFeature("瞬移")
+        else
+            DisableTPUI()
+            RemoveFeature("瞬移")
+        end
+
+    end
+})
 -- ================= 安全加载 =================
 
 local function SafeLoad(url, name)
