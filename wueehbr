@@ -10,7 +10,7 @@
 -- 作者抖音58873829421
 -- by 夜
 -- ================= 配置 =================
-local FILE_NAME = "save.txt"
+local FILE_NAME = "save1.txt"
 local BALL_COUNT = 14
 
 -- ================= 状态检测 =================
@@ -160,7 +160,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n\n主群已解封可以正常进入"
+    TextLabel.Text = "公告\n\n最近停更"
     TextLabel.Parent = Frame
 
     -- 按钮
@@ -254,12 +254,13 @@ local function Notify(title, content, duration, icon)
 end
 -- ================= 瞬移模块（可开关版）=================
 
+-- ================= 瞬移模块（稳定无跳跃冲突版）=================
+
 local TP_Module = {}
 local TP_Loaded = false
 
 function EnableTPUI()
 
-    -- 已创建 → 直接显示
     if TP_Loaded then
         if TP_Module.Gui then
             TP_Module.Gui.Enabled = true
@@ -297,7 +298,7 @@ function EnableTPUI()
     Gui.IgnoreGuiInset = true
     Gui.Enabled = true
 
-    TP_Module.Gui = Gui -- ⭐关键保存
+    TP_Module.Gui = Gui
 
     -- 主按钮
     local Btn = Instance.new("TextButton", Gui)
@@ -331,26 +332,6 @@ function EnableTPUI()
     DownBtn.Text = "↓"
     DownBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
     DownBtn.Visible = false
-
-    -- ================= 跳跃按钮 =================
-    local JumpButton = nil
-
-    local function HideJump()
-        local gui = LP:FindFirstChild("PlayerGui")
-        if not gui then return end
-        for _,v in pairs(gui:GetDescendants()) do
-            if v:IsA("ImageButton") and v.Name == "JumpButton" then
-                JumpButton = v
-                v.Visible = false
-            end
-        end
-    end
-
-    local function ShowJump()
-        if JumpButton then
-            JumpButton.Visible = true
-        end
-    end
 
     -- ================= 核心 =================
     local function LockChar()
@@ -393,18 +374,49 @@ function EnableTPUI()
         Cross.Visible = true
         UpBtn.Visible = true
         DownBtn.Visible = true
-        HideJump()
     end
 
     local function Exit()
+
+        -- ⭐重新获取（防重生）
+        local char = LP.Character
+        if char then
+            Root = char:FindFirstChild("HumanoidRootPart")
+            Hum = char:FindFirstChildOfClass("Humanoid")
+        end
+
         UnlockChar()
+
+        if Hum then
+            pcall(function()
+                Hum.PlatformStand = false
+                Hum.AutoRotate = true
+
+                Hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                Hum:ChangeState(Enum.HumanoidStateType.Running)
+
+                Hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                Hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+
+                if CustomJumpEnabled then
+                    Hum.UseJumpPower = true
+                    Hum.JumpPower = CustomJumpValue
+                    Hum.JumpHeight = CustomJumpValue * (7.2 / 50)
+                end
+            end)
+        end
+
+        -- ⭐防卡死
+        if Root and Root.Parent then
+            Root.Anchored = false
+        end
+
         Camera.CameraType = OldType or Enum.CameraType.Custom
         if OldCF then Camera.CFrame = OldCF end
-        Cross.Visible = false
 
+        Cross.Visible = false
         UpBtn.Visible = false
         DownBtn.Visible = false
-        ShowJump()
     end
 
     -- ================= 相机 =================
@@ -419,7 +431,7 @@ function EnableTPUI()
             * CFrame.Angles(math.rad(-90), 0, 0)
     end)
 
-    -- 高度
+    -- 高度控制
     local UpHolding = false
     local DownHolding = false
 
