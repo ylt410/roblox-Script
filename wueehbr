@@ -7,10 +7,10 @@
 ╚═══════════════════════════════════════════════╝
 ]]
 
--- 恭喜你找到了我的源码
+--恭喜你找到了我的源码
 -- by 夜
 -- ================= 配置 =================
-local FILE_NAME = "save1.txt"
+local FILE_NAME = "saveV1.2.txt"
 local BALL_COUNT = 14
 
 -- ================= 状态检测 =================
@@ -160,7 +160,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n\n最近停更"
+    TextLabel.Text = "公告\n\n已更新动作功能，目前作者随缘更新"
     TextLabel.Parent = Frame
 
     -- 按钮
@@ -3111,10 +3111,6 @@ local MainTab = Window:Tab({
         Locked = false,
     })
 
-MainTab:Paragraph({
-        Title = "夜脚本V1.1版本更新",
-        Desc = "更新了若干服务器功能\n一些新功能\n开启了新版wind UI界面\n优化了脚本\n实则没有优化😋\n增加了自动检测俄亥俄州并加载其他脚本", 
-    })
 MainTab:Paragraph({ Title="夜脚本主群", Desc ="1081045774" })
 MainTab:Button({
     Title = "复制QQ群",
@@ -3124,6 +3120,16 @@ MainTab:Button({
         end
 end
 })
+MainTab:Paragraph({
+        Title = "夜脚本V1.2版本更新",
+        Desc = "更新了动作功能\n虽然是bs那里借鉴的就是了", 
+    })
+
+MainTab:Paragraph({
+        Title = "夜脚本V1.1版本更新",
+        Desc = "更新了若干服务器功能\n一些新功能\n开启了新版wind UI界面\n优化了脚本\n实则没有优化😋\n增加了自动检测俄亥俄州并加载其他脚本", 
+    })
+
 local TabAttr = Window:Tab({
     Title = "玩家功能",
     Icon = "zap",
@@ -3834,7 +3840,6 @@ end)
         end
     end
 })
-
 
 local TabVisual = Window:Tab({
     Title = "透视功能",
@@ -4968,7 +4973,148 @@ TabAb:Button({
    end
 })
 
+local TabFE = Window:Tab({
+    Title = "动作功能",
+    Icon = "eye",
+    Locked = false,
+})
 
+-- ===== 提示 =====
+TabFE:Paragraph({
+    Title = "提示",
+    Desc = "实测下面动作全部是别人可见但是如果那个人是新进来的人需要重新开动作他才会可见"
+})
+
+-- ===== 基础 =====
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local currentTrack = nil
+
+-- ===== 重生处理 =====
+player.CharacterAdded:Connect(function()
+    currentTrack = nil
+end)
+
+-- ===== 获取 Animator =====
+local function GetAnimator()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = humanoid
+    end
+
+    return animator
+end
+
+-- ===== 播放函数 =====
+local function PlayAnim(animId)
+    local animator = GetAnimator()
+
+    -- 停旧动画
+    if currentTrack then
+        currentTrack:Stop()
+        currentTrack:Destroy()
+        currentTrack = nil
+    end
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = animId
+
+    local track = animator:LoadAnimation(anim)
+    anim:Destroy()
+
+    track.Priority = Enum.AnimationPriority.Action
+    track.Looped = true
+    track:Play()
+
+    currentTrack = track
+end
+
+-- ===== 总关闭函数 =====
+local function StopAllAnim()
+    if currentTrack then
+        currentTrack:Stop()
+        currentTrack:Destroy()
+        currentTrack = nil
+    end
+
+    -- 兜底清理
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                    track:Stop()
+                end
+            end
+        end
+    end
+end
+
+-- ===== 总关闭按钮（在最上面）=====
+TabFE:Button({
+    Title = "关闭所有动作",
+    Callback = function()
+        StopAllAnim()
+    end
+})
+
+-- ===== 动作按钮（一个一个写）=====
+
+TabFE:Button({
+    Title = "环绕身体动作",
+    Callback = function()
+        PlayAnim("rbxassetid://109873544976020")
+    end
+})
+
+TabFE:Button({
+    Title = "无头",
+    Callback = function()
+        PlayAnim("rbxassetid://78837807518622")
+    end
+})
+
+TabFE:Button({
+    Title = "直升机",
+    Callback = function()
+        PlayAnim("rbxassetid://95301257497525")
+    end
+})
+
+TabFE:Button({
+    Title = "飞机",
+    Callback = function()
+        PlayAnim("rbxassetid://82135680487389")
+    end
+})
+
+TabFE:Button({
+    Title = "坦克",
+    Callback = function()
+        PlayAnim("rbxassetid://94915612757079")
+    end
+})
+
+TabFE:Button({
+    Title = "假死",
+    Callback = function()
+        PlayAnim("rbxassetid://88130117312312")
+    end
+})
+
+TabFE:Button({
+    Title = "投降",
+    Callback = function()
+        PlayAnim("rbxassetid://100537772865440")
+    end
+})
 
 
 -- ================= 终止 =================
