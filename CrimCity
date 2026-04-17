@@ -1,5 +1,4 @@
 --lyy开源
-repeat task.wait() until game:IsLoaded()
 function gradient(text, startColor, endColor)
     local result = ""
     local chars = {}
@@ -75,7 +74,6 @@ spawn(function()
     createRainbowBorder(Window)
     startBorderAnimation(Window)
 end)
-
 Window:SetToggleKey(Enum.KeyCode.F, true)
 
 local borderEnabled = true
