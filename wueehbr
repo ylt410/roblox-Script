@@ -10,6 +10,7 @@
 --恭喜你找到了我的源码
 -- by 夜
 -- ================= 配置 =================
+local Players = game:GetService("Players")
 local FILE_NAME = "saveV1.2.txt"
 local BALL_COUNT = 14
 
@@ -271,7 +272,6 @@ function EnableTPUI()
     TP_Loaded = true
 
     -- ================= 服务 =================
-    local Players = game:GetService("Players")
     local UIS = game:GetService("UserInputService")
     local RunService = game:GetService("RunService")
     local Workspace = game:GetService("Workspace")
@@ -703,7 +703,6 @@ pcall(function()
 end)
 
 -- =================== UI版FOV圈 ===================
-local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local screenGui = Instance.new("ScreenGui")
@@ -795,8 +794,6 @@ local ThirdPersonUnlock = {
     Enabled = false,
     Connection = nil
 }
-
-local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
@@ -1022,8 +1019,6 @@ local HealthDisplay = {
     Position = "LeftTop", -- ⭐默认左上角
     Label = nil
 }
-
-local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ================= 读取保存位置 =================
@@ -1884,7 +1879,6 @@ workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
     Camera = workspace.CurrentCamera
 end)
 local Lighting = game:GetService("Lighting")
-local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService") -- 确保有这行
 local LocalPlayer = Players.LocalPlayer
@@ -3645,9 +3639,6 @@ TabOther:Button({
     Callback = function()
         local ok, err = pcall(function()
 -- ================== 全GUI隐藏（可拖拽版） ==================
-
-local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
@@ -3788,7 +3779,6 @@ TabOther:Button({
     Callback = function()
         local ok, err = pcall(function()
 -- 服务
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 -- 玩家
@@ -4972,6 +4962,23 @@ TabAb:Button({
         end)
    end
 })
+TabAb:Button({
+    Title = "力量传奇（永爱  似乎没用）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/力量传奇"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "犯罪（加载时间较长）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/CrimCity"))()
+        end)
+   end
+})
+
 
 local TabFE = Window:Tab({
     Title = "动作功能",
@@ -4986,7 +4993,6 @@ TabFE:Paragraph({
 })
 
 -- ===== 基础 =====
-local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local currentTrack = nil
@@ -5115,8 +5121,143 @@ TabFE:Button({
         PlayAnim("rbxassetid://100537772865440")
     end
 })
+-- ================= 服务器传送（强化版） =================
 
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 
+local TargetUsername = ""
+
+local ServerTP_Tab = Window:Tab({
+    Title = "服务器传送",
+    Icon = "user"
+})
+
+-- 输入框
+ServerTP_Tab:Input({
+    Title = "目标用户名",
+    Placeholder = "输入玩家用户名",
+    Callback = function(text)
+        TargetUsername = text
+    end
+})
+
+-- ===== 多接口（提高成功率）=====
+local API_LIST = {
+    "https://presence.roproxy.com/v1/presence/users",
+    "https://presence.rprxy.xyz/v1/presence/users",
+    "https://presence.roblox.com/v1/presence/users"
+}
+
+-- ===== 查询函数 =====
+local function GetPresence(userId)
+
+    for _, url in ipairs(API_LIST) do
+
+        local ok, res = pcall(function()
+            return HttpService:RequestAsync({
+                Url = url,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode({
+                    userIds = {userId}
+                })
+            })
+        end)
+
+        if ok and res and res.StatusCode == 200 then
+
+            local data = HttpService:JSONDecode(res.Body)
+            local info = data.userPresences and data.userPresences[1]
+
+            if info then
+                return info
+            end
+        end
+
+    end
+
+    return nil
+end
+
+ServerTP_Tab:Button({
+    Title = "加入",
+    Callback = function()
+
+        if TargetUsername == "" then
+            Notify("错误", "请输入用户名", 3)
+            return
+        end
+
+        local success, userId = pcall(function()
+            return Players:GetUserIdFromNameAsync(TargetUsername)
+        end)
+
+        if not success then
+            Notify("失败", "用户名不存在", 3)
+            return
+        end
+
+        Notify("提示", "正在查询玩家状态...", 2)
+
+        local info = GetPresence(userId)
+
+        if not info then
+            Notify("失败", "接口请求失败（网络/权限被拦）", 4)
+            return
+        end
+
+        -- ===== 状态详细判断 =====
+
+        if info.userPresenceType == 0 then
+            Notify("失败", "玩家离线", 4)
+            return
+
+        elseif info.userPresenceType == 1 then
+            Notify("失败", "玩家在线但未进入游戏", 4)
+            return
+
+        elseif info.userPresenceType == 3 then
+            Notify("失败", "玩家在 Studio 中", 4)
+            return
+        end
+
+        -- ===== 到这里说明：在游戏中 =====
+
+        local placeId = info.placeId
+        local jobId = info.gameId
+
+        -- ===== 完整分支 =====
+
+        if placeId and jobId then
+            Notify("成功", "已获取服务器，正在加入", 3)
+
+            TeleportService:TeleportToPlaceInstance(
+                placeId,
+                jobId,
+                Players.LocalPlayer
+            )
+
+        elseif placeId and not jobId then
+            Notify("限制", "玩家开启隐私，无法定位服务器（进入同游戏）", 5)
+
+            TeleportService:Teleport(
+                placeId,
+                Players.LocalPlayer
+            )
+
+        elseif not placeId then
+            Notify("限制", "Roblox隐藏了玩家游戏信息，无法传送", 5)
+
+        else
+            Notify("失败", "未知错误（数据异常）", 4)
+        end
+
+    end
+})
 -- ================= 终止 =================
 local TabStop = Window:Tab({
     Title = "终止",
