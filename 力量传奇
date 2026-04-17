@@ -16,32 +16,6 @@ local gradientColors = {
     "rgb(205, 100, 200)"
 }
 
-local username = game.Players.LocalPlayer.Name
-local coloredUsername = ""
-for i = 1, #username do
-    local colorIndex = (i - 1) % #gradientColors + 1
-    coloredUsername = coloredUsername .. '<font color="' .. gradientColors[colorIndex] .. '">' .. username:sub(i, i) .. '</font>'
-end
-
-local version = "v1.2.4"
-local coloredVersion = ""
-for i = 1, #version do
-    local colorIndex = (i - 1) % #gradientColors + 1
-    coloredVersion = coloredVersion .. '<font color="' .. gradientColors[colorIndex] .. '">' .. version:sub(i, i) .. '</font>'
-end
-
-spawn(function()
-    while true do
-        for hue = 0, 1, 0.01 do  
-            local color = Color3.fromHSV(hue, 0.8, 1)  
-            Window:EditOpenButton({
-                Color = ColorSequence.new(color)
-            })
-            wait(0.04)  
-        end
-    end
-end)
-
 local LockSection = Window:Section({
     Title = "公告",
     Opened = true,
