@@ -18,6 +18,9 @@ task.delay(10, function()
         sound:Destroy()
     end
 end)
+
+-- WindUI加载
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -70,6 +73,20 @@ uiPosition = UDim2.new(0.5, 0, 0.5, 0)
 
 WindUI.TransparencyValue = 0.15
 
+WindUI:AddTheme({
+    Name = "CyberBlue",
+    Accent = "#18181b",
+    Dialog = "#18181b",
+    Outline = "#FFFFFF",
+    Text = "#FFFFFF",
+    Placeholder = "#000000",
+    Background = "#0e0e10",
+    Button = "#52525b",
+    Icon = "#00f7ff"
+})
+
+WindUI:SetTheme("CyberBlue")
+
 local playerName = LocalPlayer.Name
 local displayName = LocalPlayer.DisplayName
 
@@ -84,6 +101,61 @@ WindUI:Notify({
     Content = "V2是新做的，后面会增加服务器功能和自制功能",
     Duration = 2
 })
+
+-- 创建主窗口
+local XiaoDi = WindUI:CreateWindow({
+    Title = "DM v2死铁轨",
+    Icon = "rbxassetid:/",
+    Author = "主作者：屑冬某",
+    Folder = "迪脚本",
+    Size = uiSize,
+    Position = uiPosition,
+    Theme = "CyberBlue",
+    Background = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromHex("#1a1a1a"), Transparency = 0 },
+        ["50"] = { Color = Color3.fromHex("#2c3e50"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }
+    }, { Rotation = 150 }),
+    Transparent = true,
+    HideSearchBar = false,
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Username = playerName,
+        DisplayName = displayName,
+        UserId = LocalPlayer.UserId,
+        ThumbnailType = "AvatarBust",
+        Callback = function()
+            WindUI:Notify({
+                Title = "用户信息",
+                Content = "玩家:" .. LocalPlayer.Name,
+                Duration = 3
+            })
+        end
+    },
+    SideBarWidth = deviceType == "手机" and 150 or 180,
+    ScrollBarEnabled = true,
+    CornerRadius = UDim.new(0, 14),
+    DropShadow = true
+})
+
+-- 主题切换按钮
+XiaoDi:CreateTopbarButton("theme-switcher", "moon", function()
+    WindUI:SetTheme(WindUI:GetCurrentTheme() == "CyberBlue" and "Dark" or "CyberBlue")
+    WindUI:Notify({
+        Title = "提示",
+        Content = "当前主题: "..WindUI:GetCurrentTheme(),
+        Duration = 2
+    })
+end, 990)
+
+XiaoDi:EditOpenButton({
+    Title = "打开DM脚本v2",
+    Icon = "rbxassetid://",
+})
+
+XiaoDi:SetToggleKey(Enum.KeyCode.N)
+
 -- 创建区域
 local FengYu = {
     us = XiaoDi:Section({ Title = "脚本信息", Opened = false, Icon = "user"}),
