@@ -4923,7 +4923,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "战争大亨（alienx）有些功能不可用，但是作者是不可能修的😋",
+    Title = "战争大亨（alienx）（⚠️部分功能不可用）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/战争大亨"))()
@@ -4947,7 +4947,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "L&C（这个虽然没有源码但是真的特别牛逼必须缝合，第一次加载会久一点）",
+    Title = "L&C（✅独立脚本）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/XOTRXONY/AUREATE/main/lc.lua"))()
@@ -4955,7 +4955,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "子弹追踪（非常牛逼）",
+    Title = "子弹追踪（✅非常牛逼）（⚠️独立脚本）（⚠️不完全通用）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/子追"))()
@@ -4963,7 +4963,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "力量传奇（永爱  似乎没用）",
+    Title = "力量传奇（永爱）（❌不可用）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/力量传奇"))()
@@ -4971,7 +4971,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "犯罪（加载时间较长）",
+    Title = "犯罪（⚠️加载时间较长）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/CrimCity"))()
@@ -4979,7 +4979,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "死铁轨（迪脚本）（独立脚本）",
+    Title = "死铁轨（迪脚本）（⚠️独立脚本）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/死铁轨"))()
@@ -4988,7 +4988,7 @@ TabAb:Button({
 })
 
 TabAb:Button({
-    Title = "99夜2（xi）（比上面那个牛逼）",
+    Title = "99夜2（xi）（✅比上面那个牛逼）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/99夜2"))()
@@ -4996,17 +4996,25 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "死铁轨（不知道是谁的）（独立脚本）",
+    Title = "死铁轨（不知道是谁的）（⚠️独立脚本）（⚠️未测试不保证可用）",
     Callback = function()
         local ok, err = pcall(function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/iopjklbnmsss/SansHubScript/refs/heads/main/SansHub"))()        end)
    end
 })
 TabAb:Button({
-    Title = "刀刃球（小迪）（独立脚本）",
+    Title = "刀刃球（迪脚本）（⚠️独立脚本）",
     Callback = function()
         local ok, err = pcall(function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/刀刃球"))()        
+end)
+   end
+})
+TabAb:Button({
+    Title = "被遗弃（OPAI团队）（⚠️独立脚本）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/被遗弃"))()        
 end)
    end
 })
