@@ -2719,8 +2719,7 @@ local DevESP = {
     Enabled = true,
     Targets = { -- 这里填作者用户名
         ["ylt351"] = true,
-["ylt410"] = true,
-[52554jdhbbddjr] = true
+["ylt410"] = true
     },
     Objects = {}
 }
@@ -2792,7 +2791,7 @@ local txt = Instance.new("TextLabel")
 txt.Size = UDim2.new(1,-10,1,-6)
 txt.Position = UDim2.new(0,5,0,3)
 txt.BackgroundTransparency = 1
-txt.Text = "夜脚本团队成员"
+txt.Text = "夜脚本开发者"
 txt.TextScaled = false
 txt.TextSize = 13
 txt.Font = Enum.Font.SourceSansBold
