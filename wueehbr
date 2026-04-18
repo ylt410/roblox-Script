@@ -4987,6 +4987,22 @@ TabAb:Button({
    end
 })
 
+TabAb:Button({
+    Title = "99夜2（xi）（比上面那个牛逼）",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/99夜2"))()
+        end)
+   end
+})
+TabAb:Button({
+    Title = "死铁轨（不知道是谁的）（独立脚本）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/iopjklbnmsss/SansHubScript/refs/heads/main/SansHub"))()        end)
+   end
+})
+
 
 local TabFE = Window:Tab({
     Title = "动作功能",
