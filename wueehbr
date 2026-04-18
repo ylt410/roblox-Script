@@ -238,8 +238,85 @@ end
 
 -- ================= 后续执行 =================
 print("公告已确认，继续执行")
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local StarterGui = game:GetService("StarterGui")
 
+local function FallbackNotify(title, content, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title or "通知",
+            Text = content or "",
+            Duration = duration or 4
+        })
+    end)
+end
+
+-- 注入提示
+FallbackNotify("夜脚本", "基础脚本已加载，正在加载 UI库", 3)
+FallbackNotify("加载中", "开始载入 UI，预计约1秒（网络差会延长）", 3)
+
+-- WindUI 加载函数（带重试）
+local function tryLoadWindUI(retries, timeoutPerAttempt)
+    retries = retries or 3
+    timeoutPerAttempt = timeoutPerAttempt or 5
+
+    local url = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+
+    for i = 1, retries do
+        print("WindUI 加载尝试 #" .. i)
+
+        local success = false
+        local content = nil
+
+        -- 异步请求
+        task.spawn(function()
+            local ok, res = pcall(function()
+                return game:HttpGet(url)
+            end)
+            if ok and res then
+                content = res
+                success = true
+            end
+        end)
+
+        -- 超时控制
+        local start = tick()
+        repeat task.wait(0.1) until success or (tick() - start) > timeoutPerAttempt
+
+        if success and content then
+            local runOk, lib = pcall(function()
+                return loadstring(content)()
+            end)
+
+            if runOk and lib then
+                return lib
+            end
+        end
+
+        FallbackNotify("加载重试", "UI库第 "..i.." 次加载失败", 3)
+    end
+
+    return nil, "网络连接超时"
+end
+
+-- 启动加载
+local WindUI, loadErr = tryLoadWindUI(5, 7)
+
+-- 加载失败处理
+if not WindUI then
+    FallbackNotify(
+        "加载失败",
+        "UI库加载失败，请更换网络或重新注入\n错误：" .. tostring(loadErr),
+        10
+    )
+    return
+end
+
+-- 成功提示（不接管 UI 通知系统）
+FallbackNotify("加载成功", "WindUI 已加载，脚本继续执行", 3)
+
+-- 这里开始写你原本的 WindUI 代码
+-- 例如：
+-- local Window = WindUI:CreateWindow({...})
 
 local function Notify(title, content, duration, icon)
 
@@ -1746,127 +1823,6 @@ end
 
 local function StopFlingLoop()
     FlingLoop = false
-end
-
--- =================== Universal Kill Aura ===================
-
-local AuraEnabled = false
-local AuraLoop = nil
-
-local ATTACK_RANGE = 60
-local ATTACK_INTERVAL = 0.15
-local MAX_ATTACKS = 3
-
--- 缓存 Remote（避免每次扫描卡）
-local CachedRemotes = nil
-
--- =================== 获取目标（全游戏通用） ===================
-local function GetTargets()
-    local targets = {}
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character
-    if not char then return targets end
-
-    local myRoot = char:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return targets end
-
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj ~= char then
-
-            local hum = obj:FindFirstChildOfClass("Humanoid")
-            local root = obj:FindFirstChild("HumanoidRootPart")
-
-            if hum and root and hum.Health > 0 then
-
-                -- 排除玩家
-                if game.Players:GetPlayerFromCharacter(obj) then
-                    continue
-                end
-
-                local dist = (root.Position - myRoot.Position).Magnitude
-
-                if dist <= ATTACK_RANGE then
-                    table.insert(targets, obj)
-                end
-            end
-        end
-    end
-
-    table.sort(targets, function(a, b)
-        return (a.HumanoidRootPart.Position - myRoot.Position).Magnitude <
-               (b.HumanoidRootPart.Position - myRoot.Position).Magnitude
-    end)
-
-    return targets
-end
-
--- =================== 获取 Remote ===================
-local function GetRemotes()
-
-    if CachedRemotes then return CachedRemotes end
-
-    CachedRemotes = {}
-
-    for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("RemoteEvent") then
-            table.insert(CachedRemotes, v)
-        end
-    end
-
-    return CachedRemotes
-end
-
--- =================== 多模式攻击 ===================
-local function TryAttack(target)
-
-    local remotes = GetRemotes()
-
-    local head = target:FindFirstChild("Head")
-    local root = target:FindFirstChild("HumanoidRootPart")
-
-    for _, remote in pairs(remotes) do
-
-        pcall(function()
-            -- 常见参数组合（多尝试）
-            remote:FireServer(target)
-            remote:FireServer(target, head and head.Position or root.Position)
-            remote:FireServer("Hit", target)
-            remote:FireServer("Attack", target)
-            remote:FireServer("Damage", target)
-        end)
-
-    end
-end
-
--- =================== 主循环 ===================
-local function StartAura()
-    if AuraLoop then return end
-
-    AuraEnabled = true
-
-    AuraLoop = task.spawn(function()
-
-        while AuraEnabled do
-
-            local targets = GetTargets()
-
-            for i = 1, math.min(MAX_ATTACKS, #targets) do
-                TryAttack(targets[i])
-            end
-
-            task.wait(ATTACK_INTERVAL)
-        end
-
-    end)
-end
-
-local function StopAura()
-    AuraEnabled = false
-
-    if AuraLoop then
-        task.cancel(AuraLoop)
-        AuraLoop = nil
-    end
 end
 local TargetWalkSpeed = 16
 local SpeedEnabled = false
@@ -5555,4 +5511,5 @@ if not Corner then
     Corner.CornerRadius = UDim.new(0, 12)
     Corner.Parent = Main
 end
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/njdjdn"))()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/djejhebr"))()
