@@ -5002,6 +5002,14 @@ TabAb:Button({
            loadstring(game:HttpGet("https://raw.githubusercontent.com/iopjklbnmsss/SansHubScript/refs/heads/main/SansHub"))()        end)
    end
 })
+TabAb:Button({
+    Title = "刀刃球（小迪）（独立脚本）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/刀刃球"))()        
+end)
+   end
+})
 
 
 local TabFE = Window:Tab({
