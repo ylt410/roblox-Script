@@ -4947,7 +4947,7 @@ TabAb:Button({
    end
 })
 TabAb:Button({
-    Title = "L&C（✅独立脚本）",
+    Title = "L&C（⚠️独立脚本）",
     Callback = function()
         local ok, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/XOTRXONY/AUREATE/main/lc.lua"))()
