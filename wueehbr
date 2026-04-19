@@ -9,7 +9,6 @@
 
 --恭喜你找到了我的源码
 -- by 夜
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/头衔"))()
 -- ================= 配置 =================
 local Players = game:GetService("Players")
 local FILE_NAME = "saveV1.2.txt"
