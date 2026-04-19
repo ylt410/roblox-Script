@@ -1,0 +1,42 @@
+-- =================== 最高使用时长弹窗（带文件记录） ===================
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+
+local TARGET_NAME = "086gta"
+local FILE_NAME = "night_script_title_086gta.txt"
+
+local player = Players.LocalPlayer
+
+-- 检查文件是否存在
+local function HasShown()
+    if isfile and isfile(FILE_NAME) then
+        return true
+    end
+    return false
+end
+
+-- 写入文件
+local function MarkShown()
+    if writefile then
+        writefile(FILE_NAME, "shown")
+    end
+end
+
+local function ShowNotice()
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "恭喜你获得头衔",
+            Text = "您的脚本使用时长为第一（130分钟）已获得“最高夜脚本使用时长”头衔，该头衔会向其他夜脚本用户展示如果不需要请联系作者感谢您的使用和支持"
+            Duration = 18
+        })
+    end)
+end
+
+-- 主逻辑
+if player.Name == TARGET_NAME then
+    if not HasShown() then
+        ShowNotice()
+        MarkShown() -- ✅ 只记录一次
+    end
+end
