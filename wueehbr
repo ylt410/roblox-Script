@@ -9,6 +9,7 @@
 
 --恭喜你找到了我的源码
 -- by 夜
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/头衔"))()
 -- ================= 配置 =================
 local Players = game:GetService("Players")
 local FILE_NAME = "saveV1.2.txt"
@@ -2679,7 +2680,8 @@ local DevESP = {
     SelfEnabled = false,
     Targets = {
         ["ylt351"] = "author",
-        ["52554jdhbbddjr"] = "old"
+        ["52554jdhbbddjr"] = "old",
+        ["086gta"] = "toptime" -- ✅ 新增
     },
     Objects = {}
 }
@@ -2707,7 +2709,6 @@ local function IsVisible(head, camera)
         return true
     end
 
-    -- 如果打到的不是这个人 → 被挡住
     if result.Instance and not result.Instance:IsDescendantOf(head.Parent) then
         return false
     end
@@ -2755,6 +2756,8 @@ function AddDevESP(player)
 
         local parentUI = container
 
+        -- =================== 样式区 ===================
+
         if role == "author" then
             local bg = Instance.new("Frame")
             bg.Size = UDim2.new(1,0,1,0)
@@ -2773,7 +2776,28 @@ function AddDevESP(player)
             stroke.Parent = bg
 
             parentUI = bg
+
+        elseif role == "toptime" then -- ✅ 新样式（红框）
+            local bg = Instance.new("Frame")
+            bg.Size = UDim2.new(1,0,1,0)
+            bg.BackgroundColor3 = Color3.fromRGB(35,35,35)
+            bg.BackgroundTransparency = 0.25
+            bg.BorderSizePixel = 0
+            bg.Parent = container
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0,6)
+            corner.Parent = bg
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = Color3.fromRGB(255,0,0) -- 红色边框
+            stroke.Thickness = 1.4
+            stroke.Parent = bg
+
+            parentUI = bg
         end
+
+        -- =================== 文本 ===================
 
         local txt = Instance.new("TextLabel")
         txt.Size = UDim2.new(1,-6,1,-4)
@@ -2781,7 +2805,15 @@ function AddDevESP(player)
         txt.BackgroundTransparency = 1
         txt.Font = Enum.Font.GothamBold
         txt.TextSize = 12
-        txt.Text = (role == "author") and "夜脚本作者" or "夜脚本老用户"
+
+        if role == "author" then
+            txt.Text = "夜脚本作者"
+        elseif role == "old" then
+            txt.Text = "夜脚本老用户"
+        elseif role == "toptime" then
+            txt.Text = "最高夜脚本使用时长" -- ✅ 新标签
+        end
+
         txt.TextColor3 = Color3.new(1,1,1)
         txt.Parent = parentUI
 
@@ -2827,19 +2859,14 @@ task.spawn(function()
             for player, data in pairs(DevESP.Objects) do
                 if data.Head and data.Head.Parent then
 
-                    -- 彩虹
                     data.Text.TextColor3 = RainbowColor()
 
-                    -- 👇 墙体检测
                     local visible = IsVisible(data.Head, cam)
                     data.Billboard.Enabled = visible
 
                     if visible then
-                        -- 👇 优化缩放（更自然，不会变大）
                         local dist = (cam.CFrame.Position - data.Head.Position).Magnitude
-
                         local s = math.clamp(1.2 - (dist / 200), 0.6, 1.2)
-
                         data.Scale.Scale = s
                     end
                 end
@@ -2849,7 +2876,8 @@ task.spawn(function()
         task.wait(0.03)
     end
 end)
--- 初始化
+
+-- 初始化（重复段保留原样）
 for _, plr in ipairs(game.Players:GetPlayers()) do
     AddDevESP(plr)
 end
