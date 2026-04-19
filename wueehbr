@@ -5078,7 +5078,7 @@ local TabFE = Window:Tab({
 -- ===== 提示 =====
 TabFE:Paragraph({
     Title = "提示",
-    Desc = "实测下面动作全部是别人可见但是如果那个人是新进来的人需要重新开动作他才会可见"
+    Desc = "实测下面动作全部是别人可见但是如果那个人是新进来的人需要重新开动作他才会可见\n所有动作来自bs源码，感谢bs脚本\n部分不可用是正常的，可能是动作代码被原作者删了"
 })
 
 -- ===== 基础 =====
@@ -5210,6 +5210,781 @@ TabFE:Button({
         PlayAnim("rbxassetid://100537772865440")
     end
 })
+TabFE:Button({
+    Title = "加州女孩",
+    Callback = function()
+        PlayAnim("rbxassetid://124982597491660")
+    end
+})
+TabFE:Button({
+    Title = "直升机",
+    Callback = function()
+        PlayAnim("rbxassetid://95301257497525")
+    end
+})
+TabFE:Button({
+    Title = "直升机2",
+    Callback = function()
+        PlayAnim("rbxassetid://122951149300674")
+    end
+})
+TabFE:Button({
+    Title = "直升机3",
+    Callback = function()
+        PlayAnim("rbxassetid://91257498644328")
+    end
+})
+TabFE:Button({
+    Title = "街头舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://108171959207138")
+    end
+})
+TabFE:Button({
+    Title = "街头跺脚",
+    Callback = function()
+        PlayAnim("rbxassetid://115048845533448")
+    end
+})
+TabFE:Button({
+    Title = "扑腾的鱼",
+    Callback = function()
+        PlayAnim("rbxassetid://79075971527754")
+    end
+})
+TabFE:Button({
+    Title = "江南Style",
+    Callback = function()
+        PlayAnim("rbxassetid://100531289776679")
+    end
+})
+TabFE:Button({
+    Title = "苹果糖舞",
+    Callback = function()
+        PlayAnim("rbxassetid://88315693621494")
+    end
+})
+TabFE:Button({
+    Title = "空中转圈",
+    Callback = function()
+        PlayAnim("rbxassetid://94324173536622")
+    end
+})
+TabFE:Button({
+    Title = "比心(左)",
+    Callback = function()
+        PlayAnim("rbxassetid://110936682778213")
+    end
+})
+TabFE:Button({
+    Title = "比心(右)",
+    Callback = function()
+        PlayAnim("rbxassetid://84671941093489")
+    end
+})
+TabFE:Button({
+    Title = "67",
+    Callback = function()
+        PlayAnim("rbxassetid://115439144505157")
+    end
+})
+TabFE:Button({
+    Title = "6",
+    Callback = function()
+        PlayAnim("rbxassetid://115439144505157")
+    end
+})
+TabFE:Button({
+    Title = "7",
+    Callback = function()
+        PlayAnim("rbxassetid://115439144505157")
+    end
+})
+TabFE:Button({
+    Title = "狗狗",
+    Callback = function()
+        PlayAnim("rbxassetid://78195344190486")
+    end
+})
+TabFE:Button({
+    Title = "MM2禅",
+    Callback = function()
+        PlayAnim("rbxassetid://86872878957632")
+    end
+})
+TabFE:Button({
+    Title = "默认舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://88455578674030")
+    end
+})
+TabFE:Button({
+    Title = "坐下",
+    Callback = function()
+        PlayAnim("rbxassetid://97185364700038")
+    end
+})
+TabFE:Button({
+    Title = "哥萨克踢",
+    Callback = function()
+        PlayAnim("rbxassetid://119264600441310")
+    end
+})
+TabFE:Button({
+    Title = "战斗姿态",
+    Callback = function()
+        PlayAnim("rbxassetid://116763940575803")
+    end
+})
+TabFE:Button({
+    Title = "你是谁",
+    Callback = function()
+        PlayAnim("rbxassetid://81389876138766")
+    end
+})
+TabFE:Button({
+    Title = "摇摆坐",
+    Callback = function()
+        PlayAnim("rbxassetid://130995344283026")
+    end
+})
+TabFE:Button({
+    Title = "摇摆坐2",
+    Callback = function()
+        PlayAnim("rbxassetid://131836270858895")
+    end
+})
+TabFE:Button({
+    Title = "蠕虫舞",
+    Callback = function()
+        PlayAnim("rbxassetid://90333292347820")
+    end
+})
+TabFE:Button({
+    Title = "蛇",
+    Callback = function()
+        PlayAnim("rbxassetid://98476854035224")
+    end
+})
+TabFE:Button({
+    Title = "彼得死亡",
+    Callback = function()
+        PlayAnim("rbxassetid://129787664584610")
+    end
+})
+TabFE:Button({
+    Title = "沃尔特场景",
+    Callback = function()
+        PlayAnim("rbxassetid://113475147402830")
+    end
+})
+TabFE:Button({
+    Title = "可爱躺姿",
+    Callback = function()
+        PlayAnim("rbxassetid://80754582835479")
+    end
+})
+TabFE:Button({
+    Title = "暗影迪奥",
+    Callback = function()
+        PlayAnim("rbxassetid://92266904563270")
+    end
+})
+TabFE:Button({
+    Title = "承太郎姿势",
+    Callback = function()
+        PlayAnim("rbxassetid://122120443600865")
+    end
+})
+TabFE:Button({
+    Title = "JOJO姿势",
+    Callback = function()
+        PlayAnim("rbxassetid://120629563851640")
+    end
+})
+TabFE:Button({
+    Title = "漂浮躺",
+    Callback = function()
+        PlayAnim("rbxassetid://77840765435893")
+    end
+})
+TabFE:Button({
+    Title = "圣经天使",
+    Callback = function()
+        PlayAnim("rbxassetid://109873544976020")
+    end
+})
+TabFE:Button({
+    Title = "无头",
+    Callback = function()
+        PlayAnim("rbxassetid://78837807518622")
+    end
+})
+TabFE:Button({
+    Title = "ME!ME!ME!",
+    Callback = function()
+        PlayAnim("rbxassetid://103235915424832")
+    end
+})
+TabFE:Button({
+    Title = "飞机",
+    Callback = function()
+        PlayAnim("rbxassetid://82135680487389")
+    end
+})
+TabFE:Button({
+    Title = "Xavier舞",
+    Callback = function()
+        PlayAnim("rbxassetid://90802740360125")
+    end
+})
+TabFE:Button({
+    Title = "中国舞",
+    Callback = function()
+        PlayAnim("rbxassetid://131758838511368")
+    end
+})
+TabFE:Button({
+    Title = "背头",
+    Callback = function()
+        PlayAnim("rbxassetid://74288964113793")
+    end
+})
+TabFE:Button({
+    Title = "车辆1",
+    Callback = function()
+        PlayAnim("rbxassetid://108747312576405")
+    end
+})
+TabFE:Button({
+    Title = "车辆2",
+    Callback = function()
+        PlayAnim("rbxassetid://76503595759461")
+    end
+})
+TabFE:Button({
+    Title = "车辆3",
+    Callback = function()
+        PlayAnim("rbxassetid://115245341767944")
+    end
+})
+TabFE:Button({
+    Title = "车辆4",
+    Callback = function()
+        PlayAnim("rbxassetid://127805235430271")
+    end
+})
+TabFE:Button({
+    Title = "车辆5",
+    Callback = function()
+        PlayAnim("rbxassetid://138003068153218")
+    end
+})
+TabFE:Button({
+    Title = "车辆6",
+    Callback = function()
+        PlayAnim("rbxassetid://116772752010894")
+    end
+})
+TabFE:Button({
+    Title = "车辆7",
+    Callback = function()
+        PlayAnim("rbxassetid://116625361313832")
+    end
+})
+TabFE:Button({
+    Title = "车辆8",
+    Callback = function()
+        PlayAnim("rbxassetid://81388785824317")
+    end
+})
+TabFE:Button({
+    Title = "车辆9",
+    Callback = function()
+        PlayAnim("rbxassetid://113181071290859")
+    end
+})
+TabFE:Button({
+    Title = "车辆10",
+    Callback = function()
+        PlayAnim("rbxassetid://134681712937413")
+    end
+})
+TabFE:Button({
+    Title = "车辆11",
+    Callback = function()
+        PlayAnim("rbxassetid://115260380433565")
+    end
+})
+TabFE:Button({
+    Title = "车辆12",
+    Callback = function()
+        PlayAnim("rbxassetid://72382226286301")
+    end
+})
+TabFE:Button({
+    Title = "击败Koto",
+    Callback = function()
+        PlayAnim("rbxassetid://93497729736287")
+    end
+})
+TabFE:Button({
+    Title = "坦克",
+    Callback = function()
+        PlayAnim("rbxassetid://94915612757079")
+    end
+})
+TabFE:Button({
+    Title = "经典行走",
+    Callback = function()
+        PlayAnim("rbxassetid://107806791584829")
+    end
+})
+TabFE:Button({
+    Title = "奇怪生物",
+    Callback = function()
+        PlayAnim("rbxassetid://87025086742503")
+    end
+})
+TabFE:Button({
+    Title = "马桶人",
+    Callback = function()
+        PlayAnim("rbxassetid://127154705636043")
+    end
+})
+TabFE:Button({
+    Title = "滚动哭宝",
+    Callback = function()
+        PlayAnim("rbxassetid://129699431093711")
+    end
+})
+TabFE:Button({
+    Title = "思考",
+    Callback = function()
+        PlayAnim("rbxassetid://127088545449493")
+    end
+})
+TabFE:Button({
+    Title = "假死",
+    Callback = function()
+        PlayAnim("rbxassetid://88130117312312")
+    end
+})
+TabFE:Button({
+    Title = "迷幻",
+    Callback = function()
+        PlayAnim("rbxassetid://135611169366768")
+    end
+})
+TabFE:Button({
+    Title = "穿搭检查",
+    Callback = function()
+        PlayAnim("rbxassetid://81176957565811")
+    end
+})
+TabFE:Button({
+    Title = "投降",
+    Callback = function()
+        PlayAnim("rbxassetid://100537772865440")
+    end
+})
+TabFE:Button({
+    Title = "假设",
+    Callback = function()
+        PlayAnim("rbxassetid://91294374426630")
+    end
+})
+TabFE:Button({
+    Title = "Griddy舞",
+    Callback = function()
+        PlayAnim("rbxassetid://121966805049108")
+    end
+})
+TabFE:Button({
+    Title = "认输",
+    Callback = function()
+        PlayAnim("rbxassetid://78653596566468")
+    end
+})
+TabFE:Button({
+    Title = "篮球头转",
+    Callback = function()
+        PlayAnim("rbxassetid://92854797386719")
+    end
+})
+TabFE:Button({
+    Title = "鹦鹉舞",
+    Callback = function()
+        PlayAnim("rbxassetid://101810746304426")
+    end
+})
+TabFE:Button({
+    Title = "射击",
+    Callback = function()
+        PlayAnim("rbxassetid://102691551292124")
+    end
+})
+TabFE:Button({
+    Title = "布娃娃",
+    Callback = function()
+        PlayAnim("rbxassetid://136224735234038")
+    end
+})
+TabFE:Button({
+    Title = "悲伤坐",
+    Callback = function()
+        PlayAnim("rbxassetid://100798804992348")
+    end
+})
+TabFE:Button({
+    Title = "汽水",
+    Callback = function()
+        PlayAnim("rbxassetid://105459130960429")
+    end
+})
+TabFE:Button({
+    Title = "比利弹跳",
+    Callback = function()
+        PlayAnim("rbxassetid://137501135905857")
+    end
+})
+TabFE:Button({
+    Title = "篮球",
+    Callback = function()
+        PlayAnim("rbxassetid://119242308765484")
+    end
+})
+TabFE:Button({
+    Title = "打桩机",
+    Callback = function()
+        PlayAnim("rbxassetid://91423662648449")
+    end
+})
+TabFE:Button({
+    Title = "怪物捣碎",
+    Callback = function()
+        PlayAnim("rbxassetid://137883764619555")
+    end
+})
+TabFE:Button({
+    Title = "芙兰玩偶",
+    Callback = function()
+        PlayAnim("rbxassetid://107217181254431")
+    end
+})
+TabFE:Button({
+    Title = "后空翻",
+    Callback = function()
+        PlayAnim("rbxassetid://131205329995035")
+    end
+})
+TabFE:Button({
+    Title = "漂浮",
+    Callback = function()
+        PlayAnim("rbxassetid://89523370947906")
+    end
+})
+TabFE:Button({
+    Title = "你好",
+    Callback = function()
+        PlayAnim("rbxassetid://103041144411206")
+    end
+})
+TabFE:Button({
+    Title = "附身",
+    Callback = function()
+        PlayAnim("rbxassetid://90708290447388")
+    end
+})
+TabFE:Button({
+    Title = "去你的!",
+    Callback = function()
+        PlayAnim("rbxassetid://98289978017308")
+    end
+})
+TabFE:Button({
+    Title = "摸头",
+    Callback = function()
+        PlayAnim("rbxassetid://85422671683973")
+    end
+})
+TabFE:Button({
+    Title = "上帝山羊漂浮",
+    Callback = function()
+        PlayAnim("rbxassetid://100405715895755")
+    end
+})
+TabFE:Button({
+    Title = "直升机4",
+    Callback = function()
+        PlayAnim("rbxassetid://115417853064013")
+    end
+})
+TabFE:Button({
+    Title = "网格舞",
+    Callback = function()
+        PlayAnim("rbxassetid://85588129788692")
+    end
+})
+TabFE:Button({
+    Title = "破碎",
+    Callback = function()
+        PlayAnim("rbxassetid://79757971761739")
+    end
+})
+TabFE:Button({
+    Title = "认输",
+    Callback = function()
+        PlayAnim("rbxassetid://83265734904502")
+    end
+})
+TabFE:Button({
+    Title = "江南StyleV2",
+    Callback = function()
+        PlayAnim("rbxassetid://129764254213842")
+    end
+})
+TabFE:Button({
+    Title = "180°翻转",
+    Callback = function()
+        PlayAnim("rbxassetid://114400428765989")
+    end
+})
+TabFE:Button({
+    Title = "马桶舞",
+    Callback = function()
+        PlayAnim("rbxassetid://128334204821841")
+    end
+})
+TabFE:Button({
+    Title = "吾乃天命唯一",
+    Callback = function()
+        PlayAnim("rbxassetid://138433137191760")
+    end
+})
+TabFE:Button({
+    Title = "橙色正义",
+    Callback = function()
+        PlayAnim("rbxassetid://110146282544198")
+    end
+})
+TabFE:Button({
+    Title = "牙线舞",
+    Callback = function()
+        PlayAnim("rbxassetid://10714340543")
+    end
+})
+TabFE:Button({
+    Title = "三角符文舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://77984841414450")
+    end
+})
+TabFE:Button({
+    Title = "圣经级准确表情",
+    Callback = function()
+        PlayAnim("rbxassetid://109873544976020")
+    end
+})
+TabFE:Button({
+    Title = "呃呃呃",
+    Callback = function()
+        PlayAnim("rbxassetid://111251252458517")
+    end
+})
+TabFE:Button({
+    Title = "彼得不要啊",
+    Callback = function()
+        PlayAnim("rbxassetid://84623954062978")
+    end
+})
+TabFE:Button({
+    Title = "我变成敞篷车了",
+    Callback = function()
+        PlayAnim("rbxassetid://124756446017361")
+    end
+})
+TabFE:Button({
+    Title = "加里舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://93014787120483")
+    end
+})
+TabFE:Button({
+    Title = "IShowSpeed舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://92618727772186")
+    end
+})
+TabFE:Button({
+    Title = "光环农场",
+    Callback = function()
+        PlayAnim("rbxassetid://99499783161907")
+    end
+})
+TabFE:Button({
+    Title = "雪天使",
+    Callback = function()
+        PlayAnim("rbxassetid://80177289449617")
+    end
+})
+TabFE:Button({
+    Title = "被皮行者附身",
+    Callback = function()
+        PlayAnim("rbxassetid://70432904702322")
+    end
+})
+TabFE:Button({
+    Title = "老鼠舞",
+    Callback = function()
+        PlayAnim("rbxassetid://123916423751437")
+    end
+})
+TabFE:Button({
+    Title = "花生酱果冻时间",
+    Callback = function()
+        PlayAnim("rbxassetid://129537633250603")
+    end
+})
+TabFE:Button({
+    Title = "撒尿狗",
+    Callback = function()
+        PlayAnim("rbxassetid://130059214239749")
+    end
+})
+TabFE:Button({
+    Title = "玛卡雷娜",
+    Callback = function()
+        PlayAnim("rbxassetid://91047682123297")
+    end
+})
+TabFE:Button({
+    Title = "严肃全能侠",
+    Callback = function()
+        PlayAnim("rbxassetid://130019914905925")
+    end
+})
+TabFE:Button({
+    Title = "翻滚",
+    Callback = function()
+        PlayAnim("rbxassetid://133612047483255")
+    end
+})
+TabFE:Button({
+    Title = "恐怖月份到啦",
+    Callback = function()
+        PlayAnim("rbxassetid://99637983789946")
+    end
+})
+TabFE:Button({
+    Title = "怪物混搭",
+    Callback = function()
+        PlayAnim("rbxassetid://88971195093161")
+    end
+})
+TabFE:Button({
+    Title = "无人机模式",
+    Callback = function()
+        PlayAnim("rbxassetid://118592095684994")
+    end
+})
+TabFE:Button({
+    Title = "植物大战僵尸向日葵",
+    Callback = function()
+        PlayAnim("rbxassetid://95894948496521")
+    end
+})
+TabFE:Button({
+    Title = "鱼类模式",
+    Callback = function()
+        PlayAnim("rbxassetid://137969542385356")
+    end
+})
+TabFE:Button({
+    Title = "拉屎",
+    Callback = function()
+        PlayAnim("rbxassetid://132399051509976")
+    end
+})
+TabFE:Button({
+    Title = "足球杂耍",
+    Callback = function()
+        PlayAnim("rbxassetid://122583653807009")
+    end
+})
+TabFE:Button({
+    Title = "工程师舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://107355541549056")
+    end
+})
+TabFE:Button({
+    Title = "小鸡舞",
+    Callback = function()
+        PlayAnim("rbxassetid://126960077574956")
+    end
+})
+TabFE:Button({
+    Title = "他掏出了鸡儿",
+    Callback = function()
+        PlayAnim("rbxassetid://78347793265211")
+    end
+})
+TabFE:Button({
+    Title = "俄罗斯舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://97148848007002")
+    end
+})
+TabFE:Button({
+    Title = "爬行者模式",
+    Callback = function()
+        PlayAnim("rbxassetid://114687548971893")
+    end
+})
+TabFE:Button({
+    Title = "灭霸舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://106389948045296")
+    end
+})
+TabFE:Button({
+    Title = "俯卧撑",
+    Callback = function()
+        PlayAnim("rbxassetid://108313130500811")
+    end
+})
+TabFE:Button({
+    Title = "云端漂浮",
+    Callback = function()
+        PlayAnim("rbxassetid://106022089542174")
+    end
+})
+TabFE:Button({
+    Title = "椅子模式2",
+    Callback = function()
+        PlayAnim("rbxassetid://114140630538674")
+    end
+})
+TabFE:Button({
+    Title = "AI猫舞",
+    Callback = function()
+        PlayAnim("rbxassetid://108865839239307")
+    end
+})
+TabFE:Button({
+    Title = "蔬菜舞蹈",
+    Callback = function()
+        PlayAnim("rbxassetid://84352128203419")
+    end
+})
+TabFE:Button({
+    Title = "DJ哈立德",
+    Callback = function()
+        PlayAnim("rbxassetid://82293338535013")
+    end
+})
+
 -- ================= 服务器传送（强化版） =================
 
 local TeleportService = game:GetService("TeleportService")
