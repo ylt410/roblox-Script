@@ -2669,120 +2669,186 @@ RunService.RenderStepped:Connect(function()
     end
 
 end)
--- =================== 作者检测模块 ===================
+-- =================== 作者检测模块（墙体检测+优化缩放版） ===================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 local DevESP = {
     Enabled = true,
-    Targets = { -- 这里填作者用户名
-        ["ylt351"] = true,
-["52554jdhbbddjr"] = true
+    SelfEnabled = false,
+    Targets = {
+        ["ylt351"] = "author",
+        ["52554jdhbbddjr"] = "old"
     },
     Objects = {}
 }
 
--- 彩虹循环
-local function RainbowColor(t)
-    return Color3.fromHSV((tick()*0.2 + t) % 1, 1, 1)
+local function RainbowColor()
+    return Color3.fromHSV((tick()*0.2) % 1, 1, 1)
 end
 
-local function AddDevESP(player)
-    -- 👇 加在这里
-    if player == game.Players.LocalPlayer then return end
+-- 判断是否被墙挡住
+local function IsVisible(head, camera)
+    if not head or not camera then return false end
+
+    local origin = camera.CFrame.Position
+    local direction = (head.Position - origin)
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {
+        Players.LocalPlayer.Character
+    }
+
+    local result = Workspace:Raycast(origin, direction, params)
+
+    if not result then
+        return true
+    end
+
+    -- 如果打到的不是这个人 → 被挡住
+    if result.Instance and not result.Instance:IsDescendantOf(head.Parent) then
+        return false
+    end
+
+    return true
+end
+
+function AddDevESP(player)
 
     if not DevESP.Enabled then return end
-    if not DevESP.Targets[player.Name] then return end
-    -- ✅ 加这一行（关键）
+    if player == Players.LocalPlayer and not DevESP.SelfEnabled then return end
+
+    local role = DevESP.Targets[player.Name]
+    if not role then return end
+
     local function apply(character)
-        if not character then return end
 
-        local head = character:WaitForChild("Head", 5)
-if not head then return end
+        local head = character:FindFirstChild("Head") or character:WaitForChild("Head",5)
+        if not head then return end
 
--- ✅ 就加在这里
-if head:FindFirstChild("DevTag") then
-    head:FindFirstChild("DevTag"):Destroy()
-end
-        -- 防重复
-if DevESP.Objects[player] then
-    pcall(function()
-        DevESP.Objects[player].Billboard:Destroy()
-    end)
-    DevESP.Objects[player] = nil
-end
-        -- 🏷 标签
+        if head:FindFirstChild("DevTag") then
+            head.DevTag:Destroy()
+        end
+
         local bb = Instance.new("BillboardGui")
         bb.Name = "DevTag"
         bb.Adornee = head
-        bb.Size = UDim2.new(0,140,0,28)
-        bb.StudsOffset = Vector3.new(0,3,0)
+        bb.Size = UDim2.new(0,110,0,22)
+        bb.StudsOffset = Vector3.new(0,2.6,0)
         bb.AlwaysOnTop = true
+        bb.MaxDistance = math.huge
+        bb.LightInfluence = 0
         bb.Parent = head
 
-        -- 🌈 背景
-local bg = Instance.new("Frame")
-bg.Size = UDim2.new(1,0,1,0)
-bg.BackgroundTransparency = 0.2
-bg.BorderSizePixel = 0
-bg.Parent = bb
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1,0,1,0)
+        container.BackgroundTransparency = 1
+        container.AnchorPoint = Vector2.new(0.5,0.5)
+        container.Position = UDim2.new(0.5,0,0.5,0)
+        container.Parent = bb
 
--- 圆角（更好看）
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,8)
-corner.Parent = bg
+        local scale = Instance.new("UIScale")
+        scale.Scale = 1
+        scale.Parent = container
 
--- 🌈 渐变
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
-    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,255,0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0,255,0)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,255)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,0,255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))
-})
-gradient.Parent = bg
+        local parentUI = container
 
--- ✏️ 文字（变小一点）
-local txt = Instance.new("TextLabel")
-txt.Size = UDim2.new(1,-10,1,-6)
-txt.Position = UDim2.new(0,5,0,3)
-txt.BackgroundTransparency = 1
-txt.Text = "夜脚本团队"
-txt.TextScaled = false
-txt.TextSize = 13
-txt.Font = Enum.Font.SourceSansBold
-txt.TextStrokeTransparency = 0.4
-txt.TextColor3 = Color3.new(1,1,1)
-txt.Parent = bg
-        -- 保存
+        if role == "author" then
+            local bg = Instance.new("Frame")
+            bg.Size = UDim2.new(1,0,1,0)
+            bg.BackgroundColor3 = Color3.fromRGB(35,35,35)
+            bg.BackgroundTransparency = 0.25
+            bg.BorderSizePixel = 0
+            bg.Parent = container
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0,6)
+            corner.Parent = bg
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = Color3.fromRGB(255,215,0)
+            stroke.Thickness = 1.2
+            stroke.Parent = bg
+
+            parentUI = bg
+        end
+
+        local txt = Instance.new("TextLabel")
+        txt.Size = UDim2.new(1,-6,1,-4)
+        txt.Position = UDim2.new(0,3,0,2)
+        txt.BackgroundTransparency = 1
+        txt.Font = Enum.Font.GothamBold
+        txt.TextSize = 12
+        txt.Text = (role == "author") and "夜脚本作者" or "夜脚本老用户"
+        txt.TextColor3 = Color3.new(1,1,1)
+        txt.Parent = parentUI
+
+        if role == "old" then
+            txt.TextStrokeTransparency = 0
+            txt.TextStrokeColor3 = Color3.fromRGB(120,120,120)
+        else
+            txt.TextStrokeTransparency = 0.4
+        end
+
         DevESP.Objects[player] = {
-            Billboard = bb,
-            Text = txt
+            Head = head,
+            Text = txt,
+            Scale = scale,
+            Billboard = bb
         }
-
-        -- 🌈 彩虹循环
-        task.spawn(function()
-            while DevESP.Objects[player] and txt.Parent do
-                local c = RainbowColor(0)
-                pcall(function()
-                   txt.TextColor3 = c
-                end)
-                task.wait(0.1)
-            end
-        end)
     end
 
-    -- 角色加载
     if player.Character then
         apply(player.Character)
     end
 
     player.CharacterAdded:Connect(function(char)
-    task.wait(1)
-    apply(char)
-end)
+        task.wait(1)
+        apply(char)
+    end)
 end
 
+-- 初始化
+for _, plr in ipairs(Players:GetPlayers()) do
+    AddDevESP(plr)
+end
+
+Players.PlayerAdded:Connect(AddDevESP)
+
+-- 主循环
+task.spawn(function()
+    while true do
+
+        local cam = Workspace.CurrentCamera
+
+        if cam then
+            for player, data in pairs(DevESP.Objects) do
+                if data.Head and data.Head.Parent then
+
+                    -- 彩虹
+                    data.Text.TextColor3 = RainbowColor()
+
+                    -- 👇 墙体检测
+                    local visible = IsVisible(data.Head, cam)
+                    data.Billboard.Enabled = visible
+
+                    if visible then
+                        -- 👇 优化缩放（更自然，不会变大）
+                        local dist = (cam.CFrame.Position - data.Head.Position).Magnitude
+
+                        local s = math.clamp(1.2 - (dist / 200), 0.6, 1.2)
+
+                        data.Scale.Scale = s
+                    end
+                end
+            end
+        end
+
+        task.wait(0.03)
+    end
+end)
 -- 初始化
 for _, plr in ipairs(game.Players:GetPlayers()) do
     AddDevESP(plr)
