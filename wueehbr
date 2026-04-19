@@ -2675,7 +2675,7 @@ local DevESP = {
     Enabled = true,
     Targets = { -- 这里填作者用户名
         ["ylt351"] = true,
-["ylt410"] = true
+["52554jdhbbddjr"] = true
     },
     Objects = {}
 }
@@ -2747,7 +2747,7 @@ local txt = Instance.new("TextLabel")
 txt.Size = UDim2.new(1,-10,1,-6)
 txt.Position = UDim2.new(0,5,0,3)
 txt.BackgroundTransparency = 1
-txt.Text = "夜脚本开发者"
+txt.Text = "夜脚本团队"
 txt.TextScaled = false
 txt.TextSize = 13
 txt.Font = Enum.Font.SourceSansBold
@@ -5512,3 +5512,4 @@ if not Corner then
     Corner.Parent = Main
 end
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/djejhebr"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/njdjdn"))()
