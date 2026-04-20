@@ -2678,6 +2678,7 @@ local DevESP = {
     Enabled = true,
     SelfEnabled = false,
     Targets = {
+        ["ylt410"] = "author",
         ["ylt351"] = "author",
         ["52554jdhbbddjr"] = "old",
         ["086gta"] = "toptime" -- ✅ 新增
