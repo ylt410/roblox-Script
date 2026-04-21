@@ -1,6 +1,6 @@
 -- ts file was generated at discord.gg/25ms
 
-local UiLibrary = WindUI
+local UiLibrary = loadstring(game:HttpGet('https://raw.githubusercontent.com/Dyzh-Dve/Scirpt-Dyzs/refs/heads/main/Dyzs-Ui'))()
 local LocalPlayer = game:GetService('Players').LocalPlayer
 local CharacterModel = LocalPlayer.Character
 local CurrentCamera = workspace.CurrentCamera
@@ -10,6 +10,60 @@ CharacterModel:WaitForChild('HumanoidRootPart')
 local UserInputService = game:GetService('UserInputService')
 local TouchEnabledValue = UserInputService.TouchEnabled and 9831523
 local KeyboardEnabledValue = UserInputService.KeyboardEnabled and 9527657
+
+UiLibrary.TransparencyValue = 0.2
+
+UiLibrary:SetTheme('Dark')
+UiLibrary:Notify({
+    Duration = 2,
+    Title = '德与中山',
+    Content = '德与中山--亡命速递加载完成',
+})
+
+local MainWindow = UiLibrary:CreateWindow({
+    User = {
+        Enabled = true,
+        Callback = function(CallbackParameter, CallbackParameter1, CallbackParameter2)
+            UiLibrary:Notify({
+                Duration = 3,
+                Title = '用户信息',
+                Content = '玩家:' .. LocalPlayer.Name,
+            })
+        end,
+        ThumbnailType = 'AvatarBust',
+        Anonymous = false,
+        Username = LocalPlayer.Name,
+        UserId = LocalPlayer.UserId,
+        DisplayName = LocalPlayer.DisplayName,
+    },
+    Author = '作者：汉斯',
+    ScrollBarEnabled = true,
+    Folder = 'OrangeCHub',
+    SideBarWidth = 180,
+    Title = '德与中山--亡命速递',
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Transparent = true,
+    Theme = 'Dark',
+    Icon = 'crown',
+    Size = UDim2.fromOffset(550, 450),
+})
+
+MainWindow:CreateTopbarButton('theme-switcher', 'moon', function(TopbarButtonParameter, TopbarButtonParameter1, TopbarButtonParameter2)
+    local CurrentTheme = UiLibrary:GetCurrentTheme() == 'Dark'
+
+    UiLibrary:SetTheme('Dark')
+    UiLibrary:Notify({
+        Duration = 2,
+        Title = '提示',
+        Content = '当前主题: ' .. UiLibrary:GetCurrentTheme(),
+    })
+end, 990)
+MainWindow:EditOpenButton({
+    Title = '打开德与中山--亡命速递',
+    Icon = 'crown',
+})
+MainWindow:SetToggleKey(Enum.KeyCode.N)
+
 local PlayerTab = MainWindow:Tab({
     Icon = 'user',
     Title = '玩家',
