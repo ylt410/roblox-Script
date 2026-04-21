@@ -1,0 +1,511 @@
+-- ts file was generated at discord.gg/25ms
+
+local UiLibrary = WindUI
+local LocalPlayer = game:GetService('Players').LocalPlayer
+local CharacterModel = LocalPlayer.Character
+local CurrentCamera = workspace.CurrentCamera
+
+CharacterModel:WaitForChild('HumanoidRootPart')
+
+local UserInputService = game:GetService('UserInputService')
+local TouchEnabledValue = UserInputService.TouchEnabled and 9831523
+local KeyboardEnabledValue = UserInputService.KeyboardEnabled and 9527657
+local PlayerTab = MainWindow:Tab({
+    Icon = 'user',
+    Title = '玩家',
+    Opened = false,
+})
+local EntityTab = MainWindow:Tab({
+    Icon = 'stretch-horizontal',
+    Title = '实体功能',
+    Opened = false,
+})
+local CombatTab = MainWindow:Tab({
+    Icon = 'hand-fist',
+    Title = '战斗功能',
+    Opened = false,
+})
+local VisionTab = MainWindow:Tab({
+    Icon = 'eye',
+    Title = '透视功能',
+    Opened = false,
+})
+
+PlayerTab:Section({
+    IconSize = 30,
+    Icon = 'ampersand',
+    Title = '公告',
+    TextSize = 17,
+})
+PlayerTab:Paragraph({
+    ImageSize = 15,
+    Image = 'info',
+    Title = '欢迎尊贵的用户',
+    Desc = '此脚本会一直更新 感谢白名单使用者',
+})
+PlayerTab:Paragraph({
+    ImageSize = 12,
+    Image = 'user',
+    Title = '玩家',
+    Desc = '尊敬的用户: ' .. LocalPlayer.Name .. '欢迎使用',
+})
+PlayerTab:Paragraph({
+    ImageSize = 12,
+    Image = 'gamepad',
+    Title = '设备',
+    Desc = '你的使用设备: 平板',
+})
+
+local ExecutorIdentifier = identifyexecutor()
+
+PlayerTab:Paragraph({
+    ImageSize = 12,
+    Image = 'syringe',
+    Title = '设备',
+    Desc = '你的注入器: ' .. ExecutorIdentifier,
+})
+PlayerTab:Section({
+    IconSize = 30,
+    Icon = 'user',
+    Title = '玩家',
+    TextSize = 17,
+})
+PlayerTab:Slider({
+    Title = '玩家速度',
+    Value = {
+        Min = 16,
+        Default = 16,
+        Max = 200,
+    },
+    Callback = function(FunctionParameter, FunctionParameter1)
+        local UiLibrary = CharacterModel:FindFirstChild('Humanoid') and 6520951
+        local Humanoid = CharacterModel.Humanoid
+
+        Humanoid.WalkSpeed = FunctionParameter
+    end,
+    Step = 1,
+    Desc = '玩家的速度',
+})
+EntityTab:Section({
+    IconSize = 30,
+    Icon = 'layers-2',
+    Title = '物品',
+    TextSize = 17,
+})
+EntityTab:Toggle({
+    Value = false,
+    Callback = function(Parameter, Parameter1, Parameter2, Parameter3, Parameter4, Parameter5)
+        for LoopVariable, LoopVariable1 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolCheck = LoopVariable1:IsA('Tool') and 14537475
+            local RemoteEvent = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld = workspace.GameSystem.Loots.World
+
+            RemoteEvent:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld:FindFirstChild(LoopVariable1.Name),
+            })
+
+            local RemoteEvent1 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld1 = workspace.GameSystem.Loots.World
+
+            RemoteEvent1:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld1:FindFirstChild(LoopVariable1.Name),
+            })
+
+            local RemoteEvent2 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld2 = workspace.GameSystem.Loots.World
+
+            RemoteEvent2:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld2:FindFirstChild(LoopVariable1.Name),
+            })
+
+            local RemoteEvent3 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld3 = workspace.GameSystem.Loots.World
+
+            RemoteEvent3:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld3:FindFirstChild(LoopVariable1.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable2, LoopVariable3 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolCheck2 = LoopVariable3:IsA('Tool') and 14537475
+            local RemoteEvent4 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld4 = workspace.GameSystem.Loots.World
+
+            RemoteEvent4:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld4:FindFirstChild(LoopVariable3.Name),
+            })
+
+            local RemoteEvent5 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld5 = workspace.GameSystem.Loots.World
+
+            RemoteEvent5:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld5:FindFirstChild(LoopVariable3.Name),
+            })
+
+            local RemoteEvent6 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld6 = workspace.GameSystem.Loots.World
+
+            RemoteEvent6:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld6:FindFirstChild(LoopVariable3.Name),
+            })
+
+            local RemoteEvent7 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld7 = workspace.GameSystem.Loots.World
+
+            RemoteEvent7:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld7:FindFirstChild(LoopVariable3.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable4, LoopVariable5 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local LocalPlayer = LoopVariable5:IsA('Tool') and 14537475
+            local RemoteEvent8 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld8 = workspace.GameSystem.Loots.World
+
+            RemoteEvent8:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld8:FindFirstChild(LoopVariable5.Name),
+            })
+
+            local RemoteEvent9 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld9 = workspace.GameSystem.Loots.World
+
+            RemoteEvent9:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld9:FindFirstChild(LoopVariable5.Name),
+            })
+
+            local RemoteEvent10 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld10 = workspace.GameSystem.Loots.World
+
+            RemoteEvent10:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld10:FindFirstChild(LoopVariable5.Name),
+            })
+
+            local RemoteEvent11 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld11 = workspace.GameSystem.Loots.World
+
+            RemoteEvent11:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld11:FindFirstChild(LoopVariable5.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable6, LoopVariable7 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local CharacterModel = LoopVariable7:IsA('Tool') and 14537475
+            local RemoteEvent12 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld12 = workspace.GameSystem.Loots.World
+
+            RemoteEvent12:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld12:FindFirstChild(LoopVariable7.Name),
+            })
+
+            local RemoteEvent13 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld13 = workspace.GameSystem.Loots.World
+
+            RemoteEvent13:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld13:FindFirstChild(LoopVariable7.Name),
+            })
+
+            local RemoteEvent14 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld14 = workspace.GameSystem.Loots.World
+
+            RemoteEvent14:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld14:FindFirstChild(LoopVariable7.Name),
+            })
+
+            local RemoteEvent15 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld15 = workspace.GameSystem.Loots.World
+
+            RemoteEvent15:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld15:FindFirstChild(LoopVariable7.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable8, LoopVariable9 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolCheck1 = LoopVariable9:IsA('Tool') and 14537475
+            local RemoteEvent16 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld16 = workspace.GameSystem.Loots.World
+
+            RemoteEvent16:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld16:FindFirstChild(LoopVariable9.Name),
+            })
+
+            local RemoteEvent17 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld17 = workspace.GameSystem.Loots.World
+
+            RemoteEvent17:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld17:FindFirstChild(LoopVariable9.Name),
+            })
+
+            local RemoteEvent18 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld18 = workspace.GameSystem.Loots.World
+
+            RemoteEvent18:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld18:FindFirstChild(LoopVariable9.Name),
+            })
+
+            local RemoteEvent19 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld19 = workspace.GameSystem.Loots.World
+
+            RemoteEvent19:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld19:FindFirstChild(LoopVariable9.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable10, LoopVariable11 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolCheck3 = LoopVariable11:IsA('Tool') and 14537475
+            local RemoteEvent20 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld20 = workspace.GameSystem.Loots.World
+
+            RemoteEvent20:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld20:FindFirstChild(LoopVariable11.Name),
+            })
+
+            local RemoteEvent21 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld21 = workspace.GameSystem.Loots.World
+
+            RemoteEvent21:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld21:FindFirstChild(LoopVariable11.Name),
+            })
+
+            local RemoteEvent22 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld22 = workspace.GameSystem.Loots.World
+
+            RemoteEvent22:FireServer('\146\n\145\200\1', {
+                [1] = LootWorld22:FindFirstChild(LoopVariable11.Name),
+            })
+
+            local RemoteEvent23 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld23 = workspace.GameSystem.Loots.World
+
+            RemoteEvent23:FireServer('\146\r\145\200\1', {
+                [1] = LootWorld23:FindFirstChild(LoopVariable11.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192s\127L \0\0\0\203@tO\5 \0\0\0\203@z\28y \0\0\0\203By\177]\193F \0')
+        end
+
+        task.wait(0.1)
+
+        for LoopVariable12, LoopVariable13 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolCheck4 = LoopVariable13:IsA('Tool') and 14537475
+            local RemoteEvent24 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld24 = workspace.GameSystem.Loots.World
+
+            RemoteEvent24:FireServer('\146\a\145\200\1', {
+                [1] = LootWorld24:FindFirstChild(LoopVariable13.Name),
+            })
+
+            local RemoteEvent25 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local LootWorld25 = workspace.GameSystem.Loots.World
+
+            RemoteEvent25:FireServer('\146\t\145\200\1', {
+                [1] = LootWorld25:FindFirstChild(LoopVariable13.Name),
+            })
+
+            local RemoteEvent = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local WorldLoot = workspace.GameSystem.Loots.World
+
+            RemoteEvent:FireServer('\146\n\145\200\1', {
+                [1] = WorldLoot:FindFirstChild(LoopVariable13.Name),
+            })
+
+            local RemoteEvent1 = game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+            local WorldLoot1 = workspace.GameSystem.Loots.World
+
+            RemoteEvent1:FireServer('\146\r\145\200\1', {
+                [1] = WorldLoot1:FindFirstChild(LoopVariable13.Name),
+            })
+            game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\24\147\195\199\2\147\203\192sZ\188\160\0\0\0\203@tN]\192\0\0\0\203@z\26\129\192\0\0\0\203By\177]\128\234@\0')
+            game:GetService('ReplicatedStorage')
+            error('internal 550: <25ms: infinitelooperror>')
+        end
+    end,
+    Title = '自动收集物品',
+    Desc = '物品',
+})
+EntityTab:Toggle({
+    Value = false,
+    Callback = function(Param1, Param2, Param3, Param4)
+        game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event'):FireServer('\146\22\147\195\199\2\147\203\192sz\175 \0\0\0\203@tM\198\224\0\0\0\203@z?9\160\0\0\0\203By\177-\238\1760\0')
+        game:GetService('ReplicatedStorage'):WaitForChild('Remote_Event')
+        error('internal 550: <25ms: infinitelooperror>')
+    end,
+    Title = '自动放置物品',
+    Desc = '物品',
+})
+EntityTab:Section({
+    IconSize = 30,
+    Icon = 'hand',
+    Title = '互动',
+    TextSize = 17,
+})
+EntityTab:Toggle({
+    Value = false,
+    Callback = function(FuncParam, FuncParam1, FuncParam2, FuncParam3, FuncParam4)
+        for LoopItem, LoopItem1 in pairs(workspace.GameSystem.InteractiveItem:GetChildren())do
+            local RootObject = LoopItem1:FindFirstChild('Root') and 2328909
+            local CharacterModel = LocalPlayer.Character
+            local DistanceValue = (CharacterModel:FindFirstChild('HumanoidRootPart').Position - LoopItem1:FindFirstChild('Root').Position).Magnitude <= 50
+
+            string.find(LoopItem1.Name, 'Cabinet', 1, true)
+
+            local UserInputService = LoopItem1:GetAttribute('Open') and 1430541
+        end
+    end,
+    Title = '互动光环',
+    Desc = '互动',
+})
+EntityTab:Slider({
+    Title = '互动范围',
+    Value = {
+        Min = 50,
+        Default = 50,
+        Max = 200,
+    },
+    Callback = function(FunctionParam, FunctionParam1, FunctionParam2) end,
+    Step = 1,
+    Desc = '范围',
+})
+EntityTab:Divider()
+EntityTab:Toggle({
+    Value = false,
+    Callback = function(Parameter1, Parameter2, Parameter3, Parameter4, Parameter5)
+        for LoopObject, LoopObject1 in pairs(workspace.GameSystem.InteractiveItem:GetChildren())do
+            string.find(LoopObject1.Name, 'Cabinet', 1, true)
+
+            local OpenAttribute = LoopObject1:GetAttribute('Open') and 7285897
+        end
+    end,
+    Title = '自动开柜子/抽屉(无范围)',
+    Desc = '互动',
+})
+CombatTab:Section({
+    IconSize = 30,
+    Icon = 'hand-fist',
+    Title = '杀戳光环',
+    TextSize = 17,
+})
+CombatTab:Section({
+    IconSize = 30,
+    Icon = 'shrimp',
+    Title = '怪物',
+    TextSize = 17,
+})
+VisionTab:Section({
+    IconSize = 30,
+    Icon = 'eye',
+    Title = '透视',
+    TextSize = 17,
+})
+VisionTab:Toggle({
+    Value = false,
+    Callback = function(FuncParameter, FuncParameter1, FuncParameter2, FuncParameter3, FuncParameter4, FuncParameter5)
+        for ToolItem, ToolItem1 in pairs(workspace.GameSystem.Loots.World:GetChildren())do
+            local ToolType = ToolItem1:IsA('Tool') and 1497356
+            local EspItem = not ToolItem1:FindFirstChild('EspItem')
+            local EspItemText = ToolItem1:FindFirstChild('EspItemBili'):FindFirstChild('EspItemText')
+            local CharacterModel1 = LocalPlayer.Character
+            local DistanceText = string.format('%.0f', (CharacterModel1:FindFirstChild('HumanoidRootPart').Position - ToolItem1:GetPivot().Position).Magnitude)
+
+            EspItemText.Text = ToolItem1.Name .. '[' .. DistanceText .. 'm]'
+        end
+
+        task.wait(0.1)
+
+        local LootFolder = workspace.GameSystem.Loots
+
+        error('internal 550: <25ms: infinitelooperror>')
+    end,
+    Title = '透视物品',
+    Desc = '透视',
+})
+VisionTab:Toggle({
+    Value = false,
+    Callback = function(Parameter, Parameter1, Parameter2)
+        for LoopVariable, LoopVariable1 in pairs(workspace.GameSystem.InteractiveItem:GetChildren())do
+            string.find(LoopVariable1.Name, 'Cabinet', 1, true)
+            LoopVariable1:FindFirstChild('EspCab')
+            error('internal 550: <25ms: infinitelooperror>')
+        end
+    end,
+    Title = '透视储物柜',
+    Desc = '透视',
+})
+VisionTab:Toggle({
+    Value = false,
+    Callback = function(FunctionParameter, FunctionParameter1, FunctionParameter2, FunctionParameter3, FunctionParameter4, FunctionParameter5) end,
+    Title = '透视核废桶',
+    Desc = '透视',
+})
+VisionTab:Section({
+    IconSize = 30,
+    Icon = 'settings',
+    Title = '透视设置',
+    TextSize = 17,
+})
+VisionTab:Slider({
+    Title = '填充透明度',
+    Value = {
+        Min = 0,
+        Default = 0.5,
+        Max = 1,
+    },
+    Callback = function(Param, Param1, Param2, Param3, Param4) end,
+    Step = 0.1,
+    Desc = '设置',
+})
+VisionTab:Slider({
+    Title = '轮廓透明度',
+    Value = {
+        Min = 0,
+        Default = 0,
+        Max = 1,
+    },
+    Callback = function(FuncParam, FuncParam1, FuncParam2, FuncParam3, FuncParam4) end,
+    Step = 0.1,
+    Desc = '设置',
+})
+VisionTab:Slider({
+    Title = '字体大小',
+    Value = {
+        Min = 0,
+        Default = 15,
+        Max = 30,
+    },
+    Callback = function(ParameterValue) end,
+    Step = 0.1,
+    Desc = '设置',
+})
+VisionTab:Divider()
+VisionTab:Toggle({
+    Value = false,
+    Callback = function(FunctionValue, FunctionValue1, FunctionValue2, FunctionValue3, FunctionValue4) end,
+    Title = '绘制透视线',
+    Desc = '绘制',
+})
+MainWindow:OnClose(function(ParameterValue, ParameterValue1, ParameterValue2, ParameterValue3) end)
