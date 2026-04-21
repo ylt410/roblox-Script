@@ -5068,6 +5068,15 @@ TabAb:Button({
 end)
    end
 })
+TabAb:Button({
+    Title = "亡命速递（德语中山）（⚠️独立脚本）（⚠️部分功能会导致封禁）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/亡命速递"))()        
+end)
+   end
+})
+
 
 
 local TabFE = Window:Tab({
