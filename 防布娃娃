@@ -1,0 +1,105 @@
+-- =================== 状态 ===================
+local Enabled = false
+local Connections = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- =================== 工具 ===================
+local function DisconnectAll()
+    for _, c in pairs(Connections) do
+        if c then c:Disconnect() end
+    end
+    table.clear(Connections)
+end
+
+-- =================== 重建关节（关键抗飞散） ===================
+local function RebuildJoints(character)
+    for _, v in ipairs(character:GetDescendants()) do
+        if v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") then
+            v:Destroy()
+        end
+    end
+
+    -- 强制恢复 Motor6D（核心）
+    for _, part in ipairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            for _, joint in ipairs(part:GetChildren()) do
+                if joint:IsA("Motor6D") then
+                    joint.Enabled = true
+                end
+            end
+        end
+    end
+end
+
+-- =================== 防飞散（锁根部） ===================
+local function StabilizeRoot(character)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+end
+
+-- =================== 强制状态 ===================
+local function ForceHumanoid(humanoid)
+    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
+
+-- =================== 应用 ===================
+local function Apply(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    -- 防死亡断裂
+    pcall(function()
+        humanoid.BreakJointsOnDeath = false
+    end)
+
+    -- 状态拦截
+    table.insert(Connections,
+        humanoid.StateChanged:Connect(function(_, new)
+            if not Enabled then return end
+
+            if new == Enum.HumanoidStateType.Ragdoll
+            or new == Enum.HumanoidStateType.Physics
+            or new == Enum.HumanoidStateType.FallingDown then
+
+                ForceHumanoid(humanoid)
+            end
+        end)
+    )
+
+    -- 心跳硬抗（最重要）
+    table.insert(Connections,
+        RunService.Heartbeat:Connect(function()
+            if not Enabled then return end
+
+            RebuildJoints(character)
+            StabilizeRoot(character)
+        end)
+    )
+end
+
+-- =================== 主函数 ===================
+function ToggleAntiRagdollUltimate(state)
+    Enabled = state
+
+    DisconnectAll()
+
+    if not state then return end
+
+    if LocalPlayer.Character then
+        Apply(LocalPlayer.Character)
+    end
+
+    table.insert(Connections,
+        LocalPlayer.CharacterAdded:Connect(function(char)
+            if not Enabled then return end
+            task.wait(0.3)
+            Apply(char)
+        end)
+    )
+end
