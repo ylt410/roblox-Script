@@ -1,0 +1,214 @@
+-- =================== 作者检测模块（墙体检测+优化缩放版） ===================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local DevESP = {
+    Enabled = true,
+    SelfEnabled = false,
+    Targets = {
+        ["ylt410"] = "author",
+        ["ylt351"] = "author",
+        ["52554jdhbbddjr"] = "old",
+        ["086gta"] = "toptime" -- ✅ 新增
+    },
+    Objects = {}
+}
+
+local function RainbowColor()
+    return Color3.fromHSV((tick()*0.2) % 1, 1, 1)
+end
+
+-- 判断是否被墙挡住
+local function IsVisible(head, camera)
+    if not head or not camera then return false end
+
+    local origin = camera.CFrame.Position
+    local direction = (head.Position - origin)
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {
+        Players.LocalPlayer.Character
+    }
+
+    local result = Workspace:Raycast(origin, direction, params)
+
+    if not result then
+        return true
+    end
+
+    if result.Instance and not result.Instance:IsDescendantOf(head.Parent) then
+        return false
+    end
+
+    return true
+end
+
+function AddDevESP(player)
+
+    if not DevESP.Enabled then return end
+    if player == Players.LocalPlayer and not DevESP.SelfEnabled then return end
+
+    local role = DevESP.Targets[player.Name]
+    if not role then return end
+
+    local function apply(character)
+
+        local head = character:FindFirstChild("Head") or character:WaitForChild("Head",5)
+        if not head then return end
+
+        if head:FindFirstChild("DevTag") then
+            head.DevTag:Destroy()
+        end
+
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "DevTag"
+        bb.Adornee = head
+        bb.Size = UDim2.new(0,110,0,22)
+        bb.StudsOffset = Vector3.new(0,2.6,0)
+        bb.AlwaysOnTop = true
+        bb.MaxDistance = math.huge
+        bb.LightInfluence = 0
+        bb.Parent = head
+
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1,0,1,0)
+        container.BackgroundTransparency = 1
+        container.AnchorPoint = Vector2.new(0.5,0.5)
+        container.Position = UDim2.new(0.5,0,0.5,0)
+        container.Parent = bb
+
+        local scale = Instance.new("UIScale")
+        scale.Scale = 1
+        scale.Parent = container
+
+        local parentUI = container
+
+        -- =================== 样式区 ===================
+
+        if role == "author" then
+            local bg = Instance.new("Frame")
+            bg.Size = UDim2.new(1,0,1,0)
+            bg.BackgroundColor3 = Color3.fromRGB(35,35,35)
+            bg.BackgroundTransparency = 0.25
+            bg.BorderSizePixel = 0
+            bg.Parent = container
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0,6)
+            corner.Parent = bg
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = Color3.fromRGB(255,215,0)
+            stroke.Thickness = 1.2
+            stroke.Parent = bg
+
+            parentUI = bg
+
+        elseif role == "toptime" then -- ✅ 新样式（红框）
+            local bg = Instance.new("Frame")
+            bg.Size = UDim2.new(1,0,1,0)
+            bg.BackgroundColor3 = Color3.fromRGB(35,35,35)
+            bg.BackgroundTransparency = 0.25
+            bg.BorderSizePixel = 0
+            bg.Parent = container
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0,6)
+            corner.Parent = bg
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = Color3.fromRGB(255,0,0) -- 红色边框
+            stroke.Thickness = 1.4
+            stroke.Parent = bg
+
+            parentUI = bg
+        end
+
+        -- =================== 文本 ===================
+
+        local txt = Instance.new("TextLabel")
+        txt.Size = UDim2.new(1,-6,1,-4)
+        txt.Position = UDim2.new(0,3,0,2)
+        txt.BackgroundTransparency = 1
+        txt.Font = Enum.Font.GothamBold
+        txt.TextSize = 12
+
+        if role == "author" then
+            txt.Text = "夜脚本作者"
+        elseif role == "old" then
+            txt.Text = "夜脚本老用户"
+        elseif role == "toptime" then
+            txt.Text = "最高夜脚本使用时长" -- ✅ 新标签
+        end
+
+        txt.TextColor3 = Color3.new(1,1,1)
+        txt.Parent = parentUI
+
+        if role == "old" then
+            txt.TextStrokeTransparency = 0
+            txt.TextStrokeColor3 = Color3.fromRGB(120,120,120)
+        else
+            txt.TextStrokeTransparency = 0.4
+        end
+
+        DevESP.Objects[player] = {
+            Head = head,
+            Text = txt,
+            Scale = scale,
+            Billboard = bb
+        }
+    end
+
+    if player.Character then
+        apply(player.Character)
+    end
+
+    player.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        apply(char)
+    end)
+end
+
+-- 初始化
+for _, plr in ipairs(Players:GetPlayers()) do
+    AddDevESP(plr)
+end
+
+Players.PlayerAdded:Connect(AddDevESP)
+
+-- 主循环
+task.spawn(function()
+    while true do
+
+        local cam = Workspace.CurrentCamera
+
+        if cam then
+            for player, data in pairs(DevESP.Objects) do
+                if data.Head and data.Head.Parent then
+
+                    data.Text.TextColor3 = RainbowColor()
+
+                    local visible = IsVisible(data.Head, cam)
+                    data.Billboard.Enabled = visible
+
+                    if visible then
+                        local dist = (cam.CFrame.Position - data.Head.Position).Magnitude
+                        local s = math.clamp(1.2 - (dist / 200), 0.6, 1.2)
+                        data.Scale.Scale = s
+                    end
+                end
+            end
+        end
+
+        task.wait(0.03)
+    end
+end)
+
+-- 初始化（重复段保留原样）
+for _, plr in ipairs(game.Players:GetPlayers()) do
+    AddDevESP(plr)
+end
+
+game.Players.PlayerAdded:Connect(AddDevESP)
