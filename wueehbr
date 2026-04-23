@@ -11,7 +11,7 @@
 -- by 夜
 -- ================= 配置 =================
 local Players = game:GetService("Players")
-local FILE_NAME = "saveV1.2.txt"
+local FILE_NAME = "saveV1.2.1.txt"
 local BALL_COUNT = 14
 
 -- ================= 状态检测 =================
@@ -161,7 +161,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n\n已更新动作功能，目前作者随缘更新"
+    TextLabel.Text = "公告\n\n最近懒得更新所以先画个饼，近期正在打磨脚本质量和修复bug"
     TextLabel.Parent = Frame
 
     -- 按钮
@@ -4937,7 +4937,7 @@ local TabAb = Window:Tab({
 })
 TabAb:Paragraph({
         Title = "免责声明",
-        Desc = "以下缝合的所有服务器脚本源码或加载链接均来源于qq，如果认为您的脚本为付费脚本或不想让我缝合，请先不要挂我，加入夜脚本主群联系我，我会立刻删除您的脚本，并向您道歉，如果我没有看到的话可以多说几遍，感谢\n\n我会保留所有原作者标识并标明出处", 
+        Desc = "以下缝合的所有服务器脚本源码或加载链接均来源于qq，如果认为您的脚本为付费脚本或不想让我缝合，请先不要挂我，加入夜脚本主群联系我，我会立刻删除您的脚本，并向您道歉，如果我没有看到的话可以多说几遍，感谢\n\n我会保留所有原作者标识并标明出处\n\n对用户说：缝合脚本有问题我不负责修复或处理请不要向我反馈", 
     })
 
 TabAb:Button({
