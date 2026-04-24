@@ -1,0 +1,117 @@
+-- 变量定义 (确保这些在脚本顶部)
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- 1. 配置参数
+local Config = {
+    Enabled = false,
+    Multiplier = 3,      -- 推荐倍率
+    TargetPart = "Head",
+    ShootInterval = 0.001,
+    MaxDistance = 200    -- 默认距离
+}
+
+local Events = {
+    Handle = RS:WaitForChild("Events"):WaitForChild("HandleShots"),
+    Anim = RS:WaitForChild("URE_ViewmodelAnimStream"),
+    Damage = RS:WaitForChild("Events"):WaitForChild("\224\182\189\224\183\128\224\182\158\224\182\169")
+}
+
+-- 2. 核心检测函数 (加入了距离判断)
+local function GetTarget()
+    local target, dist = nil, Config.MaxDistance -- 初始化为设定的最大距离
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Config.TargetPart) then
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local d = (p.Character[Config.TargetPart].Position - LocalPlayer.Character.PrimaryPart.Position).Magnitude
+                if d < dist then -- 只有在设定距离内才会锁定
+                    dist = d
+                    target = p.Character
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- 3. 射击逻辑
+local function RageShot()
+    local targetChar = GetTarget()
+    local weaponObj = RS.Weapons:FindFirstChild("G-17")
+
+    if targetChar and weaponObj then
+        local targetPart = targetChar:FindFirstChild(Config.TargetPart)
+        
+        Events.Handle:FireServer("2", "Shoot")
+        Events.Anim:FireServer(true, "fire2", "fire")
+
+        local hitData = {
+            ["Normal"] = Vector3.new(-0.454, 0.225, 0.862),
+            ["Hit"] = targetChar,
+            ["PartName"] = Config.TargetPart,
+            ["hS"] = 2.4494898319244385, 
+            ["Position"] = targetPart.Position
+        }
+
+        local damageArgs = { [1] = hitData, [2] = weaponObj, [4] = true }
+
+        -- 根据 Slider 动态决定的倍率
+        for i = 1, Config.Multiplier do
+            Events.Damage:FireServer(unpack(damageArgs))
+        end
+    end
+end
+
+-- 4. 独立运行后台
+task.spawn(function()
+    while true do
+        task.wait(Config.ShootInterval)
+        if Config.Enabled then
+            pcall(RageShot)
+        end
+    end
+end)
+
+-- 5. WindUI 界面构建
+local TabKill = Window:Tab({
+    Title = "战斗功能",
+    Icon = "crosshair",
+})
+
+-- 功能开关
+TabKill:Toggle({
+    Title = "开启愤怒的机器人 (G-17)",
+    Desc = "自动锁定范围内的敌人并攻击",
+    Value = false,
+    Callback = function(v)
+        Config.Enabled = v
+    end
+})
+
+-- 攻击倍率调节
+TabKill:Slider({
+    Title = "攻击倍率 (Multiplier)",
+    Desc = "默认/推荐: 3 (数值越高伤害越高，容易踢出)",
+    Min = 1,
+    Max = 15,
+    Step = 1,
+    Value = 3,
+    Callback = function(v)
+        Config.Multiplier = v
+    end
+})
+
+-- 距离限制调节
+TabKill:Slider({
+    Title = "锁定距离 (Distance)",
+    Desc = "默认: 200 (超过此距离不触发)",
+    Min = 10,
+    Max = 1000,
+    Step = 10,
+    Value = 200,
+    Callback = function(v)
+        Config.MaxDistance = v
+    end
+})
