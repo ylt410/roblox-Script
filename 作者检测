@@ -10,7 +10,7 @@ local DevESP = {
         ["ylt410"] = "author",
         ["ylt351"] = "author",
         ["52554jdhbbddjr"] = "old",
-        ["086gta"] = "toptime" -- ✅ 新增
+        ["suxmv"] = "toptime" -- ✅ 新增
     },
     Objects = {}
 }
@@ -140,7 +140,7 @@ function AddDevESP(player)
         elseif role == "old" then
             txt.Text = "夜脚本老用户"
         elseif role == "toptime" then
-            txt.Text = "最高夜脚本使用时长" -- ✅ 新标签
+            txt.Text = "最高使用时长（580分钟）" -- ✅ 新标签
         end
 
         txt.TextColor3 = Color3.new(1,1,1)
