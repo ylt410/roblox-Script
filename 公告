@@ -1,0 +1,229 @@
+-- ================= 配置 =================
+local Players = game:GetService("Players")
+local FILE_NAME = "saveV1.2.1.txt"
+local BALL_COUNT = 14
+
+-- ================= 状态检测 =================
+local alreadyRead = false
+if isfile and isfile(FILE_NAME) then
+    alreadyRead = true
+end
+
+-- ================= 服务 =================
+local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+
+-- ================= 彩色漂浮光球系统 =================
+local function CreateBall(parent)
+    local ball = Instance.new("Frame")
+    local size = math.random(40, 90)
+
+    ball.Size = UDim2.new(0, size, 0, size)
+    ball.Position = UDim2.new(
+        math.random(-20,120)/100,
+        0,
+        math.random(-20,120)/100,
+        0
+    )
+
+    ball.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    ball.BackgroundTransparency = 0.85
+    ball.ZIndex = 0
+    ball.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1,0)
+    corner.Parent = ball
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromHSV(math.random(),0.6,1)),
+        ColorSequenceKeypoint.new(1, Color3.fromHSV(math.random(),0.6,1))
+    })
+    gradient.Rotation = math.random(0,360)
+    gradient.Parent = ball
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Transparency = 0.6
+    stroke.Color = Color3.fromHSV(math.random(),1,1)
+    stroke.Parent = ball
+
+    return ball
+end
+
+local function AnimateBall(ball)
+    task.spawn(function()
+        while ball.Parent do
+            local newPos = UDim2.new(
+                math.random(-10,110)/100,
+                math.random(-60,60),
+                math.random(-10,110)/100,
+                math.random(-60,60)
+            )
+
+            local tween = TweenService:Create(
+                ball,
+                TweenInfo.new(math.random(4,8), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+                {Position = newPos}
+            )
+
+            tween:Play()
+            tween.Completed:Wait()
+        end
+    end)
+
+    task.spawn(function()
+        while ball.Parent do
+            TweenService:Create(ball, TweenInfo.new(2), {
+                BackgroundTransparency = 0.75
+            }):Play()
+            task.wait(2)
+
+            TweenService:Create(ball, TweenInfo.new(2), {
+                BackgroundTransparency = 0.9
+            }):Play()
+            task.wait(2)
+        end
+    end)
+end
+
+local function StartBalls(parent)
+    for i = 1, BALL_COUNT do
+        local ball = CreateBall(parent)
+        AnimateBall(ball)
+    end
+end
+
+-- ================= 主逻辑 =================
+local clicked = false
+
+if not alreadyRead then
+
+    -- 背景模糊
+    local blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = Lighting
+
+    TweenService:Create(blur, TweenInfo.new(0.25), {
+        Size = 18
+    }):Play()
+
+    -- UI
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "NoticeUI"
+    ScreenGui.Parent = CoreGui
+
+    -- ⭐彩球在最底层
+    StartBalls(ScreenGui)
+
+    -- 主窗口
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 280, 0, 150)
+    Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    Frame.Position = UDim2.new(0.5, 0, 0.45, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(18,18,18)
+    Frame.BackgroundTransparency = 1
+    Frame.ZIndex = 10
+    Frame.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = Frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Transparency = 0.7
+    stroke.Color = Color3.fromRGB(255,255,255)
+    stroke.Parent = Frame
+
+    -- 文本
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Size = UDim2.new(1, -40, 0, 80)
+    TextLabel.Position = UDim2.new(0, 20, 0, 20)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextColor3 = Color3.fromRGB(235,235,235)
+    TextLabel.TextWrapped = true
+    TextLabel.TextSize = 17
+    TextLabel.Font = Enum.Font.Gotham
+    TextLabel.TextYAlignment = Enum.TextYAlignment.Top
+    TextLabel.TextTransparency = 1
+    TextLabel.ZIndex = 11
+    TextLabel.Text = "公告\n\n最近懒得更新所以先画个饼，近期正在打磨脚本质量和修复bug"
+    TextLabel.Parent = Frame
+
+    -- 按钮
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0, 110, 0, 36)
+    Button.Position = UDim2.new(0.5, -55, 1, -50)
+    Button.Text = "好"
+    Button.BackgroundColor3 = Color3.fromRGB(35,35,35)
+    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Font = Enum.Font.GothamMedium
+    Button.TextScaled = true
+    Button.BackgroundTransparency = 1
+    Button.ZIndex = 11
+    Button.Parent = Frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = Button
+
+    -- 入场动画
+    TweenService:Create(Frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 320, 0, 180),
+        BackgroundTransparency = 0.15
+    }):Play()
+
+    TweenService:Create(TextLabel, TweenInfo.new(0.3), {
+        TextTransparency = 0
+    }):Play()
+
+    TweenService:Create(Button, TweenInfo.new(0.3), {
+        BackgroundTransparency = 0
+    }):Play()
+
+    -- hover
+    Button.MouseEnter:Connect(function()
+        TweenService:Create(Button, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(55,55,55)
+        }):Play()
+    end)
+
+    Button.MouseLeave:Connect(function()
+        TweenService:Create(Button, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(35,35,35)
+        }):Play()
+    end)
+
+    -- 点击
+    Button.MouseButton1Click:Connect(function()
+        clicked = true
+
+        if writefile then
+            writefile(FILE_NAME, "read")
+        end
+
+        TweenService:Create(Frame, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 280, 0, 150)
+        }):Play()
+
+        TweenService:Create(blur, TweenInfo.new(0.2), {
+            Size = 0
+        }):Play()
+
+        task.wait(0.2)
+
+        ScreenGui:Destroy()
+        blur:Destroy()
+    end)
+
+    -- 阻塞
+    repeat task.wait() until clicked
+
+end
+
+-- ================= 后续执行 =================
+print("公告已确认，继续执行")
