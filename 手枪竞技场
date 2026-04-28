@@ -1,0 +1,352 @@
+
+
+-- 创建主窗口和标签页
+local TabAB = Window:Tab({
+    Title = "愤怒的机器人",
+    Icon = "info",
+    Locked = false,
+})
+
+-- ========== 愤怒机器人核心功能（完整移植） ==========
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+local ragebotEnabled = false
+local connection = nil
+local lastShootTime = 0
+local fireRate = 1.0          -- 默认射速（秒/发），与Slider默认值1.0一致
+local headshotEnabled = true
+
+-- 工具函数：获取伤害远程事件
+local function getDamageRemote()
+    return ReplicatedStorage:WaitForChild("SystemResources"):WaitForChild("BufferCache"):WaitForChild("RequestActionSync")
+end
+
+-- 工具函数：获取假子弹远程事件
+local function getFakeBulletRemote()
+    return ReplicatedStorage:WaitForChild("Events"):WaitForChild("RemoteEvents"):WaitForChild("ReplicateFakeBullet")
+end
+
+-- 工具函数：获取枪口特效远程事件
+local function getMuzzleFlashRemote()
+    return ReplicatedStorage:WaitForChild("Events"):WaitForChild("RemoteEvents"):WaitForChild("CharacterMuzzleFlash")
+end
+
+-- 可见性检测（原 getVisiblePart 的精确实现）
+local function getVisiblePart(targetCharacter)
+    if not targetCharacter or not LocalPlayer.Character then return nil, nil, nil end
+    local localCharacter = LocalPlayer.Character
+    local humanoidRootPart = localCharacter:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil, nil, nil end
+
+    local partNames = {"Head", "UpperTorso", "Torso", "LowerTorso", "HumanoidRootPart"}
+    local bestPart = nil
+    local bestPos = nil
+    local bestOrigin = nil
+    local minDistance = math.huge
+
+    for _, partName in ipairs(partNames) do
+        local part = targetCharacter:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
+            local targetPos = part.Position
+            -- 从不同高度发射射线检测可见性
+            for height = 0, 10.5, 2 do
+                local startPos = humanoidRootPart.Position + Vector3.new(0, height, 0)
+                local direction = (targetPos - startPos).Unit
+                local forwardPos = startPos + direction * 2.5
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                rayParams.FilterDescendantsInstances = {localCharacter, Camera}
+                rayParams.IgnoreWater = true
+                local ray = Workspace:Raycast(forwardPos, targetPos - forwardPos, rayParams)
+                if not ray or ray.Instance:IsDescendantOf(targetCharacter) or (ray.Instance.Transparency and ray.Instance.Transparency >= 0.9) then
+                    local distance = (targetPos - forwardPos).Magnitude
+                    if distance < minDistance then
+                        minDistance = distance
+                        bestPart = part
+                        bestPos = targetPos
+                        bestOrigin = forwardPos
+                    end
+                end
+            end
+        end
+    end
+    return bestPart, bestPos, bestOrigin
+end
+
+-- 判断玩家是否死亡
+local function isDead(player)
+    if not player or not player.Character then return true end
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    return not humanoid or humanoid.Health <= 0
+end
+
+-- 播放枪声
+local function playShootSound()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://6534948092"
+    sound.Volume = 1
+    sound.Parent = Camera
+    sound.PlayOnRemove = true
+    sound:Destroy()
+end
+
+-- 创建子弹光束特效
+local function createBeam(startPos, endPos)
+    local part1 = Instance.new("Part")
+    part1.Anchored = true
+    part1.CanCollide = false
+    part1.Transparency = 1
+    part1.Size = Vector3.new(0.1, 0.1, 0.1)
+    part1.Position = startPos
+    part1.Parent = Workspace
+
+    local part2 = Instance.new("Part")
+    part2.Anchored = true
+    part2.CanCollide = false
+    part2.Transparency = 1
+    part2.Size = Vector3.new(0.1, 0.1, 0.1)
+    part2.Position = endPos
+    part2.Parent = Workspace
+
+    local attachment1 = Instance.new("Attachment")
+    attachment1.Parent = part1
+    local attachment2 = Instance.new("Attachment")
+    attachment2.Parent = part2
+
+    local beam1 = Instance.new("Beam")
+    beam1.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+    beam1.Transparency = NumberSequence.new(0)
+    beam1.Width0 = 0.25
+    beam1.Width1 = 0.25
+    beam1.Texture = "rbxassetid://7136858729"
+    beam1.TextureSpeed = 0.8
+    beam1.TextureMode = Enum.TextureMode.Wrap
+    beam1.Brightness = 1
+    beam1.LightEmission = 0
+    beam1.FaceCamera = true
+    beam1.Attachment0 = attachment1
+    beam1.Attachment1 = attachment2
+    beam1.Parent = part1
+
+    local beam2 = Instance.new("Beam")
+    beam2.Color = ColorSequence.new(Color3.fromRGB(180, 200, 255))
+    beam2.Transparency = NumberSequence.new(0.4)
+    beam2.Width0 = 0.12
+    beam2.Width1 = 0.12
+    beam2.Texture = "rbxassetid://7136858729"
+    beam2.TextureSpeed = 1.2
+    beam2.TextureMode = Enum.TextureMode.Wrap
+    beam2.Brightness = 1.2
+    beam2.LightEmission = 0.6
+    beam2.FaceCamera = true
+    beam2.Attachment0 = attachment1
+    beam2.Attachment1 = attachment2
+    beam2.Parent = part1
+
+    local shaking = true
+    task.spawn(function()
+        while shaking and part1 and part1.Parent do
+            attachment1.Position = Vector3.new(math.random(-3, 3) / 100, math.random(-3, 3) / 100, math.random(-3, 3) / 100)
+            attachment2.Position = Vector3.new(math.random(-3, 3) / 100, math.random(-3, 3) / 100, math.random(-3, 3) / 100)
+            task.wait(0.02)
+        end
+    end)
+
+    task.delay(math.random(10, 40) / 10, function()
+        shaking = false
+        for i = 0, 1, 0.05 do
+            if not part1 or not part1.Parent then break end
+            beam1.Transparency = NumberSequence.new(i)
+            beam2.Transparency = NumberSequence.new(0.4 + i * 0.6)
+            task.wait(0.03)
+        end
+        pcall(function() part1:Destroy() end)
+        pcall(function() part2:Destroy() end)
+    end)
+end
+
+-- 射击核心（完整网络通信）
+local function shoot(player, targetPart, targetPos, origin)
+    local currentTime = tick()
+    if currentTime - lastShootTime < fireRate then return false end
+
+    local character = LocalPlayer.Character
+    if not character or not targetPart or not origin then return false end
+
+    local direction = (targetPos - origin).Unit
+    local cframe = CFrame.lookAt(origin, targetPos)
+
+    -- 发送假子弹特效
+    pcall(function()
+        local fakeBullet = getFakeBulletRemote()
+        if fakeBullet then
+            fakeBullet:FireServer(cframe, direction)
+        end
+    end)
+
+    -- 发送枪口闪光特效
+    pcall(function()
+        local muzzleFlash = getMuzzleFlashRemote()
+        if muzzleFlash then
+            muzzleFlash:FireServer()
+        end
+    end)
+
+    -- 发送伤害数据
+    local args = {
+        {
+            direction = direction,
+            hitPosition = targetPos,
+            origin = origin,
+            hitInstance = targetPart,
+            hitHumanoid = player.Character.Humanoid,
+            IsHeadshot = true
+        }
+    }
+    local damageRemote = getDamageRemote()
+    if damageRemote then
+        damageRemote:FireServer(unpack(args))
+    end
+
+    -- 视觉特效
+    createBeam(origin, targetPos)
+    playShootSound()
+    lastShootTime = currentTime
+    return true
+end
+
+-- 获取所有可见敌人（按距离排序）
+local function getVisibleTargets()
+    local targets = {}
+    local character = LocalPlayer.Character
+    if not character then return targets end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return targets end
+
+    local origin = humanoidRootPart.Position
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and not isDead(player) and player.Character then
+            local visiblePart, visiblePos, originPos = getVisiblePart(player.Character)
+            if visiblePart and visiblePos and originPos then
+                table.insert(targets, {
+                    player = player,
+                    distance = (visiblePos - origin).Magnitude,
+                    part = visiblePart,
+                    position = visiblePos,
+                    origin = originPos
+                })
+            end
+        end
+    end
+
+    table.sort(targets, function(a, b) return a.distance < b.distance end)
+    return targets
+end
+
+-- 原生通知（兼容 WasUI）
+local function Notify(title, content, duration)
+    WindUI:Notify({
+        Title = title or "提示",
+        Content = content or "",
+        Duration = duration or 2,
+        Icon = "bell" -- 你可以改成 bird / info / check 等
+    })
+end
+-- ========== 创建 WasUI 界面组件 ==========
+-- Ragebot 状态变量
+local ragebotEnabled = false
+local connection = nil
+
+-- WindUI Toggle
+local ragebotEnabled = false
+local connection = nil
+
+local rageToggle = TabAB:Toggle({
+    Title = "愤怒机器人",
+    Desc = "逻辑by XM脚本",
+    Type = "Checkbox",
+    Value = false, -- ✅ 正确字段（不是 Default）
+    Callback = function(state)
+        ragebotEnabled = state
+
+        -- 断开旧连接
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+
+        if state then
+            connection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    if not ragebotEnabled then return end
+
+                    local targets = getVisibleTargets()
+                    if #targets > 0 then
+                        local target = targets[1]
+
+                        local targetPart = target.part
+                        local targetPos = target.position
+                        local origin = target.origin
+
+                        -- 强制爆头
+                        if headshotEnabled then
+                            local char = target.player.Character
+                            if char then
+                                local head = char:FindFirstChild("Head")
+                                if head then
+                                    targetPart = head
+                                    targetPos = head.Position
+                                end
+                            end
+                        end
+
+                        shoot(target.player, targetPart, targetPos, origin)
+                    end
+                end)
+            end)
+
+            Notify("愤怒机器人", "已开启，正在自动瞄准敌人", 2)
+        else
+            Notify("愤怒机器人", "已关闭", 2)
+        end
+    end
+})
+-- 射速滑块（单位：秒/发）
+-- ===== 射速滑条 =====
+local fireRateSlider = TabAB:Slider({
+    Title = "射速 (秒/发)",
+    Desc = "数值越小，射速越快",
+    Step = 0.05,
+    Value = {
+        Min = 0.5,
+        Max = 2,
+        Default = 1,
+    },
+    Callback = function(val)
+        fireRate = val
+    end
+})
+
+-- ===== 强制爆头（标准 Toggle 写法）=====
+local headshotToggle = TabAB:Toggle({
+    Title = "强制爆头",
+    Desc = "优先瞄准头部",
+    Type = "Checkbox",
+    Value = true, -- ✅ 标准字段（不是 Default）
+    Callback = function(state)
+        headshotEnabled = state
+
+        if state then
+            Notify("强制爆头", "已启用（仅瞄准头部）", 1)
+        else
+            Notify("强制爆头", "已关闭", 1)
+        end
+    end
+})
