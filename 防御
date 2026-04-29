@@ -91,27 +91,30 @@ TabKill:Toggle({
 })
 
 -- 攻击倍率调节
+-- 攻击倍率
 TabKill:Slider({
     Title = "攻击倍率 (Multiplier)",
-    Desc = "默认/推荐: 3 (数值越高伤害越高，容易踢出)",
-    Min = 1,
-    Max = 15,
-    Step = 1,
-    Value = 3,
-    Callback = function(v)
-        Config.Multiplier = v
+    Value = {
+        Min = 1,
+        Max = 15,
+        Default = 3,
+    },
+    Increment = 1,
+    Callback = function(value)
+        Config.Multiplier = value
     end
 })
 
--- 距离限制调节
+-- 距离限制
 TabKill:Slider({
     Title = "锁定距离 (Distance)",
-    Desc = "默认: 200 (超过此距离不触发)",
-    Min = 10,
-    Max = 1000,
-    Step = 10,
-    Value = 200,
-    Callback = function(v)
-        Config.MaxDistance = v
+    Value = {
+        Min = 10,
+        Max = 1000,
+        Default = 200,
+    },
+    Increment = 10,
+    Callback = function(value)
+        Config.MaxDistance = value
     end
 })
