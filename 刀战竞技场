@@ -1,25 +1,38 @@
--- =================== Rage 功能 ===================
+-- =================== 创建 Tab ===================
+local TabAC = Window:Tab({
+    Title = "AC",
+    Icon = "info",
+    Locked = false,
+})
+
+-- =================== 服务 ===================
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
 local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ReplicateShot")
 
--- 开关状态
-local RageEnabled = false
+-- =================== 状态变量 ===================
+local rageEnabled = false
+local connection = nil
+local fireRate = 0.05
+local lastShoot = 0
 
--- 获取最近目标
+-- =================== 获取目标 ===================
 local function getBestTarget()
     local target = nil
     local lastDist = math.huge
-    
+
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             local hitbox = plr.Character:FindFirstChild("_Hitbox")
             local head = hitbox and hitbox:FindFirstChild("Head") or plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-            
+
             if head and hum and hum.Health > 0 then
-                local dist = (head.Position - workspace.CurrentCamera.CFrame.Position).Magnitude
+                local dist = (head.Position - Camera.CFrame.Position).Magnitude
                 if dist < lastDist then
                     lastDist = dist
                     target = head
@@ -27,11 +40,15 @@ local function getBestTarget()
             end
         end
     end
+
     return target
 end
 
--- 发射逻辑
+-- =================== 射击 ===================
 local function fireRage()
+    local now = tick()
+    if now - lastShoot < fireRate then return end
+
     local targetPart = getBestTarget()
     if not targetPart then return end
 
@@ -49,30 +66,49 @@ local function fireRage()
     }
 
     Remote:FireServer(unpack(args))
+
+    lastShoot = now
 end
 
--- 主循环（只创建一次）
-task.spawn(function()
-    while true do
-        if RageEnabled then
-            fireRage()
+-- =================== Toggle ===================
+TabAC:Toggle({
+    Title = "自动锁头",
+    Desc = "最近目标自动射击",
+    Type = "Checkbox",
+    Value = false,
+
+    Callback = function(state)
+        rageEnabled = state
+
+        -- 断开旧连接
+        if connection then
+            connection:Disconnect()
+            connection = nil
         end
-        task.wait(0.05)
+
+        if state then
+            connection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    if rageEnabled then
+                        fireRage()
+                    end
+                end)
+            end)
+        end
     end
-end)
-
-
-local TabAc = Window:Tab({
-    Title = "战斗功能",
-    Icon = "info",
-    Locked = false,
 })
 
--- =================== UI 开关 ===================
-TabAc:Toggle({
-    Title = "自动锁头",
-    Default = false,
-    Callback = function(v)
-        RageEnabled = v
+-- =================== 射速滑条 ===================
+TabAC:Slider({
+    Title = "射速",
+    Desc = "越小越快",
+    Step = 0.01,
+    Value = {
+        Min = 0.01,
+        Max = 0.2,
+        Default = 0.05,
+    },
+    Callback = function(val)
+        fireRate = val
     end
 })
