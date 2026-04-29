@@ -68,7 +68,7 @@ task.spawn(function()
 end)
 
 -- =================== UI 开关 ===================
-TabTP:Toggle({
+TabAc:Toggle({
     Title = "自动锁头",
     Default = false,
     Callback = function(v)
