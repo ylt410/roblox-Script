@@ -1,0 +1,77 @@
+local TabAc = Window:Tab({
+    Title = "战斗功能",
+    Icon = "info",
+    Locked = false,
+})
+
+-- =================== Rage 功能 ===================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ReplicateShot")
+
+-- 开关状态
+local RageEnabled = false
+
+-- 获取最近目标
+local function getBestTarget()
+    local target = nil
+    local lastDist = math.huge
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local hitbox = plr.Character:FindFirstChild("_Hitbox")
+            local head = hitbox and hitbox:FindFirstChild("Head") or plr.Character:FindFirstChild("Head")
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            
+            if head and hum and hum.Health > 0 then
+                local dist = (head.Position - workspace.CurrentCamera.CFrame.Position).Magnitude
+                if dist < lastDist then
+                    lastDist = dist
+                    target = head
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- 发射逻辑
+local function fireRage()
+    local targetPart = getBestTarget()
+    if not targetPart then return end
+
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Head") then return end
+
+    local origin = char.Head.Position
+    local hitPos = targetPart.Position
+    local direction = (hitPos - origin).Unit
+
+    local args = {
+        [1] = hitPos,
+        [2] = targetPart,
+        [3] = direction
+    }
+
+    Remote:FireServer(unpack(args))
+end
+
+-- 主循环（只创建一次）
+task.spawn(function()
+    while true do
+        if RageEnabled then
+            fireRage()
+        end
+        task.wait(0.05)
+    end
+end)
+
+-- =================== UI 开关 ===================
+TabTP:Toggle({
+    Title = "自动锁头",
+    Default = false,
+    Callback = function(v)
+        RageEnabled = v
+    end
+})
