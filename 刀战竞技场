@@ -1,9 +1,3 @@
-local TabAc = Window:Tab({
-    Title = "战斗功能",
-    Icon = "info",
-    Locked = false,
-})
-
 -- =================== Rage 功能 ===================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -66,6 +60,13 @@ task.spawn(function()
         task.wait(0.05)
     end
 end)
+
+
+local TabAc = Window:Tab({
+    Title = "战斗功能",
+    Icon = "info",
+    Locked = false,
+})
 
 -- =================== UI 开关 ===================
 TabAc:Toggle({
