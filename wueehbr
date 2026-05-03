@@ -10,7 +10,7 @@
 --恭喜你找到了我的源码
 -- by 夜
 local Players = game:GetService("Players")
--- =================== Anti-Deobfuscation Core v2 ===================
+--[[ =================== Anti-Deobfuscation Core v2 ===================
 
 local _w = 0
 local _t0 = os.clock()
@@ -163,7 +163,7 @@ end
 -- local aimbot = loadAimbot()
 -- guard()
 -- local ui = buildUI()
-
+]]
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/公告"))()
 local StarterGui = game:GetService("StarterGui")
 
@@ -186,7 +186,7 @@ local function tryLoadWindUI(retries, timeoutPerAttempt)
     retries = retries or 3
     timeoutPerAttempt = timeoutPerAttempt or 5
 
-    local url = "https://raw.githubusercontent.com/gycgchgyfytdttr/shenqin/refs/heads/main/ui.lua"
+    local url = "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/UI库"
 
     for i = 1, retries do
         print("WindUI 加载尝试 #" .. i)
@@ -244,6 +244,15 @@ FallbackNotify("加载成功", "WindUI 已加载，脚本继续执行", 3)
 -- 这里开始写你原本的 WindUI 代码
 -- 例如：
 -- local Window = WindUI:CreateWindow({...})
+local BgPresets = {
+    ["蓝色系少女"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/E7B068E4-0859-420F-A6B1-AF519C804C39.png",
+    ["粉色系少女"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/A19A17E7-7AF5-4E1D-998B-DA69A7C0CD77.png",
+    ["蓝色系猫娘"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/FB28370F-CEA8-4CC6-A6E0-51B7DF9071D3.png",
+    ["彩蛋"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3671.jpeg",
+    ["紫色系御姐"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/F99AB9B7-A68C-4EC1-8D39-BAB06FDA5F0D.png",
+    ["蓝色系少女2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3672.jpeg",
+
+}
 
 local function Notify(title, content, duration, icon)
 
@@ -532,7 +541,11 @@ end
 -- 🖤 BlackGold
 -- =================== 背景图配置 ===================
 local BgFile = "NightBackground.txt"
+local BgPresetFile = "NightBgPreset.txt"
+local BgTransFile = "NightBgTrans.txt"
 local BackgroundEnabled = true
+local BgTransValue = 0.55
+local SavedBgPreset = "默认背景"
 local BgImage = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/E7B068E4-0859-420F-A6B1-AF519C804C39.png"
 
 pcall(function()
@@ -541,6 +554,27 @@ pcall(function()
         BackgroundEnabled = (saved ~= "false")
     end
 end)
+
+pcall(function()
+    if isfile and isfile(BgTransFile) then
+        local saved = tonumber(readfile(BgTransFile))
+        if saved then
+            BgTransValue = math.clamp(saved, 0, 1)
+        end
+    end
+end)
+
+pcall(function()
+    if isfile and isfile(BgPresetFile) then
+        local saved = readfile(BgPresetFile)
+        if saved and saved ~= "" then
+            SavedBgPreset = saved
+        end
+    end
+end)
+if BgPresets[SavedBgPreset] then
+    BgImage = BgPresets[SavedBgPreset]
+end
 WindUI:AddTheme({
     Name = "BlackGold",
 
@@ -3110,7 +3144,7 @@ end)
 
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
-    Icon = "rbxassetid://114890258053806", -- ⭐不要用rbxasset，换现代图标
+    Icon = "rbxassetid://114890258053806",
     Author = "作者:夜",
     Folder = "NightHub",
 
@@ -3130,7 +3164,6 @@ local Window = WindUI:CreateWindow({
         Draggable = true,
 OnlyMobile = false,
 
-
         Color = ColorSequence.new(
             Color3.fromRGB(120,80,255),
             Color3.fromRGB(0,200,255)
@@ -3139,8 +3172,8 @@ OnlyMobile = false,
 
     SideBarWidth = 150, -- ⭐稍微加宽
     ScrollBarEnabled = false, -- ⭐关掉更像mac
-    Background = BackgroundEnabled and BgImage or nil,
-BackgroundImageTransparency = 0.55,
+Background = BackgroundEnabled and BgImage or nil,
+BackgroundImageTransparency = BgTransValue,
 
     User = {
         Enabled = true,
@@ -3156,7 +3189,7 @@ pcall(function()
 if BackgroundEnabled then
     pcall(function()
         Window.BackgroundImage = BgImage
-        Window.BackgroundImageTransparency = 0.55
+        Window.BackgroundImageTransparency = BgTransValue
     end)
 end
 end)
@@ -4235,7 +4268,7 @@ TabNight:Button({
 -- ================= 功能列表显示 =================
 TabNight:Toggle({
     Title = "功能列表显示",
-    Default = true,
+    Value = true,
     Callback = function(v)
 
         FeatureDisplayEnabled = v
@@ -4277,7 +4310,7 @@ end)
 -- ================= 自身血量 =================
 TabNight:Toggle({
     Title = "自身血量显示",
-    Default = true,
+    Value = true,
     Callback = function(v)
 
         HealthDisplay.Enabled = v
@@ -6239,7 +6272,134 @@ TabStop:Button({
 
     end
 })
+-- =================== 边框系统（保留原彩虹版） ===================
 
+task.wait(0.3)
+
+local RunService = game:GetService("RunService")
+local Main = Window.UIElements.Main
+
+-- ===== 文件 =====
+local BorderModeFile = "WindUI_BorderMode.txt"
+local BorderEnabledFile = "WindUI_BorderEnabled.txt"
+
+-- ===== 默认（强制彩虹 + 开启）=====
+local BorderMode = "Rainbow"
+local BorderEnabled = true
+
+-- ===== 读取（如果没有文件就用默认）=====
+pcall(function()
+    if isfile and isfile(BorderModeFile) then
+        local v = readfile(BorderModeFile)
+        if v ~= "" then BorderMode = v end
+    end
+end)
+
+pcall(function()
+    if isfile and isfile(BorderEnabledFile) then
+        BorderEnabled = readfile(BorderEnabledFile) == "true"
+    end
+end)
+
+-- ===== 清理旧 =====
+for _, v in ipairs(Main:GetDescendants()) do
+    if v:IsA("UIStroke") and v.Name == "RainbowBorder" then
+        v:Destroy()
+    end
+end
+
+-- ===== 创建描边 =====
+local Stroke = Instance.new("UIStroke")
+Stroke.Name = "RainbowBorder"
+Stroke.Thickness = 3.5
+Stroke.Color = Color3.new(1, 1, 1)
+Stroke.LineJoinMode = Enum.LineJoinMode.Round
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke.Parent = Main
+
+-- ===== 原版彩虹渐变 =====
+local Gradient = Instance.new("UIGradient")
+Gradient.Name = "RainbowGradient"
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(0.16, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(0, 255, 255)),
+    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 0, 255)),
+    ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(255, 0, 0))
+})
+Gradient.Rotation = 1
+Gradient.Parent = Stroke
+
+-- ===== 模式切换 =====
+local function ApplyBorderMode(mode)
+    BorderMode = mode
+
+    if mode == "Rainbow" then
+        Gradient.Enabled = true
+        Stroke.Color = Color3.new(1, 1, 1)
+
+    elseif mode == "Red" then
+        Gradient.Enabled = false
+        Stroke.Color = Color3.fromRGB(255, 60, 60)
+
+    elseif mode == "Blue" then
+        Gradient.Enabled = false
+        Stroke.Color = Color3.fromRGB(80, 160, 255)
+    end
+
+    pcall(function()
+        if writefile then
+            writefile(BorderModeFile, mode)
+        end
+    end)
+end
+
+-- ===== 开关 =====
+local function SetBorderEnabled(v)
+    BorderEnabled = v
+    Stroke.Enabled = v
+
+    pcall(function()
+        if writefile then
+            writefile(BorderEnabledFile, tostring(v))
+        end
+    end)
+end
+
+-- ===== 初始化（先执行，确保变量状态正确）=====
+ApplyBorderMode(BorderMode)
+SetBorderEnabled(BorderEnabled)
+
+-- ===== 动画（初始化之后再连接，保证 BorderMode 已同步）=====
+local currentAngle = 1
+
+-- ⭐ 关键修复：连接前先强制写一次 Rotation，激活 Roblox 渲染管线
+Gradient.Rotation = currentAngle
+
+RunService.RenderStepped:Connect(function(dt)
+    if not Stroke or not Stroke.Parent then return end
+    if BorderMode ~= "Rainbow" then return end
+    if not Gradient.Enabled then return end
+
+    currentAngle = (currentAngle + dt * 150) % 360
+    Gradient.Rotation = currentAngle
+end)
+
+-- ===== 圆角 =====
+local Corner = Main:FindFirstChildOfClass("UICorner")
+if not Corner then
+    Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 12)
+    Corner.Parent = Main
+end
+
+-- ===== 全局 =====
+_G.ApplyBorderMode = ApplyBorderMode
+_G.SetBorderEnabled = SetBorderEnabled
+_G.BorderMode = BorderMode
+_G.BorderEnabled = BorderEnabled
 -- ================= 配置 =================
 local TabConfig = Window:Tab({
     Title = "配置",
@@ -6323,28 +6483,140 @@ TabConfig:Dropdown({
 
     end
 })
+
+-- ================= 背景图开关 =================
 TabConfig:Toggle({
     Title = "背景图（重启脚本生效）",
     Value = BackgroundEnabled,
-
     Callback = function(v)
         BackgroundEnabled = v
 
-        -- 写入文件
-        if writefile then
-            writefile(BgFile, tostring(v))
-        end
-
-        task.wait()
+        pcall(function()
+            if writefile then
+                writefile(BgFile, tostring(v))
+            end
+        end)
 
         if v then
-            Window.BackgroundImage = BgImage
-            Window.BackgroundImageTransparency = 0.25
+            pcall(function()
+                Window.BackgroundImage = BgImage
+                Window.BackgroundImageTransparency = BgTransValue
+            end)
         else
-            Window.BackgroundImage = ""
+            pcall(function()
+                Window.BackgroundImage = ""
+            end)
         end
     end
 })
+
+-- ================= 背景图预设 =================
+
+-- 固定顺序列表
+local BgPresetNames = {
+    "蓝色系少女",
+    "粉色系少女",
+    "蓝色系猫娘",
+    "彩蛋",
+    "紫色系御姐",
+    "蓝色系少女2",
+
+}
+
+TabConfig:Dropdown({
+    Title = "背景图预设",
+    Desc = "选择预设背景重启脚本生效",
+    Values = BgPresetNames,
+    Default = SavedBgPreset,
+    Callback = function(v)
+        if typeof(v) == "table" then
+            v = v.Value or v[1]
+        end
+        if not v then return end
+
+        local url = BgPresets[v]
+        if not url then return end
+
+        -- 更新全局变量
+        BgImage = url
+        SavedBgPreset = v
+
+        -- 保存到文件
+        pcall(function()
+            if writefile then
+                writefile(BgPresetFile, v)
+            end
+        end)
+
+        -- 应用（仅在开启时生效）
+        if BackgroundEnabled then
+            pcall(function()
+                Window.BackgroundImage = BgImage
+                Window.BackgroundImageTransparency = BgTransValue
+            end)
+        end
+
+        Notify("背景图", "已切换为 "..tostring(v), 2, "success")
+    end
+})
+
+-- ================= 背景图透明度 =================
+TabConfig:Slider({
+    Title = "背景图透明度（重启脚本生效）",
+    Desc = "0=不透明  100=全透明",
+    Value = {
+        Min = 0,
+        Max = 100,
+        Default = math.floor(BgTransValue * 100),
+    },
+    Increment = 5,
+    Callback = function(v)
+        local realVal = v / 100
+        BgTransValue = realVal
+
+        pcall(function()
+            if writefile then
+                writefile(BgTransFile, tostring(realVal))
+            end
+        end)
+
+        if BackgroundEnabled then
+            pcall(function()
+                Window.BackgroundImageTransparency = realVal
+            end)
+        end
+    end
+})
+TabConfig:Toggle({
+    Title = "UI边框",
+    Value = _G.BorderEnabled,
+
+    Callback = function(v)
+        _G.SetBorderEnabled(v)
+
+        Notify("边框", v and "已开启" or "已关闭", 2, "success")
+    end
+})
+TabConfig:Dropdown({
+    Title = "边框样式",
+    Values = {"Rainbow", "Red", "Blue"},
+    Default = _G.BorderMode or "Rainbow",
+
+    Callback = function(v)
+        if typeof(v) == "table" then
+            v = v.Value or v[1]
+        end
+
+        _G.ApplyBorderMode(v)
+
+        Notify("边框样式", "已切换为 "..tostring(v), 2, "success")
+    end
+})
+
+-- ⭐ 关键修复：Dropdown 创建后手动触发一次，确保初始模式生效
+task.defer(function()
+    _G.ApplyBorderMode(_G.BorderMode or "Rainbow")
+end)
 -- ================= 重进服务器 =================
 
 TabConfig:Button({
@@ -6366,65 +6638,5 @@ WindUI:Notify({
     Duration = 3, 
    Icon = "bird",
 })
---[[
- =================== WindUI适配版·流光彩虹（稳定版） ===================
-]]
-
-task.wait(0.3)
-
-local Main = Window.UIElements.Main
--- 1. 清理旧描边
-for _, v in ipairs(Main:GetDescendants()) do
-    if v:IsA("UIStroke") and v.Name == "RainbowBorder" then
-        v:Destroy()
-    end
-end
-
--- 2. 创建描边
-local Stroke = Instance.new("UIStroke")
-Stroke.Name = "RainbowBorder"
-Stroke.Thickness = 3.5
-Stroke.Color = Color3.new(1, 1, 1)
-Stroke.LineJoinMode = Enum.LineJoinMode.Round
-Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke.Parent = Main
-
--- 3. 渐变
-local Gradient = Instance.new("UIGradient")
-Gradient.Name = "RainbowGradient"
-Gradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,    Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(0.16, Color3.fromRGB(255, 255, 0)),
-    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
-    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(0, 255, 255)),
-    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 0, 255)),
-    ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
-    ColorSequenceKeypoint.new(1,    Color3.fromRGB(255, 0, 0))
-})
-Gradient.Parent = Stroke
-
--- 4. 动画（常驻稳定）
-local RunService = game:GetService("RunService")
-local currentAngle = 0
-local rotSpeed = 150
-
-RunService.RenderStepped:Connect(function(dt)
-    if Stroke and Stroke.Parent then
-        currentAngle = (currentAngle + dt * rotSpeed) % 360
-        Gradient.Rotation = currentAngle
-    end
-end)
-
--- 5. 始终开启（WindUI不需要Visible监听）
-Stroke.Enabled = true
-Stroke.Transparency = 0
-
--- 6. 圆角补齐（防描边变形）
-local Corner = Main:FindFirstChildOfClass("UICorner")
-if not Corner then
-    Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 12)
-    Corner.Parent = Main
-end
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/djejhebr"))()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/njdjdn"))()
