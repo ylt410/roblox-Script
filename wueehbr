@@ -3128,6 +3128,8 @@ local Window = WindUI:CreateWindow({
         CornerRadius = UDim.new(1,0),
         Scale = 1,
         Draggable = true,
+OnlyMobile = false,
+
 
         Color = ColorSequence.new(
             Color3.fromRGB(120,80,255),
