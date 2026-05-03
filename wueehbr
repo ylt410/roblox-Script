@@ -186,7 +186,7 @@ local function tryLoadWindUI(retries, timeoutPerAttempt)
     retries = retries or 3
     timeoutPerAttempt = timeoutPerAttempt or 5
 
-    local url = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+    local url = "https://raw.githubusercontent.com/gycgchgyfytdttr/shenqin/refs/heads/main/ui.lua"
 
     for i = 1, retries do
         print("WindUI 加载尝试 #" .. i)
@@ -530,6 +530,17 @@ function DisableTPUI()
 end
 -- ================= 主题注册 =================
 -- 🖤 BlackGold
+-- =================== 背景图配置 ===================
+local BgFile = "NightBackground.txt"
+local BackgroundEnabled = true
+local BgImage = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/E7B068E4-0859-420F-A6B1-AF519C804C39.png"
+
+pcall(function()
+    if isfile and isfile(BgFile) then
+        local saved = readfile(BgFile)
+        BackgroundEnabled = (saved ~= "false")
+    end
+end)
 WindUI:AddTheme({
     Name = "BlackGold",
 
@@ -3099,7 +3110,7 @@ end)
 
 local Window = WindUI:CreateWindow({
     Title = "夜脚本",
-    Icon = "solar:moon-bold", -- ⭐不要用rbxasset，换现代图标
+    Icon = "rbxassetid://114890258053806", -- ⭐不要用rbxasset，换现代图标
     Author = "作者:夜",
     Folder = "NightHub",
 
@@ -3109,7 +3120,7 @@ local Window = WindUI:CreateWindow({
     Theme = CurrentTheme,
 
     -- ⭐核心：开启新UI系统
-    NewElements = true,
+    NewElements = false,
 
    
     -- ⭐浮动按钮（iOS风格）
@@ -3126,6 +3137,8 @@ local Window = WindUI:CreateWindow({
 
     SideBarWidth = 150, -- ⭐稍微加宽
     ScrollBarEnabled = false, -- ⭐关掉更像mac
+    Background = BackgroundEnabled and BgImage or nil,
+BackgroundImageTransparency = 0.55,
 
     User = {
         Enabled = true,
@@ -3137,6 +3150,13 @@ local Window = WindUI:CreateWindow({
 -- ⭐再补一层保险（防UI初始化不同步）
 pcall(function()
     WindUI:SetTheme(CurrentTheme)
+
+if BackgroundEnabled then
+    pcall(function()
+        Window.BackgroundImage = BgImage
+        Window.BackgroundImageTransparency = 0.55
+    end)
+end
 end)
 Window:Tag({
     Title = "夜脚本V1.1",
@@ -6301,7 +6321,28 @@ TabConfig:Dropdown({
 
     end
 })
+TabConfig:Toggle({
+    Title = "背景图（重启脚本生效）",
+    Value = BackgroundEnabled,
 
+    Callback = function(v)
+        BackgroundEnabled = v
+
+        -- 写入文件
+        if writefile then
+            writefile(BgFile, tostring(v))
+        end
+
+        task.wait()
+
+        if v then
+            Window.BackgroundImage = BgImage
+            Window.BackgroundImageTransparency = 0.25
+        else
+            Window.BackgroundImage = ""
+        end
+    end
+})
 -- ================= 重进服务器 =================
 
 TabConfig:Button({
