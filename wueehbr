@@ -3194,7 +3194,7 @@ if BackgroundEnabled then
 end
 end)
 Window:Tag({
-    Title = "夜脚本V1.1",
+    Title = "夜脚本V1.3",
     Icon = "github",
     Color = Color3.fromRGB(255, 204, 0), -- ⭐柔和黄色（推荐）
     Radius = 8,
@@ -3215,6 +3215,11 @@ MainTab:Button({
         end
 end
 })
+MainTab:Paragraph({
+        Title = "夜脚本V1.3版本更新",
+        Desc = "主要更新：\n边框开关\n边框颜色选择（彩虹、红、蓝）\n更新背景图（背景图更改需要重启脚本应用）\n杂项更新：\n把穿墙调整至玩家功能\n玩家功能新增调整重力", 
+    })
+
 MainTab:Paragraph({
         Title = "夜脚本V1.2.1版本更新",
         Desc = "修复了甩飞偶发性报错和防摔落伤害在重生后失效的问题", 
