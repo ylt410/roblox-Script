@@ -3368,7 +3368,84 @@ TabAttr:Slider({
         end
     end
 })
+do
+-- ================= 重力控制系统 =================
 
+local GravityEnabled = false
+local CustomGravity = 196.2
+local OriginalGravity = workspace.Gravity
+
+-- ⭐防止被游戏改回
+RunService.RenderStepped:Connect(function()
+
+    if not GravityEnabled then return end
+
+    if workspace.Gravity ~= CustomGravity then
+        workspace.Gravity = CustomGravity
+    end
+
+end)
+
+-- ⭐开启
+local function EnableGravity(value)
+
+    value = tonumber(value)
+    if not value then return end
+
+    OriginalGravity = workspace.Gravity
+    CustomGravity = math.clamp(value, 0, 500)
+
+    workspace.Gravity = CustomGravity
+    GravityEnabled = true
+
+end
+
+-- ⭐关闭（恢复原本）
+local function DisableGravity()
+
+    GravityEnabled = false
+
+    if OriginalGravity then
+        workspace.Gravity = OriginalGravity
+    else
+        workspace.Gravity = 196.2
+    end
+
+end
+TabAttr:Toggle({
+    Title = "重力控制",
+    Desc = "开启后可自定义重力",
+    Value = false,
+    Callback = function(state)
+
+        if state then
+            EnableGravity(CustomGravity)
+            AddFeature("重力控制")
+        else
+            DisableGravity()
+            RemoveFeature("重力控制")
+        end
+
+    end
+})
+TabAttr:Input({
+    Title = "重力数值",
+    Desc = "默认196.2，越低越像月球",
+    Value = "196.2",
+    Callback = function(val)
+
+        local num = tonumber(val)
+        if not num then return end
+
+        CustomGravity = math.clamp(num, 0, 500)
+
+        if GravityEnabled then
+            workspace.Gravity = CustomGravity
+        end
+
+    end
+})
+end
 -- ================= 无限跳 =================
 
 TabAttr:Toggle({
@@ -3384,51 +3461,14 @@ TabAttr:Toggle({
         end
     end
 })
-
-local TabOther = Window:Tab({
-    Title = "通用",
-    Icon = "info",
-    Locked = false,
-})
--- ================= 飞行 =================
-
-TabOther:Button({
-    Title = "一键飞行",
-    Callback = function()
-        local ok, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
-        end)
-
-        if ok then
-            Notify("成功", "飞行已加载", 2, "success")
-        else
-            Notify("错误", tostring(err), 3, "error")
-        end
-    end
-})
-
-TabOther:Button({
-    Title = "枪械飞行",
-    Callback = function()
-        local ok, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/fly"))()
-        end)
-
-        if ok then
-            Notify("成功", "枪械飞行已加载", 2, "success")
-        else
-            Notify("错误", tostring(err), 3, "error")
-        end
-    end
-})
-
+do
 -- ================= 穿墙 =================
 
 local NoclipConnection = nil
 local CharacterConnection = nil
 local OriginalCollision = {}
 
-TabOther:Toggle({
+TabAttr:Toggle({
     Title = "穿墙",
     Default = false,
     Callback = function(enabled)
@@ -3490,6 +3530,45 @@ TabOther:Toggle({
 
     end
 })
+end
+
+local TabOther = Window:Tab({
+    Title = "通用",
+    Icon = "info",
+    Locked = false,
+})
+-- ================= 飞行 =================
+
+TabOther:Button({
+    Title = "一键飞行",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/flyab.lua"))()
+        end)
+
+        if ok then
+            Notify("成功", "飞行已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
+TabOther:Button({
+    Title = "枪械飞行",
+    Callback = function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/fly"))()
+        end)
+
+        if ok then
+            Notify("成功", "枪械飞行已加载", 2, "success")
+        else
+            Notify("错误", tostring(err), 3, "error")
+        end
+    end
+})
+
 
 -- ================= 自由视角（唯一保留通知） =================
 
