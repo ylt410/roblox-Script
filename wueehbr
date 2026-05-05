@@ -254,6 +254,8 @@ local BgPresets = {
     ["你懂的"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3683.jpeg",
     ["你懂的2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3707.jpeg",
     ["你懂的3"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3706.jpeg",
+    ["罪恶王冠楪祈"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3710.jpeg",
+    ["罪恶王冠楪祈2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3711.jpeg",
 
 }
 
@@ -6610,7 +6612,8 @@ local BgPresetNames = {
     "你懂的",
     "你懂的2",
     "你懂的3",
-
+    "罪恶王冠楪祈",
+    "罪恶王冠楪祈2",
 }
 
 TabConfig:Dropdown({
