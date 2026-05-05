@@ -252,6 +252,9 @@ local BgPresets = {
     ["紫色系御姐"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/F99AB9B7-A68C-4EC1-8D39-BAB06FDA5F0D.png",
     ["蓝色系少女2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3672.jpeg",
     ["你懂的"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3683.jpeg",
+    ["你懂的2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3707.jpeg",
+    ["你懂的3"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3706.jpeg",
+
 }
 
 local function Notify(title, content, duration, icon)
@@ -6605,6 +6608,8 @@ local BgPresetNames = {
     "紫色系御姐",
     "蓝色系少女2",
     "你懂的",
+    "你懂的2",
+    "你懂的3",
 
 }
 
