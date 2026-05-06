@@ -1,6 +1,6 @@
 -- ================= 配置 =================
 local Players = game:GetService("Players")
-local FILE_NAME = "saveV1.2.1.txt"
+local FILE_NAME = "saveV1.3.txt"
 local BALL_COUNT = 14
 
 -- ================= 状态检测 =================
@@ -150,7 +150,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n\n最近懒得更新所以先画个饼，近期正在打磨脚本质量和修复bug"
+    TextLabel.Text = "公告\n\n小猫土豆老冯已变为土豆，把一堆群都飞了\n夜脚本主群黑名单已清理\n请重新进群感谢"
     TextLabel.Parent = Frame
 
     -- 按钮
