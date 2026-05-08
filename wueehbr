@@ -9,6 +9,615 @@
 
 --恭喜你找到了我的源码
 -- by 夜
+local TweenService = game:GetService("TweenService")
+
+local function TranslateScriptError(errorText)
+    local raw = tostring(errorText or "未知错误")
+    local lower = raw:lower()
+
+    local rules = {
+        {
+            keywords = { "attempt to index nil" },
+            meaning = "脚本正在访问一个不存在的对象。常见原因：对象未加载、路径错误、变量为 nil。"
+        },
+        {
+            keywords = { "attempt to call a nil value" },
+            meaning = "脚本正在调用一个不存在的函数。常见原因：函数名拼写错误、库未加载成功、函数未定义。"
+        },
+        {
+            keywords = { "attempt to perform arithmetic" },
+            meaning = "脚本正在对非数字内容进行数学计算。常见原因：数值为 nil、字符串、table，或滑块返回值格式异常。"
+        },
+        {
+            keywords = { "attempt to concatenate" },
+            meaning = "脚本正在拼接无法直接拼接的内容。常见原因：nil、table、Instance、Color3、Vector3 未经过 tostring 处理。"
+        },
+        {
+            keywords = { "is not a valid member" },
+            meaning = "脚本访问了对象不存在的成员。常见原因：对象名称错误、大小写不一致、目标对象尚未生成。"
+        },
+        {
+            keywords = { "infinite yield possible" },
+            meaning = "WaitForChild 等待时间过长。常见原因：目标对象不存在、名称写错、父级路径错误。"
+        },
+        {
+            keywords = { "out of local registers" },
+            meaning = "同一作用域内 local 变量过多，超过 Lua/Luau 限制。常见解决方式：使用 (function() ... end)() 隔离大块代码。"
+        },
+        {
+            keywords = { "exceeded limit 200" },
+            meaning = "local 寄存器数量超过 200。普通 do ... end 无法解决，需要使用函数作用域隔离。"
+        },
+        {
+            keywords = { "expected", "got" },
+            meaning = "参数类型不匹配。报错中 expected 表示需要的类型，got 表示实际传入的类型。"
+        },
+        {
+            keywords = { "invalid argument" },
+            meaning = "函数参数无效。常见原因：参数数量错误、类型错误、传入 nil。"
+        },
+        {
+            keywords = { "httpget" },
+            meaning = "网络请求失败或 HttpGet 不可用。常见原因：链接失效、网络异常、执行环境不支持 HttpGet。"
+        },
+        {
+            keywords = { "loadstring" },
+            meaning = "远程代码加载失败。常见原因：链接内容不是 Lua 代码、链接返回 404/HTML、代码存在语法问题。"
+        },
+        {
+            keywords = { "drawing" },
+            meaning = "Drawing API 不可用或创建失败。常见原因：当前执行环境不支持 Drawing。"
+        },
+        {
+            keywords = { "hookmetamethod" },
+            meaning = "hookmetamethod 不可用或调用失败。常见原因：执行环境不支持该函数，或参数格式不正确。"
+        },
+        {
+            keywords = { "newcclosure" },
+            meaning = "newcclosure 不可用。常见原因：执行环境不支持该函数。"
+        },
+        {
+            keywords = { "nil with 'value'" },
+            meaning = "脚本正在读取某个 .Value，但前面的对象为 nil。常见原因：Options 或 Toggles 中对应控件未创建成功。"
+        },
+        {
+            keywords = { "nil with 'enabledtoggle'" },
+            meaning = "Toggles.EnabledToggle 不存在。常见原因：UI 初始化中断，或 Toggles 被局部作用域隐藏。"
+        },
+        {
+            keywords = { "nil with 'fovradiusslider'" },
+            meaning = "Options.FOVRadiusSlider 不存在。常见原因：FOV 半径滑块创建失败，或 UI 代码提前报错中断。"
+        },
+        {
+            keywords = { "nil with 'ui settings'" },
+            meaning = "Tabs['UI Settings'] 不存在。常见原因：UI Settings 标签页未创建，或 Tabs 被局部作用域隐藏。"
+        },
+        {
+            keywords = { "cannot resume dead coroutine" },
+            meaning = "脚本尝试重新启动已经结束的协程。常见原因：coroutine 变量未重置或重复 resume。"
+        },
+        {
+            keywords = { "attempt to yield across metamethod" },
+            meaning = "脚本在不允许等待的环境中执行了 wait、task.wait 或 WaitForChild。常见于 hook 或 metamethod 回调。"
+        },
+        {
+            keywords = { "unexpected symbol" },
+            meaning = "脚本中出现 Lua 无法识别的符号。常见原因：多余字符、缺少逗号、注释写法错误、结构粘贴错位。"
+        },
+        {
+            keywords = { "expected <eof>" },
+            meaning = "脚本结尾结构异常。常见原因：多了 end、少了函数闭合、重复粘贴代码块。"
+        },
+    }
+
+    local matched = {}
+
+    for _, rule in ipairs(rules) do
+        local ok = true
+
+        for _, keyword in ipairs(rule.keywords) do
+            if not string.find(lower, keyword, 1, true) then
+                ok = false
+                break
+            end
+        end
+
+        if ok then
+            table.insert(matched, rule.meaning)
+        end
+    end
+
+    if #matched == 0 then
+        return "暂未匹配到具体解释。建议复制报错原文反馈给作者"
+    end
+
+    return table.concat(matched, "\n\n")
+end
+
+local function IsIgnorableImageAssetError(errorText)
+    local text = tostring(errorText or ""):lower()
+
+    local imageKeywords = {
+        "failed to load asset",
+        "image failed to load",
+        "failed to load image",
+        "unable to load image",
+        "rbxassetid://",
+        "rbxthumb://",
+        "contentprovider",
+        "preloadasync",
+        "asset is not approved",
+        "asset type does not match",
+        "http error",
+        "request failed",
+        "assetdelivery",
+        "thumbnail",
+        "icon",
+        "image",
+        "decal",
+        "texture",
+    }
+
+    local hasImageKeyword = false
+
+    for _, keyword in ipairs(imageKeywords) do
+        if string.find(text, keyword, 1, true) then
+            hasImageKeyword = true
+            break
+        end
+    end
+
+    if not hasImageKeyword then
+        return false
+    end
+
+    local realScriptErrorKeywords = {
+        "attempt to index nil",
+        "attempt to call a nil value",
+        "attempt to perform arithmetic",
+        "attempt to concatenate",
+        "is not a valid member",
+        "out of local registers",
+        "cannot resume dead coroutine",
+        "attempt to yield across metamethod",
+        "expected",
+        "got",
+        "invalid argument",
+    }
+
+    for _, keyword in ipairs(realScriptErrorKeywords) do
+        if string.find(text, keyword, 1, true) then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function GetErrorGuiParent()
+    local parent = nil
+
+    pcall(function()
+        if gethui then
+            parent = gethui()
+        end
+    end)
+
+    if parent then
+        return parent
+    end
+
+    pcall(function()
+        parent = game:GetService("CoreGui")
+    end)
+
+    if parent then
+        return parent
+    end
+
+    local player = game:GetService("Players").LocalPlayer
+    local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+
+    return playerGui
+end
+
+local function CreateErrorTextLabel(parent, text, position, size, color, font, textSize)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = position
+    label.Size = size
+    label.Font = font or Enum.Font.Gotham
+    label.TextSize = textSize or 13
+    label.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.TextWrapped = true
+    label.Text = text
+    label.Parent = parent
+
+    return label
+end
+
+local function CreateErrorTextBox(parent, text, position, size, textColor, font)
+    local box = Instance.new("TextBox")
+    box.Position = position
+    box.Size = size
+    box.BackgroundColor3 = Color3.fromRGB(13, 13, 17)
+    box.BorderSizePixel = 0
+    box.ClearTextOnFocus = false
+    box.MultiLine = true
+    box.TextEditable = false
+    box.TextWrapped = true
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.TextYAlignment = Enum.TextYAlignment.Top
+    box.Font = font or Enum.Font.Code
+    box.TextSize = 12
+    box.TextColor3 = textColor or Color3.fromRGB(235, 235, 235)
+    box.Text = text
+    box.Parent = parent
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 7)
+    padding.PaddingBottom = UDim.new(0, 7)
+    padding.PaddingLeft = UDim.new(0, 8)
+    padding.PaddingRight = UDim.new(0, 8)
+    padding.Parent = box
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = box
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Transparency = 0.72
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Parent = box
+
+    return box
+end
+
+local function ShowScriptLoadError(errorText)
+    local rawError = tostring(errorText or "未知错误")
+    local meaning = TranslateScriptError(rawError)
+
+    warn("[啊，脚本似乎出现了意料之外的问题]\n" .. rawError .. "\n\n参考此处解决：\n" .. meaning)
+
+    local parent = GetErrorGuiParent()
+
+    if not parent then
+        return
+    end
+
+    local oldGui = parent:FindFirstChild("ScriptLoadErrorPopup")
+    if oldGui then
+        oldGui:Destroy()
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ScriptLoadErrorPopup"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    pcall(function()
+        if protectgui then
+            protectgui(gui)
+        end
+    end)
+
+    gui.Parent = parent
+
+    local holder = Instance.new("Frame")
+    holder.Name = "Holder"
+    holder.AnchorPoint = Vector2.new(0.5, 0.5)
+    holder.Position = UDim2.fromScale(0.5, 0.5)
+    holder.Size = UDim2.fromOffset(460, 300)
+    holder.BackgroundTransparency = 1
+    holder.BorderSizePixel = 0
+    holder.Parent = gui
+
+    local shadow = Instance.new("Frame")
+    shadow.Name = "Shadow"
+    shadow.Position = UDim2.fromOffset(8, 10)
+    shadow.Size = UDim2.fromScale(1, 1)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 1
+    shadow.BorderSizePixel = 0
+    shadow.Parent = holder
+
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 16)
+    shadowCorner.Parent = shadow
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Position = UDim2.fromOffset(0, 0)
+    main.Size = UDim2.fromScale(1, 1)
+    main.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+    main.BackgroundTransparency = 1
+    main.BorderSizePixel = 0
+    main.Parent = holder
+
+    local scale = Instance.new("UIScale")
+    scale.Scale = 0.9
+    scale.Parent = holder
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 16)
+    mainCorner.Parent = main
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Thickness = 1.5
+    mainStroke.Color = Color3.fromRGB(255, 82, 82)
+    mainStroke.Transparency = 1
+    mainStroke.Parent = main
+
+    local topBar = Instance.new("Frame")
+    topBar.Name = "TopBar"
+    topBar.Size = UDim2.new(1, 0, 0, 52)
+    topBar.BackgroundColor3 = Color3.fromRGB(42, 20, 25)
+    topBar.BackgroundTransparency = 1
+    topBar.BorderSizePixel = 0
+    topBar.Parent = main
+
+    local topCorner = Instance.new("UICorner")
+    topCorner.CornerRadius = UDim.new(0, 16)
+    topCorner.Parent = topBar
+
+    local accent = Instance.new("Frame")
+    accent.Name = "Accent"
+    accent.Position = UDim2.fromOffset(0, 50)
+    accent.Size = UDim2.new(1, 0, 0, 2)
+    accent.BackgroundColor3 = Color3.fromRGB(255, 82, 82)
+    accent.BackgroundTransparency = 1
+    accent.BorderSizePixel = 0
+    accent.Parent = topBar
+
+    local title = CreateErrorTextLabel(
+        topBar,
+        "啊，脚本似乎出现了意料之外的问题",
+        UDim2.fromOffset(18, 0),
+        UDim2.new(1, -78, 1, 0),
+        Color3.fromRGB(255, 235, 235),
+        Enum.Font.GothamBold,
+        19
+    )
+
+    local close = Instance.new("TextButton")
+    close.Name = "Close"
+    close.AnchorPoint = Vector2.new(1, 0.5)
+    close.Position = UDim2.new(1, -14, 0.5, 0)
+    close.Size = UDim2.fromOffset(30, 30)
+    close.BackgroundColor3 = Color3.fromRGB(64, 30, 36)
+    close.BackgroundTransparency = 1
+    close.Text = "×"
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 22
+    close.TextColor3 = Color3.fromRGB(255, 225, 225)
+    close.TextTransparency = 1
+    close.BorderSizePixel = 0
+    close.Parent = topBar
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(1, 0)
+    closeCorner.Parent = close
+
+    local explanationTitle = CreateErrorTextLabel(
+        main,
+        "参考此处解决：",
+        UDim2.fromOffset(18, 66),
+        UDim2.new(1, -36, 0, 18),
+        Color3.fromRGB(255, 214, 150),
+        Enum.Font.GothamBold,
+        13
+    )
+
+    local explanationBox = CreateErrorTextBox(
+        main,
+        meaning,
+        UDim2.fromOffset(18, 88),
+        UDim2.new(1, -36, 0, 76),
+        Color3.fromRGB(245, 225, 190),
+        Enum.Font.Gotham
+    )
+
+    local rawTitle = CreateErrorTextLabel(
+        main,
+        "报错原文",
+        UDim2.fromOffset(18, 175),
+        UDim2.new(1, -160, 0, 18),
+        Color3.fromRGB(255, 170, 170),
+        Enum.Font.GothamBold,
+        13
+    )
+
+    local copy = Instance.new("TextButton")
+    copy.Name = "Copy"
+    copy.AnchorPoint = Vector2.new(1, 0)
+    copy.Position = UDim2.new(1, -18, 0, 170)
+    copy.Size = UDim2.fromOffset(112, 28)
+    copy.BackgroundColor3 = Color3.fromRGB(255, 82, 82)
+    copy.BackgroundTransparency = 1
+    copy.BorderSizePixel = 0
+    copy.Font = Enum.Font.GothamBold
+    copy.TextSize = 12
+    copy.TextColor3 = Color3.fromRGB(255, 255, 255)
+    copy.TextTransparency = 1
+    copy.Text = "复制原文"
+    copy.Parent = main
+
+    local copyCorner = Instance.new("UICorner")
+    copyCorner.CornerRadius = UDim.new(0, 8)
+    copyCorner.Parent = copy
+
+    local rawBox = CreateErrorTextBox(
+        main,
+        rawError,
+        UDim2.fromOffset(18, 204),
+        UDim2.new(1, -36, 0, 56),
+        Color3.fromRGB(235, 235, 235),
+        Enum.Font.Code
+    )
+
+    local hint = CreateErrorTextLabel(
+        main,
+        "完整错误已输出到控制台 warn。",
+        UDim2.fromOffset(18, 268),
+        UDim2.new(1, -36, 0, 18),
+        Color3.fromRGB(160, 160, 170),
+        Enum.Font.Gotham,
+        11
+    )
+
+    local function PlayCloseAnimation()
+        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+        TweenService:Create(scale, tweenInfo, {
+            Scale = 0.9,
+        }):Play()
+
+        TweenService:Create(holder, tweenInfo, {
+            Position = UDim2.fromScale(0.5, 0.53),
+        }):Play()
+
+        TweenService:Create(main, tweenInfo, {
+            BackgroundTransparency = 1,
+        }):Play()
+
+        TweenService:Create(shadow, tweenInfo, {
+            BackgroundTransparency = 1,
+        }):Play()
+
+        TweenService:Create(mainStroke, tweenInfo, {
+            Transparency = 1,
+        }):Play()
+
+        TweenService:Create(topBar, tweenInfo, {
+            BackgroundTransparency = 1,
+        }):Play()
+
+        TweenService:Create(accent, tweenInfo, {
+            BackgroundTransparency = 1,
+        }):Play()
+
+        TweenService:Create(close, tweenInfo, {
+            BackgroundTransparency = 1,
+            TextTransparency = 1,
+        }):Play()
+
+        TweenService:Create(copy, tweenInfo, {
+            BackgroundTransparency = 1,
+            TextTransparency = 1,
+        }):Play()
+
+        for _, item in ipairs({
+            title,
+            explanationTitle,
+            rawTitle,
+            explanationBox,
+            rawBox,
+            hint,
+        }) do
+            pcall(function()
+                TweenService:Create(item, tweenInfo, {
+                    TextTransparency = 1,
+                    BackgroundTransparency = item:IsA("TextBox") and 1 or 1,
+                }):Play()
+            end)
+        end
+
+        task.delay(0.22, function()
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+        end)
+    end
+
+    close.MouseButton1Click:Connect(PlayCloseAnimation)
+
+    copy.MouseButton1Click:Connect(function()
+        local copied = false
+
+        pcall(function()
+            if setclipboard then
+                setclipboard(rawError)
+                copied = true
+            end
+        end)
+
+        if copied then
+            copy.Text = "已复制"
+        else
+            copy.Text = "无法复制"
+        end
+
+        task.delay(1.1, function()
+            if copy and copy.Parent then
+                copy.Text = "复制原文"
+            end
+        end)
+    end)
+
+    local openTween = TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local fadeTween = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    TweenService:Create(scale, openTween, {
+        Scale = 1,
+    }):Play()
+
+    TweenService:Create(holder, openTween, {
+        Position = UDim2.fromScale(0.5, 0.5),
+    }):Play()
+
+    TweenService:Create(main, fadeTween, {
+        BackgroundTransparency = 0,
+    }):Play()
+
+    TweenService:Create(shadow, fadeTween, {
+        BackgroundTransparency = 0.68,
+    }):Play()
+
+    TweenService:Create(mainStroke, fadeTween, {
+        Transparency = 0.15,
+    }):Play()
+
+    TweenService:Create(topBar, fadeTween, {
+        BackgroundTransparency = 0,
+    }):Play()
+
+    TweenService:Create(accent, fadeTween, {
+        BackgroundTransparency = 0,
+    }):Play()
+
+    TweenService:Create(close, fadeTween, {
+        BackgroundTransparency = 0,
+        TextTransparency = 0,
+    }):Play()
+
+    TweenService:Create(copy, fadeTween, {
+        BackgroundTransparency = 0,
+        TextTransparency = 0,
+    }):Play()
+
+    for _, item in ipairs({
+        title,
+        explanationTitle,
+        rawTitle,
+        explanationBox,
+        rawBox,
+        hint,
+    }) do
+        pcall(function()
+            TweenService:Create(item, fadeTween, {
+                TextTransparency = 0,
+                BackgroundTransparency = item:IsA("TextBox") and 0 or 1,
+            }):Play()
+        end)
+    end
+end
+
+local __ScriptSuccess, __ScriptError = xpcall(function()
+
 local Players = game:GetService("Players")
 --[[ =================== Anti-Deobfuscation Core v2 ===================
 
@@ -8971,3 +9580,14 @@ WindUI:Notify({
 })
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/djejhebr"))()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/njdjdn"))()
+end, function(errorMessage)
+    return debug.traceback(tostring(errorMessage), 2)
+end)
+
+if not __ScriptSuccess then
+    if IsIgnorableImageAssetError(__ScriptError) then
+        warn("[资源加载失败，已忽略]\n" .. tostring(__ScriptError))
+    else
+        ShowScriptLoadError(__ScriptError)
+    end
+end
