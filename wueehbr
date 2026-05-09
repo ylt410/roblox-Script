@@ -1928,7 +1928,7 @@ local function StartSpin()
 
     if SpinConnection then return end
 
-    local plr = game.Players.LocalPlayer
+    local plr = Players.LocalPlayer
 
     SpinConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
 
@@ -1957,11 +1957,11 @@ local function StopSpin()
         SpinConnection = nil
     end
 
-    RemoveAnimationLock(game.Players.LocalPlayer.Character)
+    RemoveAnimationLock(Players.LocalPlayer.Character)
 end
 
 -- ================= 重生修复 =================
-game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
 
     if SpinEnabled then
 
@@ -3515,11 +3515,11 @@ task.spawn(function()
 end)
 
 -- 初始化（重复段保留原样）
-for _, plr in ipairs(game.Players:GetPlayers()) do
+for _, plr in ipairs(Players:GetPlayers()) do
     AddDevESP(plr)
 end
 
-game.Players.PlayerAdded:Connect(AddDevESP)
+Players.PlayerAdded:Connect(AddDevESP)
 end
 --夜视
 local VisualModule = { NormalNightVision=false, SuperNightVision=false, NoFog=false }
@@ -3667,13 +3667,13 @@ local function StartAntiFall2(character)
 end
 
 -- 启动监听
-game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     StartAntiFall2(char)
 end)
 
-if game.Players.LocalPlayer.Character then
-    StartAntiFall2(game.Players.LocalPlayer.Character)
+if Players.LocalPlayer.Character then
+    StartAntiFall2(Players.LocalPlayer.Character)
 end
 -- =================== 防摔落伤害模块 (最终稳定版) ===================
 
@@ -8246,6 +8246,14 @@ TabAb:Button({
 end)
    end
 })
+TabAb:Button({
+    Title = "俄亥俄州（伊散）",
+    Callback = function()
+        local ok, err = pcall(function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/俄亥俄州2"))()        
+end)
+   end
+})
 
 
 local TabFE = Window:Tab({
@@ -9566,7 +9574,7 @@ TabConfig:Button({
         Notify("正在重进", "请稍候...", 3)
 
         local TeleportService = game:GetService("TeleportService")
-        local player = game.Players.LocalPlayer
+        local player = Players.LocalPlayer
 
         TeleportService:Teleport(game.PlaceId, player)
 
