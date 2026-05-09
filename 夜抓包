@@ -1,0 +1,1376 @@
+-- ======================================================
+-- WindUI Script Capture 请求/响应分离修复版
+-- 修复：
+-- ✔ 修复 Expected identifier got ')' 语法问题
+-- ✔ 响应 / 请求 两个 Tab
+-- ✔ 抓 request 请求
+-- ✔ 抓 request 响应
+-- ✔ 最少记录字数，默认 80
+-- ✔ 独立黑色预览窗口
+-- ✔ 复制按钮
+-- ✔ 预览窗口可拖动
+-- ✔ 代码区域可拖动滑动
+-- ✔ 横竖滚动条统一
+-- ======================================================
+
+-- ==================== 加载 WindUI ====================
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- ==================== 服务 ====================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+
+-- ==================== 基础设置 ====================
+local folderName = "Captured_Scripts"
+
+local isCapturing = true
+local minRecordLength = 80
+
+local responseCount = 0
+local requestCount = 0
+
+local savedResponseHashes = {}
+local savedRequestHashes = {}
+
+local responseItems = {}
+local requestItems = {}
+
+local function safeCall(func)
+    local ok, result = pcall(func)
+    if ok then
+        return result
+    end
+    return nil
+end
+
+local function safeToString(value)
+    local ok, result = pcall(function()
+        return tostring(value)
+    end)
+
+    if ok then
+        return result
+    end
+
+    return "<无法转换>"
+end
+
+local function clamp(value, minValue, maxValue)
+    if value < minValue then
+        return minValue
+    end
+
+    if value > maxValue then
+        return maxValue
+    end
+
+    return value
+end
+
+local function getHash(str)
+    str = tostring(str or "")
+    return tostring(#str) .. "_" .. tostring(str:sub(1, 120))
+end
+
+local function ensureFolder(path)
+    pcall(function()
+        if not isfolder(path) then
+            makefolder(path)
+        end
+    end)
+end
+
+ensureFolder(folderName)
+ensureFolder(folderName .. "/Responses")
+ensureFolder(folderName .. "/Requests")
+
+local function getGuiParent()
+    local ok = pcall(function()
+        local test = Instance.new("Folder")
+        test.Name = "__CaptureGuiParentTest"
+        test.Parent = CoreGui
+        test:Destroy()
+    end)
+
+    if ok then
+        return CoreGui
+    end
+
+    return localPlayer:WaitForChild("PlayerGui")
+end
+
+local function serializeTable(tbl, depth)
+    depth = depth or 0
+
+    if depth > 3 then
+        return "{ ... }"
+    end
+
+    if typeof(tbl) ~= "table" then
+        return safeToString(tbl)
+    end
+
+    local lines = {}
+
+    for k, v in pairs(tbl) do
+        local keyText = safeToString(k)
+        local valueText
+
+        if typeof(v) == "table" then
+            valueText = serializeTable(v, depth + 1)
+        else
+            valueText = safeToString(v)
+        end
+
+        table.insert(lines, keyText .. " = " .. valueText)
+    end
+
+    if #lines == 0 then
+        return "<空>"
+    end
+
+    return table.concat(lines, "\n")
+end
+
+local function isPointerInput(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        return true
+    end
+
+    if input.UserInputType == Enum.UserInputType.Touch then
+        return true
+    end
+
+    return false
+end
+
+local function isMoveInput(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        return true
+    end
+
+    if input.UserInputType == Enum.UserInputType.Touch then
+        return true
+    end
+
+    return false
+end
+
+-- ======================================================
+-- 自制黑色预览窗口
+-- ======================================================
+local guiParent = getGuiParent()
+
+local oldPreview = guiParent:FindFirstChild("Capture_CodePreview_Window")
+if oldPreview then
+    oldPreview:Destroy()
+end
+
+local previewGui = Instance.new("ScreenGui")
+previewGui.Name = "Capture_CodePreview_Window"
+previewGui.ResetOnSpawn = false
+previewGui.IgnoreGuiInset = true
+previewGui.DisplayOrder = 999999
+previewGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+previewGui.Enabled = true
+previewGui.Parent = guiParent
+
+local previewWindow = Instance.new("Frame")
+previewWindow.Name = "PreviewWindow"
+previewWindow.Size = UDim2.new(0, 520, 0, 320)
+previewWindow.Position = UDim2.new(0.5, -260, 0.5, -160)
+previewWindow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+previewWindow.BackgroundTransparency = 0
+previewWindow.BorderSizePixel = 0
+previewWindow.Visible = false
+previewWindow.Active = true
+previewWindow.ZIndex = 9990
+previewWindow.Parent = previewGui
+
+local previewCorner = Instance.new("UICorner")
+previewCorner.CornerRadius = UDim.new(0, 10)
+previewCorner.Parent = previewWindow
+
+local previewStroke = Instance.new("UIStroke")
+previewStroke.Color = Color3.fromRGB(60, 60, 60)
+previewStroke.Thickness = 1
+previewStroke.Transparency = 0
+previewStroke.Parent = previewWindow
+
+-- ==================== 顶部栏 ====================
+local previewTopBar = Instance.new("Frame")
+previewTopBar.Name = "TopBar"
+previewTopBar.Size = UDim2.new(1, 0, 0, 36)
+previewTopBar.Position = UDim2.new(0, 0, 0, 0)
+previewTopBar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+previewTopBar.BackgroundTransparency = 0
+previewTopBar.BorderSizePixel = 0
+previewTopBar.Active = true
+previewTopBar.ZIndex = 9991
+previewTopBar.Parent = previewWindow
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 10)
+topCorner.Parent = previewTopBar
+
+local closePreviewBtn = Instance.new("TextButton")
+closePreviewBtn.Name = "Close"
+closePreviewBtn.Size = UDim2.new(0, 26, 0, 26)
+closePreviewBtn.Position = UDim2.new(0, 6, 0, 5)
+closePreviewBtn.BackgroundColor3 = Color3.fromRGB(210, 55, 55)
+closePreviewBtn.BorderSizePixel = 0
+closePreviewBtn.Text = "×"
+closePreviewBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closePreviewBtn.TextSize = 19
+closePreviewBtn.Font = Enum.Font.GothamBold
+closePreviewBtn.ZIndex = 9994
+closePreviewBtn.Parent = previewTopBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(1, 0)
+closeCorner.Parent = closePreviewBtn
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Name = "Copy"
+copyBtn.Size = UDim2.new(0, 54, 0, 26)
+copyBtn.Position = UDim2.new(1, -62, 0, 5)
+copyBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+copyBtn.BorderSizePixel = 0
+copyBtn.Text = "复制"
+copyBtn.TextColor3 = Color3.fromRGB(235, 235, 235)
+copyBtn.TextSize = 13
+copyBtn.Font = Enum.Font.GothamMedium
+copyBtn.ZIndex = 9994
+copyBtn.Parent = previewTopBar
+
+local copyCorner = Instance.new("UICorner")
+copyCorner.CornerRadius = UDim.new(0, 8)
+copyCorner.Parent = copyBtn
+
+local previewTitle = Instance.new("TextLabel")
+previewTitle.Name = "Title"
+previewTitle.Size = UDim2.new(1, -150, 1, 0)
+previewTitle.Position = UDim2.new(0, 40, 0, 0)
+previewTitle.BackgroundTransparency = 1
+previewTitle.Text = "未打开内容"
+previewTitle.TextColor3 = Color3.fromRGB(230, 230, 230)
+previewTitle.TextSize = 13
+previewTitle.Font = Enum.Font.GothamMedium
+previewTitle.TextXAlignment = Enum.TextXAlignment.Left
+previewTitle.TextTruncate = Enum.TextTruncate.AtEnd
+previewTitle.ZIndex = 9992
+previewTitle.Parent = previewTopBar
+
+-- ======================================================
+-- 代码显示区域
+-- ======================================================
+local codeViewport = Instance.new("Frame")
+codeViewport.Name = "CodeViewport"
+codeViewport.Size = UDim2.new(1, -30, 1, -62)
+codeViewport.Position = UDim2.new(0, 8, 0, 42)
+codeViewport.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+codeViewport.BackgroundTransparency = 0
+codeViewport.BorderSizePixel = 0
+codeViewport.ClipsDescendants = true
+codeViewport.Active = true
+codeViewport.ZIndex = 9991
+codeViewport.Parent = previewWindow
+
+local codeText = Instance.new("TextLabel")
+codeText.Name = "CodeText"
+codeText.Size = UDim2.new(0, 500, 0, 260)
+codeText.Position = UDim2.new(0, 0, 0, 0)
+codeText.BackgroundTransparency = 1
+codeText.Text = "-- 等待打开内容"
+codeText.TextColor3 = Color3.fromRGB(210, 255, 210)
+codeText.TextSize = 14
+codeText.Font = Enum.Font.Code
+codeText.TextXAlignment = Enum.TextXAlignment.Left
+codeText.TextYAlignment = Enum.TextYAlignment.Top
+codeText.TextWrapped = false
+codeText.RichText = false
+codeText.ZIndex = 9992
+codeText.Parent = codeViewport
+
+-- ======================================================
+-- 自制滚动条
+-- ======================================================
+local verticalTrack = Instance.new("Frame")
+verticalTrack.Name = "VerticalTrack"
+verticalTrack.Size = UDim2.new(0, 9, 1, -62)
+verticalTrack.Position = UDim2.new(1, -14, 0, 42)
+verticalTrack.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+verticalTrack.BackgroundTransparency = 0.88
+verticalTrack.BorderSizePixel = 0
+verticalTrack.Active = true
+verticalTrack.ZIndex = 9994
+verticalTrack.Visible = false
+verticalTrack.Parent = previewWindow
+
+local verticalTrackCorner = Instance.new("UICorner")
+verticalTrackCorner.CornerRadius = UDim.new(1, 0)
+verticalTrackCorner.Parent = verticalTrack
+
+local verticalThumb = Instance.new("Frame")
+verticalThumb.Name = "VerticalThumb"
+verticalThumb.Size = UDim2.new(1, 0, 0, 40)
+verticalThumb.Position = UDim2.new(0, 0, 0, 0)
+verticalThumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+verticalThumb.BackgroundTransparency = 0.15
+verticalThumb.BorderSizePixel = 0
+verticalThumb.Active = true
+verticalThumb.ZIndex = 9995
+verticalThumb.Parent = verticalTrack
+
+local verticalThumbCorner = Instance.new("UICorner")
+verticalThumbCorner.CornerRadius = UDim.new(1, 0)
+verticalThumbCorner.Parent = verticalThumb
+
+local horizontalTrack = Instance.new("Frame")
+horizontalTrack.Name = "HorizontalTrack"
+horizontalTrack.Size = UDim2.new(1, -30, 0, 9)
+horizontalTrack.Position = UDim2.new(0, 8, 1, -14)
+horizontalTrack.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+horizontalTrack.BackgroundTransparency = 0.88
+horizontalTrack.BorderSizePixel = 0
+horizontalTrack.Active = true
+horizontalTrack.ZIndex = 9994
+horizontalTrack.Visible = false
+horizontalTrack.Parent = previewWindow
+
+local horizontalTrackCorner = Instance.new("UICorner")
+horizontalTrackCorner.CornerRadius = UDim.new(1, 0)
+horizontalTrackCorner.Parent = horizontalTrack
+
+local horizontalThumb = Instance.new("Frame")
+horizontalThumb.Name = "HorizontalThumb"
+horizontalThumb.Size = UDim2.new(0, 40, 1, 0)
+horizontalThumb.Position = UDim2.new(0, 0, 0, 0)
+horizontalThumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+horizontalThumb.BackgroundTransparency = 0.15
+horizontalThumb.BorderSizePixel = 0
+horizontalThumb.Active = true
+horizontalThumb.ZIndex = 9995
+horizontalThumb.Parent = horizontalTrack
+
+local horizontalThumbCorner = Instance.new("UICorner")
+horizontalThumbCorner.CornerRadius = UDim.new(1, 0)
+horizontalThumbCorner.Parent = horizontalThumb
+
+-- ======================================================
+-- 滚动状态
+-- ======================================================
+local currentOpenedText = ""
+
+local contentWidth = 500
+local contentHeight = 260
+local scrollX = 0
+local scrollY = 0
+
+local contentDragging = false
+local contentDragStart = nil
+local contentStartX = 0
+local contentStartY = 0
+local lastContentPos = nil
+local lastContentTime = 0
+local scrollVelocity = Vector2.new(0, 0)
+local inertiaConnection = nil
+
+local barDragging = false
+local barAxis = nil
+local barDragStart = nil
+local barStartScrollX = 0
+local barStartScrollY = 0
+
+local previewDragging = false
+local previewDragStart = nil
+local previewStartPos = nil
+
+local function getMaxScroll()
+    local viewSize = codeViewport.AbsoluteSize
+    local maxX = math.max(0, contentWidth - viewSize.X)
+    local maxY = math.max(0, contentHeight - viewSize.Y)
+    return maxX, maxY
+end
+
+local function updateCodePosition()
+    codeText.Position = UDim2.new(0, -math.floor(scrollX), 0, -math.floor(scrollY))
+end
+
+local function updateScrollbars()
+    local viewSize = codeViewport.AbsoluteSize
+    local maxX, maxY = getMaxScroll()
+
+    if maxY > 1 and contentHeight > 1 and viewSize.Y > 1 then
+        verticalTrack.Visible = true
+
+        local trackH = math.max(1, verticalTrack.AbsoluteSize.Y)
+        local thumbH = math.max(28, trackH * (viewSize.Y / contentHeight))
+        thumbH = math.min(trackH, thumbH)
+
+        local travelH = math.max(0, trackH - thumbH)
+        local ratioY = 0
+
+        if maxY > 0 then
+            ratioY = clamp(scrollY / maxY, 0, 1)
+        end
+
+        verticalThumb.Size = UDim2.new(1, 0, 0, thumbH)
+        verticalThumb.Position = UDim2.new(0, 0, 0, ratioY * travelH)
+    else
+        verticalTrack.Visible = false
+        verticalThumb.Position = UDim2.new(0, 0, 0, 0)
+    end
+
+    if maxX > 1 and contentWidth > 1 and viewSize.X > 1 then
+        horizontalTrack.Visible = true
+
+        local trackW = math.max(1, horizontalTrack.AbsoluteSize.X)
+        local thumbW = math.max(28, trackW * (viewSize.X / contentWidth))
+        thumbW = math.min(trackW, thumbW)
+
+        local travelW = math.max(0, trackW - thumbW)
+        local ratioX = 0
+
+        if maxX > 0 then
+            ratioX = clamp(scrollX / maxX, 0, 1)
+        end
+
+        horizontalThumb.Size = UDim2.new(0, thumbW, 1, 0)
+        horizontalThumb.Position = UDim2.new(0, ratioX * travelW, 0, 0)
+    else
+        horizontalTrack.Visible = false
+        horizontalThumb.Position = UDim2.new(0, 0, 0, 0)
+    end
+end
+
+local function setScrollPosition(x, y)
+    local maxX, maxY = getMaxScroll()
+
+    if x == nil then
+        x = scrollX
+    end
+
+    if y == nil then
+        y = scrollY
+    end
+
+    scrollX = clamp(x, 0, maxX)
+    scrollY = clamp(y, 0, maxY)
+
+    updateCodePosition()
+    updateScrollbars()
+end
+
+local function stopInertia()
+    if inertiaConnection then
+        inertiaConnection:Disconnect()
+        inertiaConnection = nil
+    end
+end
+
+local function startInertia(velocity)
+    stopInertia()
+
+    scrollVelocity = velocity
+
+    local friction = 10.5
+    local minSpeed = 10
+
+    inertiaConnection = RunService.RenderStepped:Connect(function(dt)
+        if scrollVelocity.Magnitude < minSpeed then
+            stopInertia()
+            return
+        end
+
+        local maxX, maxY = getMaxScroll()
+
+        local nextX = scrollX + scrollVelocity.X * dt
+        local nextY = scrollY + scrollVelocity.Y * dt
+
+        if nextX < 0 or nextX > maxX then
+            scrollVelocity = Vector2.new(0, scrollVelocity.Y)
+        end
+
+        if nextY < 0 or nextY > maxY then
+            scrollVelocity = Vector2.new(scrollVelocity.X, 0)
+        end
+
+        setScrollPosition(nextX, nextY)
+
+        scrollVelocity = scrollVelocity * math.exp(-friction * dt)
+    end)
+end
+
+local function updateCodeCanvas(text)
+    text = tostring(text or "-- 空内容")
+
+    local font = Enum.Font.Code
+    local textSize = 14
+    local paddingX = 40
+    local paddingY = 40
+
+    local viewSize = codeViewport.AbsoluteSize
+    local minWidth = math.max(1, viewSize.X)
+    local minHeight = math.max(1, viewSize.Y)
+
+    local maxLineWidth = 0
+    local lineCount = 0
+
+    for line in string.gmatch(text .. "\n", "(.-)\n") do
+        lineCount = lineCount + 1
+
+        if line == "" then
+            line = " "
+        end
+
+        local measured = TextService:GetTextSize(
+            line,
+            textSize,
+            font,
+            Vector2.new(1000000, 1000000)
+        )
+
+        if measured.X > maxLineWidth then
+            maxLineWidth = measured.X
+        end
+    end
+
+    if lineCount < 1 then
+        lineCount = 1
+    end
+
+    local lineMeasured = TextService:GetTextSize(
+        "A",
+        textSize,
+        font,
+        Vector2.new(1000000, 1000000)
+    )
+
+    local lineHeight = lineMeasured.Y + 3
+
+    contentWidth = math.max(minWidth, math.ceil(maxLineWidth + paddingX))
+    contentHeight = math.max(minHeight, math.ceil(lineCount * lineHeight + paddingY))
+
+    codeText.Size = UDim2.new(0, contentWidth, 0, contentHeight)
+
+    setScrollPosition(0, 0)
+    updateScrollbars()
+end
+
+-- ======================================================
+-- 代码区域拖动 + 惯性
+-- ======================================================
+codeViewport.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        stopInertia()
+
+        contentDragging = true
+        contentDragStart = input.Position
+        contentStartX = scrollX
+        contentStartY = scrollY
+        lastContentPos = input.Position
+        lastContentTime = tick()
+        scrollVelocity = Vector2.new(0, 0)
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                if contentDragging then
+                    contentDragging = false
+
+                    if scrollVelocity.Magnitude > 35 then
+                        startInertia(scrollVelocity)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if contentDragging and isMoveInput(input) then
+        local now = tick()
+        local dt = math.max(now - lastContentTime, 1 / 240)
+
+        local deltaFromStart = input.Position - contentDragStart
+
+        local targetX = contentStartX - deltaFromStart.X
+        local targetY = contentStartY - deltaFromStart.Y
+
+        setScrollPosition(targetX, targetY)
+
+        local deltaNow = input.Position - lastContentPos
+
+        scrollVelocity = Vector2.new(
+            -deltaNow.X / dt,
+            -deltaNow.Y / dt
+        )
+
+        lastContentPos = input.Position
+        lastContentTime = now
+    end
+end)
+
+-- ======================================================
+-- 横竖滚动条统一拖动
+-- ======================================================
+local function beginBarDrag(axis, input)
+    stopInertia()
+
+    barDragging = true
+    barAxis = axis
+    barDragStart = input.Position
+    barStartScrollX = scrollX
+    barStartScrollY = scrollY
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            barDragging = false
+            barAxis = nil
+        end
+    end)
+end
+
+local function updateBarDrag(input)
+    if not barDragging then
+        return
+    end
+
+    if not barAxis then
+        return
+    end
+
+    if not barDragStart then
+        return
+    end
+
+    local maxX, maxY = getMaxScroll()
+
+    if barAxis == "X" then
+        local trackW = math.max(1, horizontalTrack.AbsoluteSize.X)
+        local thumbW = math.max(1, horizontalThumb.AbsoluteSize.X)
+        local travelW = math.max(1, trackW - thumbW)
+
+        local deltaX = input.Position.X - barDragStart.X
+        local targetX = barStartScrollX + (deltaX / travelW) * maxX
+
+        setScrollPosition(targetX, scrollY)
+    end
+
+    if barAxis == "Y" then
+        local trackH = math.max(1, verticalTrack.AbsoluteSize.Y)
+        local thumbH = math.max(1, verticalThumb.AbsoluteSize.Y)
+        local travelH = math.max(1, trackH - thumbH)
+
+        local deltaY = input.Position.Y - barDragStart.Y
+        local targetY = barStartScrollY + (deltaY / travelH) * maxY
+
+        setScrollPosition(scrollX, targetY)
+    end
+end
+
+horizontalThumb.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        beginBarDrag("X", input)
+    end
+end)
+
+verticalThumb.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        beginBarDrag("Y", input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if barDragging and isMoveInput(input) then
+        updateBarDrag(input)
+    end
+end)
+
+local function jumpHorizontalTrack(input)
+    local maxX, maxY = getMaxScroll()
+
+    if maxX <= 0 then
+        return
+    end
+
+    local trackX = horizontalTrack.AbsolutePosition.X
+    local trackW = math.max(1, horizontalTrack.AbsoluteSize.X)
+    local thumbW = math.max(1, horizontalThumb.AbsoluteSize.X)
+    local travelW = math.max(1, trackW - thumbW)
+
+    local localX = input.Position.X - trackX
+    local targetThumbX = clamp(localX - thumbW / 2, 0, travelW)
+    local ratio = targetThumbX / travelW
+
+    setScrollPosition(ratio * maxX, scrollY)
+end
+
+local function jumpVerticalTrack(input)
+    local maxX, maxY = getMaxScroll()
+
+    if maxY <= 0 then
+        return
+    end
+
+    local trackY = verticalTrack.AbsolutePosition.Y
+    local trackH = math.max(1, verticalTrack.AbsoluteSize.Y)
+    local thumbH = math.max(1, verticalThumb.AbsoluteSize.Y)
+    local travelH = math.max(1, trackH - thumbH)
+
+    local localY = input.Position.Y - trackY
+    local targetThumbY = clamp(localY - thumbH / 2, 0, travelH)
+    local ratio = targetThumbY / travelH
+
+    setScrollPosition(scrollX, ratio * maxY)
+end
+
+horizontalTrack.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        stopInertia()
+        jumpHorizontalTrack(input)
+        beginBarDrag("X", input)
+    end
+end)
+
+verticalTrack.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        stopInertia()
+        jumpVerticalTrack(input)
+        beginBarDrag("Y", input)
+    end
+end)
+
+-- ======================================================
+-- 顶部栏拖动窗口
+-- ======================================================
+local function isInsideGuiObject(input, obj)
+    local pos = obj.AbsolutePosition
+    local size = obj.AbsoluteSize
+    local mousePos = input.Position
+
+    if mousePos.X < pos.X then
+        return false
+    end
+
+    if mousePos.X > pos.X + size.X then
+        return false
+    end
+
+    if mousePos.Y < pos.Y then
+        return false
+    end
+
+    if mousePos.Y > pos.Y + size.Y then
+        return false
+    end
+
+    return true
+end
+
+previewTopBar.InputBegan:Connect(function(input)
+    if isPointerInput(input) then
+        if isInsideGuiObject(input, closePreviewBtn) then
+            return
+        end
+
+        if isInsideGuiObject(input, copyBtn) then
+            return
+        end
+
+        previewDragging = true
+        previewDragStart = input.Position
+        previewStartPos = previewWindow.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                previewDragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if previewDragging and isMoveInput(input) then
+        local delta = input.Position - previewDragStart
+
+        previewWindow.Position = UDim2.new(
+            previewStartPos.X.Scale,
+            previewStartPos.X.Offset + delta.X,
+            previewStartPos.Y.Scale,
+            previewStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ======================================================
+-- 复制 / 关闭
+-- ======================================================
+closePreviewBtn.MouseButton1Click:Connect(function()
+    previewWindow.Visible = false
+    stopInertia()
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    local copied = false
+
+    pcall(function()
+        if setclipboard then
+            setclipboard(currentOpenedText or "")
+            copied = true
+        end
+    end)
+
+    if copied then
+        copyBtn.Text = "已复制"
+
+        task.delay(1, function()
+            if copyBtn then
+                copyBtn.Text = "复制"
+            end
+        end)
+
+        print("✅ 已复制当前内容")
+    else
+        copyBtn.Text = "失败"
+
+        task.delay(1, function()
+            if copyBtn then
+                copyBtn.Text = "复制"
+            end
+        end)
+
+        warn("⚠️ 当前环境不支持 setclipboard")
+    end
+end)
+
+local function openPreviewWindow(title, text)
+    title = tostring(title or "预览")
+    text = tostring(text or "-- 空内容")
+
+    stopInertia()
+
+    currentOpenedText = text
+
+    previewGui.Enabled = true
+    previewWindow.Visible = true
+    previewWindow.Position = UDim2.new(0.5, -260, 0.5, -160)
+
+    previewTitle.Text = title
+    codeText.Text = text
+
+    task.defer(function()
+        updateCodeCanvas(text)
+        setScrollPosition(0, 0)
+    end)
+
+    print("✅ 已打开预览窗口:", title)
+end
+
+codeViewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+    if currentOpenedText and currentOpenedText ~= "" then
+        updateCodeCanvas(currentOpenedText)
+    end
+end)
+
+-- ======================================================
+-- WindUI 主窗口
+-- ======================================================
+local Window = WindUI:CreateWindow({
+    Title = "夜抓包 by夜脚本团队",
+    Icon = "file-code",
+    Author = "夜抓包免费开源禁止倒卖",
+    Folder = "ScriptCapture",
+
+    Size = UDim2.fromOffset(470, 340),
+    MinSize = Vector2.new(420, 300),
+    MaxSize = Vector2.new(650, 460),
+
+    ToggleKey = Enum.KeyCode.RightShift,
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 145,
+    BackgroundImageTransparency = 0.45,
+    HideSearchBar = true,
+    ScrollBarEnabled = true,
+
+    User = {
+        Enabled = false,
+        Anonymous = true,
+    },
+})
+local ABTab = Window:Tab({
+    Title = "公告",
+    Icon = "megaphone",
+    Locked = false,
+})
+
+local MainTab = Window:Tab({
+    Title = "抓取",
+    Icon = "radio",
+    Locked = false,
+})
+
+local ResponseTab = Window:Tab({
+    Title = "响应",
+    Icon = "download",
+    Locked = false,
+})
+
+local RequestTab = Window:Tab({
+    Title = "请求",
+    Icon = "upload",
+    Locked = false,
+})
+
+ABTab:Select()
+
+-- ======================================================
+-- 公告内容
+-- ======================================================
+local YeScriptText = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/yejiaoben"))()]]
+
+ABTab:Paragraph({
+    Title = "夜抓包免费开源",
+    Desc = [[夜抓包永久免费开源，禁止倒卖。
+访问链接即可获得未加密源码。]],
+    Color = "Blue",
+})
+
+ABTab:Paragraph({
+    Title = "提醒",
+    Desc = [[不要用这个工具来抓我的主脚本。
+我的主脚本有防抓包检测，强行抓可能没有意义，还可能导致加载异常。
+需要加载夜脚本的话，建议重进后再加载。]],
+})
+
+ABTab:Code({
+    Title = "夜脚本",
+    Code = YeScriptText,
+})
+
+ABTab:Button({
+    Title = "复制夜脚本",
+    Desc = "复制夜脚本加载代码",
+    Locked = false,
+
+    Callback = function()
+        if setclipboard then
+            setclipboard(YeScriptText)
+            print("✅ 已复制夜脚本")
+        else
+            warn("⚠️ 当前环境不支持 setclipboard")
+        end
+    end
+})
+local StatusParagraph = MainTab:Paragraph({
+    Title = "状态",
+    Desc = "抓取已开启 | 响应 0 个 | 请求 0 个 | 最少 80 字",
+    Color = "Blue",
+})
+
+local ResponseInfo = ResponseTab:Paragraph({
+    Title = "响应列表",
+    Desc = "HttpGet / request 返回内容会出现在这里。",
+    Color = "Blue",
+})
+
+local RequestInfo = RequestTab:Paragraph({
+    Title = "请求列表",
+    Desc = "request / http_request / syn.request 发出的请求会出现在这里。",
+    Color = "Blue",
+})
+
+local function updateStatus()
+    if StatusParagraph and StatusParagraph.SetDesc then
+        StatusParagraph:SetDesc(
+            (isCapturing and "抓取已开启" or "抓取已关闭")
+            .. " | 响应 "
+            .. tostring(responseCount)
+            .. " 个 | 请求 "
+            .. tostring(requestCount)
+            .. " 个 | 最少 "
+            .. tostring(minRecordLength)
+            .. " 字"
+        )
+    end
+
+    if ResponseInfo and ResponseInfo.SetDesc then
+        ResponseInfo:SetDesc("已记录 " .. tostring(responseCount) .. " 个响应。点击条目打开预览。")
+    end
+
+    if RequestInfo and RequestInfo.SetDesc then
+        RequestInfo:SetDesc("已记录 " .. tostring(requestCount) .. " 个请求。点击条目打开预览。")
+    end
+end
+
+-- ==================== 抓取开关 ====================
+MainTab:Toggle({
+    Title = "启动抓取",
+    Desc = "关闭后不会继续记录请求和响应",
+    Icon = "power",
+    Value = true,
+
+    Callback = function(state)
+        isCapturing = state
+        updateStatus()
+    end
+})
+
+-- ==================== 最少字数限制 ====================
+MainTab:Input({
+    Title = "最少记录字数",
+    Desc = "低于这个字数的请求 / 响应不会被记录，默认 80",
+    Value = "80",
+    Placeholder = "例如：80",
+
+    Callback = function(value)
+        local number = tonumber(value)
+
+        if number and number >= 0 then
+            minRecordLength = math.floor(number)
+        else
+            minRecordLength = 80
+        end
+
+        updateStatus()
+    end
+})
+
+MainTab:Button({
+    Title = "打开响应列表",
+    Desc = "查看抓到的返回内容",
+    Locked = false,
+
+    Callback = function()
+        ResponseTab:Select()
+    end
+})
+
+MainTab:Button({
+    Title = "打开请求列表",
+    Desc = "查看抓到的请求内容",
+    Locked = false,
+
+    Callback = function()
+        RequestTab:Select()
+    end
+})
+
+MainTab:Button({
+    Title = "测试预览窗口",
+    Desc = "测试滚动 / 复制 / 拖动",
+    Locked = false,
+
+    Callback = function()
+        openPreviewWindow(
+            "测试内容.lua",
+            [[-- 测试预览窗口
+-- 横竖滚动条、复制按钮、拖动窗口都在这里测试
+
+local long_line = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+for i = 1, 120 do
+    print("测试行", i)
+end
+]]
+        )
+    end
+})
+
+MainTab:Button({
+    Title = "关闭预览窗口",
+    Desc = "只关闭黑色预览窗口",
+    Locked = false,
+
+    Callback = function()
+        previewWindow.Visible = false
+        stopInertia()
+    end
+})
+
+-- ======================================================
+-- 保存响应
+-- ======================================================
+local function saveResponse(content, prefix, extraInfo)
+    if typeof(content) ~= "string" then
+        return
+    end
+
+    if #content < minRecordLength then
+        return
+    end
+
+    local hash = getHash(prefix .. "\n" .. content)
+
+    if savedResponseHashes[hash] then
+        return
+    end
+
+    savedResponseHashes[hash] = true
+    responseCount = responseCount + 1
+
+    local timeShort = os.date("%H:%M:%S")
+    local timestamp = os.date("%Y%m%d_%H%M%S")
+
+    local filename =
+        folderName ..
+        "/Responses/" ..
+        timestamp ..
+        "_" ..
+        tostring(prefix) ..
+        "_" ..
+        tostring(responseCount) ..
+        ".lua"
+
+    local finalText =
+        "-- 时间: " .. timestamp .. "\n" ..
+        "-- 类型: 响应 / " .. tostring(prefix) .. "\n" ..
+        tostring(extraInfo or "") .. "\n\n" ..
+        content
+
+    pcall(function()
+        writefile(filename, finalText)
+    end)
+
+    local itemIndex = responseCount
+
+    responseItems[itemIndex] = {
+        Text = finalText,
+        Prefix = prefix,
+        Time = timeShort,
+        File = filename,
+        Length = #content,
+    }
+
+    ResponseTab:Button({
+        Title = "#" .. tostring(itemIndex) .. " [" .. tostring(prefix) .. "] " .. timeShort,
+        Desc = tostring(#content) .. " 字 | " .. filename,
+        Locked = false,
+
+        Callback = function()
+            local item = responseItems[itemIndex]
+
+            if item then
+                openPreviewWindow(
+                    "响应 #" .. tostring(itemIndex) .. " [" .. tostring(item.Prefix) .. "]",
+                    item.Text
+                )
+            end
+        end
+    })
+
+    updateStatus()
+
+    print("✅ 已保存响应:", filename)
+end
+
+-- ======================================================
+-- 保存请求
+-- ======================================================
+local function saveRequest(req, sourceName)
+    if typeof(req) ~= "table" then
+        return
+    end
+
+    local url = safeToString(req.Url or req.URL or req.url or "未知")
+    local method = safeToString(req.Method or req.method or "GET")
+    local body = safeToString(req.Body or req.body or "")
+    local headers = req.Headers or req.headers or {}
+
+    local requestText =
+        "-- 请求来源: " .. tostring(sourceName) .. "\n" ..
+        "-- Method: " .. tostring(method) .. "\n" ..
+        "-- URL: " .. tostring(url) .. "\n\n" ..
+        "===== Headers =====\n" ..
+        serializeTable(headers) ..
+        "\n\n===== Body =====\n" ..
+        tostring(body)
+
+    if #requestText < minRecordLength then
+        return
+    end
+
+    local hash = getHash(requestText)
+
+    if savedRequestHashes[hash] then
+        return
+    end
+
+    savedRequestHashes[hash] = true
+    requestCount = requestCount + 1
+
+    local timeShort = os.date("%H:%M:%S")
+    local timestamp = os.date("%Y%m%d_%H%M%S")
+
+    local filename =
+        folderName ..
+        "/Requests/" ..
+        timestamp ..
+        "_" ..
+        tostring(sourceName) ..
+        "_" ..
+        tostring(requestCount) ..
+        ".txt"
+
+    local finalText =
+        "-- 时间: " .. timestamp .. "\n" ..
+        "-- 类型: 请求 / " .. tostring(sourceName) .. "\n\n" ..
+        requestText
+
+    pcall(function()
+        writefile(filename, finalText)
+    end)
+
+    local itemIndex = requestCount
+
+    requestItems[itemIndex] = {
+        Text = finalText,
+        Source = sourceName,
+        Method = method,
+        Url = url,
+        Time = timeShort,
+        File = filename,
+        Length = #requestText,
+    }
+
+    RequestTab:Button({
+        Title = "#" .. tostring(itemIndex) .. " [" .. tostring(method) .. "] " .. timeShort,
+        Desc = tostring(#requestText) .. " 字 | " .. tostring(url),
+        Locked = false,
+
+        Callback = function()
+            local item = requestItems[itemIndex]
+
+            if item then
+                openPreviewWindow(
+                    "请求 #" .. tostring(itemIndex) .. " [" .. tostring(item.Method) .. "]",
+                    item.Text
+                )
+            end
+        end
+    })
+
+    updateStatus()
+
+    print("✅ 已保存请求:", filename)
+end
+
+-- ======================================================
+-- Hook loadstring
+-- ======================================================
+pcall(function()
+    if loadstring and hookfunction and clonefunction then
+        local oldLoadstring = clonefunction(loadstring)
+
+        hookfunction(loadstring, function(code, chunkname)
+            if isCapturing then
+                saveResponse(
+                    code,
+                    "Loadstring",
+                    "-- Chunk: " .. tostring(chunkname)
+                )
+            end
+
+            return oldLoadstring(code, chunkname)
+        end)
+    end
+end)
+
+-- ======================================================
+-- Hook HttpGet / HttpGetAsync 响应
+-- ======================================================
+local function hookHttp(name, func)
+    pcall(function()
+        if func and hookfunction and clonefunction then
+            local oldFunc = clonefunction(func)
+
+            hookfunction(func, function(self, url, ...)
+                local result = oldFunc(self, url, ...)
+
+                if isCapturing and typeof(result) == "string" then
+                    saveResponse(
+                        result,
+                        name,
+                        "-- URL: " .. tostring(url)
+                    )
+                end
+
+                return result
+            end)
+        end
+    end)
+end
+
+pcall(function()
+    hookHttp("HttpGet", game.HttpGet)
+end)
+
+pcall(function()
+    hookHttp("HttpGetAsync", game.HttpGetAsync)
+end)
+
+-- ======================================================
+-- Hook request / http_request / syn.request
+-- 同时抓请求 + 响应
+-- ======================================================
+local function hookRequest(name, func)
+    pcall(function()
+        if func and hookfunction and clonefunction then
+            local oldFunc = clonefunction(func)
+
+            hookfunction(func, function(req)
+                if isCapturing then
+                    saveRequest(req, name)
+                end
+
+                local resp = oldFunc(req)
+
+                if isCapturing then
+                    if typeof(resp) == "table" then
+                        if typeof(resp.Body) == "string" then
+                            local urlText = "未知"
+
+                            pcall(function()
+                                urlText = tostring(req.Url or req.URL or req.url)
+                            end)
+
+                            saveResponse(
+                                resp.Body,
+                                name,
+                                "-- URL: " .. tostring(urlText)
+                            )
+                        end
+                    end
+                end
+
+                return resp
+            end)
+        end
+    end)
+end
+
+pcall(function()
+    hookRequest("http_request", http_request)
+end)
+
+pcall(function()
+    hookRequest("request", request)
+end)
+
+pcall(function()
+    if syn and syn.request then
+        hookRequest("syn.request", syn.request)
+    end
+end)
+
+-- ==================== 启动提示 ====================
+updateStatus()
+
+print("抓包已启动")
