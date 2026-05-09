@@ -1,0 +1,2384 @@
+local rainbowBorderAnimation
+local currentBorderColorScheme = "彩虹颜色"
+local currentFontColorScheme = "彩虹颜色"
+local borderInitialized = false
+local animationSpeed = 2
+local borderEnabled = true
+local fontColorEnabled = false
+local uiScale = 1
+local blurEnabled = false
+local soundEnabled = true
+
+local FONT_STYLES = {
+    "SourceSansBold","SourceSansItalic","SourceSansLight","SourceSans",
+    "GothamSSm","GothamSSm-Bold","GothamSSm-Medium","GothamSSm-Light",
+    "GothamSSm-Black","GothamSSm-Book","GothamSSm-XLight","GothamSSm-Thin",
+    "GothamSSm-Ultra","GothamSSm-SemiBold","GothamSSm-ExtraLight","GothamSSm-Heavy",
+    "GothamSSm-ExtraBold","GothamSSm-Regular","Gotham","GothamBold",
+    "GothamMedium","GothamBlack","GothamLight","Arial","ArialBold",
+    "Code","CodeLight","CodeBold","Highway","HighwayBold","HighwayLight",
+    "SciFi","SciFiBold","SciFiItalic","Cartoon","CartoonBold","Handwritten"
+}
+
+local FONT_DESCRIPTIONS = {
+    ["SourceSansBold"] = "标准粗体",["SourceSansItalic"] = "斜体",["SourceSansLight"] = "细体",
+    ["SourceSans"] = "标准体",["GothamSSm"] = "哥特标准",["GothamSSm-Bold"] = "哥特粗体",
+    ["GothamSSm-Medium"] = "哥特中等",["GothamSSm-Light"] = "哥特细体",["GothamSSm-Black"] = "哥特黑体",
+    ["GothamSSm-Book"] = "哥特书本体",["GothamSSm-XLight"] = "哥特超细体",["GothamSSm-Thin"] = "哥特极细体",
+    ["GothamSSm-Ultra"] = "哥特超黑体",["GothamSSm-SemiBold"] = "哥特半粗体",["GothamSSm-ExtraLight"] = "哥特特细体",
+    ["GothamSSm-Heavy"] = "哥特粗重体",["GothamSSm-ExtraBold"] = "哥特特粗体",["GothamSSm-Regular"] = "哥特常规体",
+    ["Gotham"] = "经典哥特体",["GothamBold"] = "经典哥特粗体",["GothamMedium"] = "经典哥特中等",
+    ["GothamBlack"] = "经典哥特黑体",["GothamLight"] = "经典哥特细体",["Arial"] = "标准Arial体",
+    ["ArialBold"] = "Arial粗体",["Code"] = "代码字体",["CodeLight"] = "代码细体",
+    ["CodeBold"] = "代码粗体",["Highway"] = "高速公路体",["HighwayBold"] = "高速公路粗体",
+    ["HighwayLight"] = "高速公路细体",["SciFi"] = "科幻字体",["SciFiBold"] = "科幻粗体",
+    ["SciFiItalic"] = "科幻斜体",["Cartoon"] = "卡通字体",["CartoonBold"] = "卡通粗体",
+    ["Handwritten"] = "手写体"
+}
+
+local currentFontStyle = "SourceSansBold"
+
+local COLOR_SCHEMES = {
+    ["彩虹颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))}),"palette"},
+    ["黑红颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("000000")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FF0000")),ColorSequenceKeypoint.new(1, Color3.fromHex("000000"))}),"alert-triangle"},
+    ["蓝白颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FFFFFF")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("1E90FF")),ColorSequenceKeypoint.new(1, Color3.fromHex("FFFFFF"))}),"droplet"},
+    ["紫金颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FFD700")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("8A2BE2")),ColorSequenceKeypoint.new(1, Color3.fromHex("FFD700"))}),"crown"},
+    ["蓝黑颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("000000")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("0000FF")),ColorSequenceKeypoint.new(1, Color3.fromHex("000000"))}),"moon"},
+    ["绿紫颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("00FF00")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("800080")),ColorSequenceKeypoint.new(1, Color3.fromHex("00FF00"))}),"zap"},
+    ["粉蓝颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF69B4")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("00BFFF")),ColorSequenceKeypoint.new(1, Color3.fromHex("FF69B4"))}),"heart"},
+    ["橙青颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF4500")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("00CED1")),ColorSequenceKeypoint.new(1, Color3.fromHex("FF4500"))}),"sun"},
+    ["红金颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FFD700")),ColorSequenceKeypoint.new(1, Color3.fromHex("FF0000"))}),"award"},
+    ["银蓝颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("C0C0C0")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("4682B4")),ColorSequenceKeypoint.new(1, Color3.fromHex("C0C0C0"))}),"star"},
+    ["霓虹颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF00FF")),ColorSequenceKeypoint.new(0.25, Color3.fromHex("00FFFF")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FFFF00")),ColorSequenceKeypoint.new(0.75, Color3.fromHex("FF00FF")),ColorSequenceKeypoint.new(1, Color3.fromHex("00FFFF"))}),"sparkles"},
+    ["森林颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("228B22")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("32CD32")),ColorSequenceKeypoint.new(1, Color3.fromHex("228B22"))}),"tree"},
+    ["火焰颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF4500")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FF0000")),ColorSequenceKeypoint.new(1, Color3.fromHex("FF8C00"))}),"flame"},
+    ["海洋颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("000080")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("1E90FF")),ColorSequenceKeypoint.new(1, Color3.fromHex("00BFFF"))}),"waves"},
+    ["日落颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF4500")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FF8C00")),ColorSequenceKeypoint.new(1, Color3.fromHex("FFD700"))}),"sunset"},
+    ["银河颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("4B0082")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("8A2BE2")),ColorSequenceKeypoint.new(1, Color3.fromHex("9370DB"))}),"galaxy"},
+    ["糖果颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("FF69B4")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("FF1493")),ColorSequenceKeypoint.new(1, Color3.fromHex("FFB6C1"))}),"candy"},
+    ["金属颜色"] = {ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHex("C0C0C0")),ColorSequenceKeypoint.new(0.5, Color3.fromHex("A9A9A9")),ColorSequenceKeypoint.new(1, Color3.fromHex("696969"))}),"shield"}
+}
+
+local fontColorAnimations = {}
+
+local function applyFontColorGradient(textElement, colorScheme)
+    if not textElement or not textElement:IsA("TextLabel") and not textElement:IsA("TextButton") and not textElement:IsA("TextBox") then
+        return
+    end
+    
+    local existingGradient = textElement:FindFirstChild("FontColorGradient")
+    if existingGradient then
+        existingGradient:Destroy()
+    end
+    
+    if fontColorAnimations[textElement] then
+        fontColorAnimations[textElement]:Disconnect()
+        fontColorAnimations[textElement] = nil
+    end
+    
+    if not fontColorEnabled then
+        textElement.TextColor3 = Color3.new(1, 1, 1)
+        return
+    end
+    
+    local schemeData = COLOR_SCHEMES[colorScheme or currentFontColorScheme]
+    if not schemeData then return end
+    
+    local fontGradient = Instance.new("UIGradient")
+    fontGradient.Name = "FontColorGradient"
+    fontGradient.Color = schemeData[1]
+    fontGradient.Rotation = 0
+    fontGradient.Parent = textElement
+    
+    textElement.TextColor3 = Color3.new(1, 1, 1)
+    
+    local animation
+    animation = game:GetService("RunService").Heartbeat:Connect(function()
+        if not textElement or textElement.Parent == nil then
+            animation:Disconnect()
+            fontColorAnimations[textElement] = nil
+            return
+        end
+        
+        if not fontGradient or fontGradient.Parent == nil then
+            animation:Disconnect()
+            fontColorAnimations[textElement] = nil
+            return
+        end
+        
+        local time = tick()
+        fontGradient.Rotation = (time * animationSpeed * 30) % 360
+    end)
+    
+    fontColorAnimations[textElement] = animation
+end
+
+local function applyFontStyleToWindow(fontStyle)
+    if not Window or not Window.UIElements then 
+        wait(0.5)
+        if not Window or not Window.UIElements then
+            return false
+        end
+    end
+    
+    local successCount = 0
+    local totalCount = 0
+    
+    local function processElement(element)
+        for _, child in ipairs(element:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                totalCount = totalCount + 1
+                pcall(function()
+                    child.Font = Enum.Font[fontStyle]
+                    successCount = successCount + 1
+                end)
+            end
+        end
+    end
+    
+    processElement(Window.UIElements.Main)
+    
+    return successCount, totalCount
+end
+
+local function applyFontColorsToWindow(colorScheme)
+    if not Window or not Window.UIElements then return end
+    
+    local function processElement(element)
+        for _, child in ipairs(element:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                applyFontColorGradient(child, colorScheme)
+            end
+        end
+    end
+    
+    processElement(Window.UIElements.Main)
+end
+
+local function createRainbowBorder(window, colorScheme, speed)
+    if not window or not window.UIElements then
+        wait(1)
+        if not window or not window.UIElements then
+            return nil, nil
+        end
+    end
+    
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then
+        return nil, nil
+    end
+    
+    local existingStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if existingStroke then
+        local glowEffect = existingStroke:FindFirstChild("GlowEffect")
+        if glowEffect then
+            local schemeData = COLOR_SCHEMES[colorScheme or currentBorderColorScheme]
+            if schemeData then
+                glowEffect.Color = schemeData[1]
+            end
+        end
+        return existingStroke, rainbowBorderAnimation
+    end
+    
+    if not mainFrame:FindFirstChildOfClass("UICorner") then
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 16)
+        corner.Parent = mainFrame
+    end
+    
+    local rainbowStroke = Instance.new("UIStroke")
+    rainbowStroke.Name = "RainbowStroke"
+    rainbowStroke.Thickness = 1.5
+    rainbowStroke.Color = Color3.new(1, 1, 1)
+    rainbowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rainbowStroke.LineJoinMode = Enum.LineJoinMode.Round
+    rainbowStroke.Enabled = borderEnabled
+    rainbowStroke.Parent = mainFrame
+    
+    local glowEffect = Instance.new("UIGradient")
+    glowEffect.Name = "GlowEffect"
+    
+    local schemeData = COLOR_SCHEMES[colorScheme or currentBorderColorScheme]
+    if schemeData then
+        glowEffect.Color = schemeData[1]
+    else
+        glowEffect.Color = COLOR_SCHEMES["彩虹颜色"][1]
+    end
+    
+    glowEffect.Rotation = 0
+    glowEffect.Parent = rainbowStroke
+    
+    return rainbowStroke, nil
+end
+
+local function startBorderAnimation(window, speed)
+    if not window or not window.UIElements then
+        return nil
+    end
+    
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then
+        return nil
+    end
+    
+    local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if not rainbowStroke or not rainbowStroke.Enabled then
+        return nil
+    end
+    
+    local glowEffect = rainbowStroke:FindFirstChild("GlowEffect")
+    if not glowEffect then
+        return nil
+    end
+    
+    if rainbowBorderAnimation then
+        rainbowBorderAnimation:Disconnect()
+        rainbowBorderAnimation = nil
+    end
+    
+    local animation
+    animation = game:GetService("RunService").Heartbeat:Connect(function()
+        if not rainbowStroke or rainbowStroke.Parent == nil or not rainbowStroke.Enabled then
+            animation:Disconnect()
+            return
+        end
+        
+        local time = tick()
+        glowEffect.Rotation = (time * speed * 60) % 360
+    end)
+    
+    rainbowBorderAnimation = animation
+    return animation
+end
+
+local function initializeRainbowBorder(scheme, speed)
+    speed = speed or animationSpeed
+    
+    local rainbowStroke, _ = createRainbowBorder(Window, scheme, speed)
+    if rainbowStroke then
+        if borderEnabled then
+            startBorderAnimation(Window, speed)
+        end
+        borderInitialized = true
+        return true
+    end
+    return false
+end
+
+local function gradient(text, startColor, endColor)
+    local result = ""
+    for i = 1, #text do
+        local t = (i - 1) / (#text - 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+        result = result .. string.format('<font color="rgb(%d,%d,%d)">%s</font>', r, g, b, text:sub(i, i))
+    end
+    return result
+end
+
+local function playSound()
+    if soundEnabled then
+        pcall(function()
+            local sound = Instance.new("Sound")
+            sound.SoundId = "rbxassetid://9047002353"
+            sound.Volume = 0.3
+            sound.Parent = game:GetService("SoundService")
+            sound:Play()
+            game:GetService("Debris"):AddItem(sound, 2)
+        end)
+    end
+end
+
+local function applyBlurEffect(enabled)
+    if enabled then
+        pcall(function()
+            local blur = Instance.new("BlurEffect")
+            blur.Size = 8
+            blur.Name = "UIXH HUBBlur"
+            blur.Parent = game:GetService("Lighting")
+        end)
+    else
+        pcall(function()
+            local existingBlur = game:GetService("Lighting"):FindFirstChild("UIXH HUBBlur")
+            if existingBlur then
+                existingBlur:Destroy()
+            end
+        end)
+    end
+end
+
+local function applyUIScale(scale)
+    if Window and Window.UIElements and Window.UIElements.Main then
+        local mainFrame = Window.UIElements.Main
+        mainFrame.Size = UDim2.new(0, 600 * scale, 0, 400 * scale)
+    end
+end
+
+local workspace = game:GetService("Workspace")
+local players = game:GetService("Players")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local lighting = game:GetService("Lighting")
+local tweenService = game:GetService("TweenService")
+local localPlayer = players.LocalPlayer
+
+local bulletAimbotEnabled = false
+local bulletAimbotRange = 999
+local bulletOriginalFireFunction
+local bulletHandlerHooked = false
+
+if not getgenv().BulletTrailColors then
+    getgenv().BulletTrailColors = {
+        StartColor = Color3.fromRGB(0, 170, 255),
+        EndColor = Color3.fromRGB(255, 0, 0),
+        MiddleColor1 = Color3.fromRGB(255, 0, 255),
+        MiddleColor2 = Color3.fromRGB(255, 255, 0)
+    }
+end
+
+if not getgenv().HitEffectConfig then
+    getgenv().HitEffectConfig = {
+        Enabled = true,
+        Text = "XD",
+        TextColor = Color3.fromRGB(255, 0, 0),
+        TextSize = 50,
+        EffectColor = Color3.fromRGB(255, 0, 0),
+        EffectSize = 5,
+        Duration = 3,
+        ShowExplosion = true,
+        ExplosionColor = Color3.fromRGB(255, 100, 0),
+        ShowShockwave = true,
+        ShockwaveColor = Color3.fromRGB(255, 200, 0)
+    }
+end
+
+local bulletTrailTransparency = 0.3
+local bulletTrailSize = 0.25
+local currentBulletTrail = nil
+local bulletTrailOverallColor = Color3.fromRGB(255, 255, 255)
+
+local infiniteJumpEnabled = false
+local jumpConnection = nil
+
+local originalGravity = workspace.Gravity
+local gravityLoop = nil
+
+local speedEnabled = false
+local speedValue = 1
+local speedConnection = nil
+
+local espEnabled = false
+local espScreenGui = nil
+local espFolder = nil
+local espNameColor = Color3.fromRGB(0, 255, 127)
+local espBodyColor = Color3.fromRGB(0, 255, 127)
+local espNameSize = 14
+local espRainbowEnabled = false
+local espRainbowSpeed = 5
+local currentESPHue = 0
+
+local aimbotEnabled = false
+local aimbotFOV = 100
+local aimbotSmoothness = 10
+local aimbotCrosshairDistance = 5
+local aimbotFOVColor = Color3.fromRGB(0, 255, 0)
+local aimbotFriendCheck = true
+local aimbotWallCheck = true
+local aimbotTargetPlayer = nil
+local aimbotTargetAll = true
+local aimbotFOVRainbowEnabled = true
+local aimbotFOVRainbowSpeed = 8
+local currentFOVHue = 0
+
+local drawingObjects = {}
+local aimbotConnection = nil
+local fovCircle = nil
+
+local function getRainbowColor(hue)
+    hue = hue % 1
+    local r, g, b
+    local i = math.floor(hue * 6)
+    local f = hue * 6 - i
+    local p = 1
+    local q = 1 - f
+    local t = f
+    if i % 6 == 0 then r, g, b = 1, t, p
+    elseif i % 6 == 1 then r, g, b = q, 1, p
+    elseif i % 6 == 2 then r, g, b = p, 1, t
+    elseif i % 6 == 3 then r, g, b = p, q, 1
+    elseif i % 6 == 4 then r, g, b = t, p, 1
+    else r, g, b = 1, p, q end
+    return Color3.new(r, g, b)
+end
+
+local function createBezierCurve(p0, p1, p2, t)
+    return (1 - t)^2 * p0 + 2 * (1 - t) * t * p1 + t^2 * p2
+end
+
+local function cleanupPreviousBulletTrail()
+    if currentBulletTrail and currentBulletTrail.Parent then
+        currentBulletTrail:Destroy()
+        currentBulletTrail = nil
+    end
+end
+
+local function createHitEffect(hitPosition, hitCharacter)
+    if not getgenv().HitEffectConfig.Enabled then
+        return
+    end
+    pcall(function()
+        local effectContainer = Instance.new("Folder")
+        effectContainer.Name = "HitEffect_" .. tostring(tick())
+        effectContainer.Parent = workspace
+        if getgenv().HitEffectConfig.Text and getgenv().HitEffectConfig.Text ~= "" then
+            local billboardGui = Instance.new("BillboardGui")
+            billboardGui.Name = "HitText"
+            billboardGui.Size = UDim2.new(0, 200, 0, 200)
+            billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+            billboardGui.AlwaysOnTop = true
+            billboardGui.Adornee = hitCharacter and hitCharacter:FindFirstChild("HumanoidRootPart") or nil
+            billboardGui.Enabled = true
+            billboardGui.Parent = effectContainer
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = getgenv().HitEffectConfig.Text
+            textLabel.TextColor3 = getgenv().HitEffectConfig.TextColor
+            textLabel.TextSize = getgenv().HitEffectConfig.TextSize
+            textLabel.Font = Enum.Font.GothamBold
+            textLabel.TextStrokeTransparency = 0.5
+            textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+            textLabel.Parent = billboardGui
+            local tweenInfo = TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
+            local scaleTween = tweenService:Create(textLabel, tweenInfo, {TextSize = getgenv().HitEffectConfig.TextSize * 1.5})
+            scaleTween:Play()
+            task.delay(getgenv().HitEffectConfig.Duration * 0.7, function()
+                local fadeTween = tweenService:Create(textLabel, TweenInfo.new(0.5), {TextTransparency = 1,TextStrokeTransparency = 1})
+                fadeTween:Play()
+            end)
+        end
+        if getgenv().HitEffectConfig.ShowExplosion then
+            local explosion = Instance.new("Part")
+            explosion.Name = "ExplosionEffect"
+            explosion.Size = Vector3.new(1, 1, 1)
+            explosion.Shape = Enum.PartType.Ball
+            explosion.Material = Enum.Material.Neon
+            explosion.Color = getgenv().HitEffectConfig.ExplosionColor
+            explosion.Transparency = 0.3
+            explosion.Anchored = true
+            explosion.CanCollide = false
+            explosion.Position = hitPosition
+            explosion.Parent = effectContainer
+            local explosionLight = Instance.new("PointLight")
+            explosionLight.Brightness = 15
+            explosionLight.Range = getgenv().HitEffectConfig.EffectSize * 3
+            explosionLight.Color = getgenv().HitEffectConfig.ExplosionColor
+            explosionLight.Parent = explosion
+            local scaleTween = tweenService:Create(explosion, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = Vector3.new(getgenv().HitEffectConfig.EffectSize,getgenv().HitEffectConfig.EffectSize,getgenv().HitEffectConfig.EffectSize)})
+            scaleTween:Play()
+            task.delay(0.5, function()
+                local fadeTween = tweenService:Create(explosion, TweenInfo.new(0.5), {Transparency = 1})
+                fadeTween:Play()
+                local lightTween = tweenService:Create(explosionLight, TweenInfo.new(0.5), {Brightness = 0})
+                lightTween:Play()
+            end)
+        end
+        if getgenv().HitEffectConfig.ShowShockwave then
+            local shockwave = Instance.new("Part")
+            shockwave.Name = "ShockwaveEffect"
+            shockwave.Size = Vector3.new(1, 0.1, 1)
+            shockwave.Shape = Enum.PartType.Cylinder
+            shockwave.Material = Enum.Material.Neon
+            shockwave.Color = getgenv().HitEffectConfig.ShockwaveColor
+            shockwave.Transparency = 0.5
+            shockwave.Anchored = true
+            shockwave.CanCollide = false
+            shockwave.CFrame = CFrame.new(hitPosition) * CFrame.Angles(math.rad(90), 0, 0)
+            shockwave.Parent = effectContainer
+            local scaleTween = tweenService:Create(shockwave, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = Vector3.new(getgenv().HitEffectConfig.EffectSize * 4,0.1,getgenv().HitEffectConfig.EffectSize * 4),Transparency = 1})
+            scaleTween:Play()
+        end
+        local particleEmitter = Instance.new("ParticleEmitter")
+        particleEmitter.Parent = effectContainer
+        particleEmitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5),NumberSequenceKeypoint.new(0.5, 1),NumberSequenceKeypoint.new(1, 0)})
+        particleEmitter.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0),NumberSequenceKeypoint.new(1, 1)})
+        particleEmitter.Color = ColorSequence.new(getgenv().HitEffectConfig.EffectColor)
+        particleEmitter.Acceleration = Vector3.new(0, -10, 0)
+        particleEmitter.Lifetime = NumberRange.new(1, 2)
+        particleEmitter.Rate = 100
+        particleEmitter.Speed = NumberRange.new(5, 10)
+        particleEmitter.VelocitySpread = 360
+        task.delay(getgenv().HitEffectConfig.Duration, function()
+            if effectContainer and effectContainer.Parent then
+                effectContainer:Destroy()
+            end
+        end)
+        return effectContainer
+    end)
+end
+
+local function createBulletTrail(origin, targetPos, targetCharacter)
+    cleanupPreviousBulletTrail()
+    local trailContainer = Instance.new("Folder")
+    trailContainer.Name = "BulletTrail_" .. tostring(tick())
+    trailContainer.Parent = workspace
+    currentBulletTrail = trailContainer
+    local midPoint = (origin + targetPos) / 2
+    local direction = (targetPos - origin).Unit
+    local perpendicular = Vector3.new(-direction.Z, direction.Y, direction.X) * 5
+    local controlPoint = midPoint + perpendicular + Vector3.new(0, math.random(-5, 5), 0)
+    local curvePoints = {}
+    local numSegments = 25
+    for i = 0, numSegments do
+        local t = i / numSegments
+        local point = createBezierCurve(origin, controlPoint, targetPos, t)
+        table.insert(curvePoints, point)
+    end
+    for i = 1, #curvePoints - 1 do
+        local startPoint = curvePoints[i]
+        local endPoint = curvePoints[i + 1]
+        local distance = (endPoint - startPoint).Magnitude
+        local beamPart = Instance.new("Part")
+        beamPart.Size = Vector3.new(bulletTrailSize, bulletTrailSize, distance)
+        beamPart.Anchored = true
+        beamPart.CanCollide = false
+        beamPart.Material = Enum.Material.Neon
+        beamPart.Transparency = bulletTrailTransparency
+        beamPart.CFrame = CFrame.new(startPoint, endPoint) * CFrame.new(0, 0, -distance / 2)
+        beamPart.Parent = trailContainer
+        local t = i / (#curvePoints - 1)
+        local color
+        if bulletTrailOverallColor ~= Color3.fromRGB(255, 255, 255) then
+            color = bulletTrailOverallColor
+        else
+            if t < 0.3 then
+                color = getgenv().BulletTrailColors.StartColor or Color3.fromRGB(0, 170, 255)
+            elseif t < 0.6 then
+                color = getgenv().BulletTrailColors.MiddleColor1 or Color3.fromRGB(255, 0, 255)
+            elseif t < 0.9 then
+                color = getgenv().BulletTrailColors.MiddleColor2 or Color3.fromRGB(255, 255, 0)
+            else
+                color = getgenv().BulletTrailColors.EndColor or Color3.fromRGB(255, 0, 0)
+            end
+        end
+        beamPart.Color = color
+        local pointLight = Instance.new("PointLight")
+        pointLight.Brightness = 8
+        pointLight.Range = 5
+        pointLight.Color = color
+        pointLight.Parent = beamPart
+        local particles = Instance.new("ParticleEmitter")
+        particles.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.2),NumberSequenceKeypoint.new(0.5, 0.4),NumberSequenceKeypoint.new(1, 0.1)})
+        particles.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.2),NumberSequenceKeypoint.new(1, 0.8)})
+        particles.Lifetime = NumberRange.new(0.8, 1.5)
+        particles.Rate = 80
+        particles.Speed = NumberRange.new(2, 4)
+        particles.VelocitySpread = 180
+        particles.Color = ColorSequence.new(color)
+        particles.Parent = beamPart
+        local glow = Instance.new("SurfaceLight")
+        glow.Brightness = 2
+        glow.Range = 8
+        glow.Color = color
+        glow.Parent = beamPart
+    end
+    local startExplosion = Instance.new("Part")
+    startExplosion.Size = Vector3.new(1, 1, 1)
+    startExplosion.Anchored = true
+    startExplosion.CanCollide = false
+    startExplosion.Material = Enum.Material.Neon
+    startExplosion.Transparency = 0.5
+    startExplosion.Shape = Enum.PartType.Ball
+    startExplosion.CFrame = CFrame.new(origin)
+    startExplosion.Color = bulletTrailOverallColor ~= Color3.fromRGB(255, 255, 255) and bulletTrailOverallColor or getgenv().BulletTrailColors.StartColor
+    startExplosion.Parent = trailContainer
+    local startLight = Instance.new("PointLight")
+    startLight.Brightness = 10
+    startLight.Range = 10
+    startLight.Color = startExplosion.Color
+    startLight.Parent = startExplosion
+    spawn(function()
+        task.wait(0.1)
+        if targetCharacter and getgenv().HitEffectConfig.Enabled then
+            createHitEffect(targetPos, targetCharacter)
+        end
+        local endExplosion = Instance.new("Part")
+        endExplosion.Size = Vector3.new(1.5, 1.5, 1.5)
+        endExplosion.Anchored = true
+        endExplosion.CanCollide = false
+        endExplosion.Material = Enum.Material.Neon
+        endExplosion.Transparency = 0.3
+        endExplosion.Shape = Enum.PartType.Ball
+        endExplosion.CFrame = CFrame.new(targetPos)
+        endExplosion.Color = bulletTrailOverallColor ~= Color3.fromRGB(255, 255, 255) and bulletTrailOverallColor or getgenv().BulletTrailColors.EndColor
+        endExplosion.Parent = trailContainer
+        local endLight = Instance.new("PointLight")
+        endLight.Brightness = 15
+        endLight.Range = 12
+        endLight.Color = endExplosion.Color
+        endLight.Parent = endExplosion
+    end)
+    task.delay(1.5, function()
+        if trailContainer and trailContainer.Parent then
+            for _, child in ipairs(trailContainer:GetChildren()) do
+                if child:IsA("Part") then
+                    local tween = tweenService:Create(child, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1})
+                    tween:Play()
+                end
+            end
+            task.delay(0.5, function()
+                if trailContainer and trailContainer.Parent then
+                    trailContainer:Destroy()
+                end
+            end)
+        end
+    end)
+    return trailContainer
+end
+
+local function get_closest_target(range)
+    local closest_part, closest_distance, closest_character = nil, range, nil
+    local camera = workspace.CurrentCamera
+    for _, player in players:GetPlayers() do
+        if player == localPlayer then
+            continue
+        end
+        local character = player.Character
+        if not character then
+            continue
+        end
+        local humanoid = character:FindFirstChild("Humanoid")
+        local head = character:FindFirstChild("Head")
+        if not head or not humanoid or humanoid.Health == 0 then
+            continue
+        end
+        local screen_position, on_screen = camera:WorldToViewportPoint(head.Position)
+        if not on_screen then
+            continue
+        end
+        local distance = (Vector2.new(screen_position.X, screen_position.Y) - camera.ViewportSize / 2).Magnitude
+        if distance < closest_distance then
+            closest_part = head
+            closest_distance = distance
+            closest_character = character
+        end
+    end
+    return closest_part, closest_character
+end
+
+local function setupBulletAimbot()
+    if bulletHandlerHooked then
+        return true
+    end
+    local success, bullet_handler = pcall(function()
+        return require(game:GetService("ReplicatedStorage").ModuleScripts.GunModules.BulletHandler)
+    end)
+    if not success or not bullet_handler then
+        WindUI:Notify({Title = "错误",Content = "无法找到BulletHandler模块",Duration = 3,Icon = "x"})
+        return false
+    end
+    bulletOriginalFireFunction = bullet_handler.Fire
+    bullet_handler.Fire = function(data)
+        if bulletAimbotEnabled then
+            local closest, character = get_closest_target(bulletAimbotRange)
+            if closest then
+                data.Force = data.Force * 1000
+                data.Direction = (closest.Position - data.Origin).Unit
+                spawn(function()
+                    createBulletTrail(data.Origin, closest.Position, character)
+                end)
+            end
+        end
+        return bulletOriginalFireFunction(data)
+    end
+    bulletHandlerHooked = true
+    return true
+end
+
+local function toggleBulletAimbot(state)
+    bulletAimbotEnabled = state
+    if state then
+        local success = setupBulletAimbot()
+        if success then
+            WindUI:Notify({Title = "美国子弹",Content = "功能已启用 (距离: " .. bulletAimbotRange .. ")",Duration = 2,Icon = "crosshair"})
+        else
+            bulletAimbotEnabled = false
+            WindUI:Notify({Title = "美国子弹",Content = "启用失败",Duration = 2,Icon = "x"})
+        end
+    else
+        cleanupPreviousBulletTrail()
+        WindUI:Notify({Title = "美国子弹",Content = "功能已关闭",Duration = 2,Icon = "circle"})
+    end
+end
+
+local function toggleInfiniteJump(state)
+    infiniteJumpEnabled = state
+    if state then
+        if jumpConnection then
+            jumpConnection:Disconnect()
+        end
+        jumpConnection = userInputService.JumpRequest:Connect(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:ChangeState("Jumping")
+            end
+        end)
+        WindUI:Notify({Title = "无限跳跃",Content = "已开启无限跳跃",Icon = "jump-rope"})
+    else
+        if jumpConnection then
+            jumpConnection:Disconnect()
+            jumpConnection = nil
+        end
+        WindUI:Notify({Title = "无限跳跃",Content = "已关闭无限跳跃",Icon = "jump-rope"})
+    end
+end
+
+local function setGravity(value)
+    local numValue = tonumber(value)
+    if numValue then
+        if gravityLoop then
+            gravityLoop:Disconnect()
+            gravityLoop = nil
+        end
+        workspace.Gravity = numValue
+        WindUI:Notify({Title = "重力设置",Content = "重力已设置为: " .. tostring(numValue),Icon = "weight"})
+    else
+        WindUI:Notify({Title = "错误",Content = "请输入数字",Icon = "alert-circle"})
+    end
+end
+
+local function setSpeed(value)
+    local numValue = tonumber(value)
+    if numValue then
+        speedValue = numValue
+        WindUI:Notify({Title = "速度设置",Content = "速度已设置为: " .. tostring(numValue),Icon = "zap"})
+    else
+        WindUI:Notify({Title = "错误",Content = "请输入有效数字",Icon = "alert-circle"})
+    end
+end
+
+local function toggleSpeed(state)
+    speedEnabled = state
+    if state then
+        if speedConnection then
+            speedConnection:Disconnect()
+        end
+        speedConnection = runService.Heartbeat:Connect(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                local humanoid = char.Humanoid
+                if humanoid.MoveDirection.Magnitude > 0 then
+                    char:TranslateBy(humanoid.MoveDirection * speedValue / 2)
+                end
+            end
+        end)
+    else
+        if speedConnection then
+            speedConnection:Disconnect()
+            speedConnection = nil
+        end
+    end
+end
+
+local function initESP()
+    espScreenGui = Instance.new("ScreenGui")
+    espScreenGui.Name = "PlayerESP_System"
+    espScreenGui.ResetOnSpawn = false
+    espScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    espScreenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+    espFolder = Instance.new("Folder")
+    espFolder.Name = "PlayerESPFolder"
+    espFolder.Parent = espScreenGui
+end
+
+local function updateESPColors()
+    if not espEnabled or not espFolder then return end
+    for _, child in ipairs(espFolder:GetChildren()) do
+        if child:IsA("BillboardGui") then
+            local nameLabel = child:FindFirstChild("NameLabel")
+            if nameLabel then
+                nameLabel.TextColor3 = espRainbowEnabled and getRainbowColor(currentESPHue) or espNameColor
+                nameLabel.TextSize = espNameSize
+            end
+        elseif child:IsA("Highlight") then
+            child.FillColor = espRainbowEnabled and getRainbowColor(currentESPHue) or espBodyColor
+            child.OutlineColor = espRainbowEnabled and getRainbowColor(currentESPHue) or espBodyColor
+        end
+    end
+end
+
+local function updateESPNameSize()
+    if not espEnabled or not espFolder then return end
+    for _, child in ipairs(espFolder:GetChildren()) do
+        if child:IsA("BillboardGui") then
+            local nameLabel = child:FindFirstChild("NameLabel")
+            if nameLabel then
+                nameLabel.TextSize = espNameSize
+            end
+        end
+    end
+end
+
+local function createPlayerESP(player)
+    if player == localPlayer or not espEnabled then return end
+    local character = player.Character
+    if not character then return end
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    local existingESP = espFolder:FindFirstChild(player.Name)
+    if existingESP then existingESP:Destroy() end
+    local ESPGui = Instance.new("BillboardGui")
+    ESPGui.Name = player.Name
+    ESPGui.Adornee = humanoidRootPart
+    ESPGui.Size = UDim2.new(0, 100, 0, 40)
+    ESPGui.StudsOffset = Vector3.new(0, 3, 0)
+    ESPGui.AlwaysOnTop = true
+    ESPGui.MaxDistance = 500
+    ESPGui.Enabled = true
+    ESPGui.Parent = espFolder
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextSize = espNameSize
+    NameLabel.TextColor3 = espRainbowEnabled and getRainbowColor(currentESPHue) or espNameColor
+    NameLabel.TextStrokeTransparency = 0.5
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.Text = player.Name
+    NameLabel.Parent = ESPGui
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    DistanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextSize = 12
+    DistanceLabel.TextColor3 = Color3.fromRGB(240, 255, 245)
+    DistanceLabel.TextStrokeTransparency = 0.5
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.Name = "DistanceLabel"
+    DistanceLabel.Parent = ESPGui
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = player.Name .. "_Highlight"
+    Highlight.Adornee = character
+    Highlight.FillColor = espRainbowEnabled and getRainbowColor(currentESPHue) or espBodyColor
+    Highlight.FillTransparency = 0.7
+    Highlight.OutlineColor = espRainbowEnabled and getRainbowColor(currentESPHue) or espBodyColor
+    Highlight.OutlineTransparency = 0
+    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    Highlight.Enabled = true
+    Highlight.Parent = espFolder
+end
+
+local function updateESP()
+    if not espEnabled then return end
+    pcall(function()
+        local myCharacter = localPlayer.Character
+        local myHRP = myCharacter and myCharacter:FindFirstChild("HumanoidRootPart")
+        if not myHRP then return end
+        for _, player in ipairs(players:GetPlayers()) do
+            if player ~= localPlayer then
+                local character = player.Character
+                if character then
+                    local hrp = character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local espGui = espFolder:FindFirstChild(player.Name)
+                        if not espGui then
+                            createPlayerESP(player)
+                            espGui = espFolder:FindFirstChild(player.Name)
+                        end
+                        local distance = (myHRP.Position - hrp.Position).Magnitude
+                        local distanceLabel = espGui:FindFirstChild("DistanceLabel")
+                        if distanceLabel then
+                            distanceLabel.Text = string.format("%.0f studs", distance)
+                        end
+                        if distance > 500 then
+                            espGui.Enabled = false
+                            local highlight = espFolder:FindFirstChild(player.Name .. "_Highlight")
+                            if highlight then highlight.Enabled = false end
+                        else
+                            espGui.Enabled = true
+                            local highlight = espFolder:FindFirstChild(player.Name .. "_Highlight")
+                            if highlight then highlight.Enabled = true end
+                        end
+                    else
+                        local espGui = espFolder:FindFirstChild(player.Name)
+                        if espGui then espGui:Destroy() end
+                        local highlight = espFolder:FindFirstChild(player.Name .. "_Highlight")
+                        if highlight then highlight:Destroy() end
+                    end
+                else
+                    local esp = espFolder:FindFirstChild(player.Name)
+                    if esp then esp:Destroy() end
+                    local highlight = espFolder:FindFirstChild(player.Name .. "_Highlight")
+                    if highlight then highlight:Destroy() end
+                end
+            end
+        end
+    end)
+end
+
+local function toggleESP(state)
+    espEnabled = state
+    if state then
+        if not espScreenGui then initESP() end
+        for _, player in ipairs(players:GetPlayers()) do
+            if player ~= localPlayer and player.Character then
+                createPlayerESP(player)
+            end
+        end
+        WindUI:Notify({Title = "透视",Content = "玩家透视已开启",Icon = "eye"})
+    else
+        if espFolder then
+            for _, esp in ipairs(espFolder:GetChildren()) do
+                esp:Destroy()
+            end
+        end
+        WindUI:Notify({Title = "透视",Content = "玩家透视已关闭",Icon = "eye"})
+    end
+end
+
+local function initializeAimDrawings()
+    if not fovCircle then
+        fovCircle = Drawing.new("Circle")
+        fovCircle.Visible = aimbotEnabled
+        fovCircle.Thickness = 2
+        fovCircle.Filled = false
+        fovCircle.Radius = aimbotFOV
+        fovCircle.Position = workspace.CurrentCamera.ViewportSize / 2
+        table.insert(drawingObjects, fovCircle)
+    end
+end
+
+local function updateFOVCircle()
+    if fovCircle then
+        fovCircle.Visible = aimbotEnabled
+        fovCircle.Radius = aimbotFOV
+        fovCircle.Color = aimbotFOVRainbowEnabled and getRainbowColor(currentFOVHue) or aimbotFOVColor
+        fovCircle.Position = workspace.CurrentCamera.ViewportSize / 2
+    end
+end
+
+local function cleanupDrawings()
+    for _, drawing in ipairs(drawingObjects) do
+        if drawing then
+            drawing:Remove()
+        end
+    end
+    drawingObjects = {}
+    fovCircle = nil
+end
+
+local function isFriend(player)
+    if not aimbotFriendCheck then
+        return false
+    end
+    local success, result = pcall(function()
+        if localPlayer:IsFriendsWith(player.UserId) then
+            return true
+        end
+        return false
+    end)
+    return success and result
+end
+
+local function wallCheck(targetPosition, targetCharacter)
+    if not aimbotWallCheck then
+        return true
+    end
+    local camera = workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local direction = (targetPosition - origin).Unit
+    local distance = (targetPosition - origin).Magnitude
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {localPlayer.Character, targetCharacter}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+    raycastParams.CollisionGroup = "Default"
+    local raycastResult = workspace:Raycast(origin, direction * distance, raycastParams)
+    if raycastResult then
+        local hitPart = raycastResult.Instance
+        if hitPart then
+            local size = hitPart.Size
+            local isLargeWall = size.X > 10 or size.Y > 10 or size.Z > 10
+            local nameLower = string.lower(hitPart.Name)
+            local isWallName = string.find(nameLower, "wall") or string.find(nameLower, "floor") or string.find(nameLower, "ceiling") or string.find(nameLower, "base")
+            if isLargeWall or isWallName then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+local function getClosestPlayer()
+    local camera = workspace.CurrentCamera
+    local mousePos = camera.ViewportSize / 2
+    local nearestPlayer = nil
+    local shortestDistance = aimbotFOV
+    if aimbotTargetPlayer and not aimbotTargetAll then
+        local target = players:FindFirstChild(aimbotTargetPlayer)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            local screenPos, onScreen = camera:WorldToViewportPoint(targetPos)
+            if onScreen then
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                if distance <= aimbotFOV then
+                    return target
+                end
+            end
+        end
+        return nil
+    end
+    for _, player in ipairs(players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            if isFriend(player) then
+                continue
+            end
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoidRootPart and humanoid and humanoid.Health > 0 then
+                if not wallCheck(humanoidRootPart.Position, player.Character) then
+                    continue
+                end
+                local screenPos, onScreen = camera:WorldToViewportPoint(humanoidRootPart.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        nearestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+local function aimBot()
+    if not aimbotEnabled then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local humanoidRootPart = target.Character:FindFirstChild("HumanoidRootPart")
+        local head = target.Character:FindFirstChild("Head")
+        if humanoidRootPart and head then
+            local targetVelocity = humanoidRootPart.Velocity
+            local targetPosition = head.Position
+            if aimbotCrosshairDistance > 0 then
+                local distance = (targetPosition - camera.CFrame.Position).Magnitude
+                local timeToTarget = distance / 1000
+                targetPosition = targetPosition + (targetVelocity * timeToTarget * aimbotCrosshairDistance)
+            end
+            local currentCFrame = camera.CFrame
+            local targetCFrame = CFrame.new(currentCFrame.Position, targetPosition)
+            local smoothedCFrame = currentCFrame:Lerp(targetCFrame, 1 / aimbotSmoothness)
+            camera.CFrame = smoothedCFrame
+        end
+    end
+end
+
+local function toggleAimbot(state)
+    aimbotEnabled = state
+    if state then
+        initializeAimDrawings()
+        updateFOVCircle()
+        if aimbotConnection then
+            aimbotConnection:Disconnect()
+        end
+        aimbotConnection = runService.RenderStepped:Connect(function(deltaTime)
+            if aimbotFOVRainbowEnabled then
+                currentFOVHue = currentFOVHue + deltaTime * aimbotFOVRainbowSpeed / 10
+            end
+            updateFOVCircle()
+            aimBot()
+        end)
+        WindUI:Notify({Title = "自瞄",Content = "自瞄功能已开启",Icon = "crosshair"})
+    else
+        if aimbotConnection then
+            aimbotConnection:Disconnect()
+            aimbotConnection = nil
+        end
+        cleanupDrawings()
+        WindUI:Notify({Title = "自瞄",Content = "自瞄功能已关闭",Icon = "crosshair"})
+    end
+end
+
+local Confirmed = false
+local gradientColors = {
+    "rgb(255, 230, 235)",
+    "rgb(255, 210, 220)",
+    "rgb(255, 190, 205)",
+    "rgb(255, 170, 190)",
+    "rgb(255, 150, 175)",
+    "rgb(245, 140, 180)",
+    "rgb(235, 130, 185)",
+    "rgb(225, 120, 190)",
+    "rgb(215, 110, 195)",
+    "rgb(205, 100, 200)"
+}
+local username = game:GetService("Players").LocalPlayer.Name
+local coloredUsername = ""
+local gradientColors = {
+    "#4169E1", 
+    "#6A5ACD",  
+    "#9370DB",  
+    "#8A2BE2", 
+    "#4B0082"   
+}
+local goldColor = "#FFD700"
+for i = 1, #username do
+    local char = username:sub(i, i)
+    if char:match("[A-Za-z0-9]") then
+        local colorIndex = (i - 1) % #gradientColors + 1
+        coloredUsername = coloredUsername .. '<font color="' .. gradientColors[colorIndex] .. '">' .. char .. '</font>'
+    else
+        coloredUsername = coloredUsername .. '<font color="' .. goldColor .. '">' .. char .. '</font>'
+    end
+end
+spawn(function()
+    while true do
+        for hue = 0, 1, 0.01 do  
+            local color = Color3.fromHSV(hue, 0.8, 1)  
+            Window:EditOpenButton({
+                Color = ColorSequence.new(color)
+            })
+            wait(0.04)  
+        end
+    end
+end)
+if not borderInitialized then
+    spawn(function()
+        wait(0.5)
+        initializeRainbowBorder("糖果颜色", animationSpeed)
+        wait(1)
+        applyFontStyleToWindow(currentFontStyle)
+    end)
+end
+
+local windowOpen = true
+
+Window:OnClose(function()
+    windowOpen = false
+    if rainbowBorderAnimation then
+        rainbowBorderAnimation:Disconnect()
+        rainbowBorderAnimation = nil
+    end
+end)
+
+local originalOpenFunction = Window.Open
+Window.Open = function(...)
+    windowOpen = true
+    local result = originalOpenFunction(...)
+    
+    if borderInitialized and borderEnabled and not rainbowBorderAnimation then
+        wait(0.1)
+        startBorderAnimation(Window, animationSpeed)
+    end
+    
+    return result
+end
+
+local infoTab = Window:Tab({Title = "通知", Icon = "layout-grid", Locked = false})
+
+local infoSection = infoTab:Section({Title = "详情信息",Icon = "info", Opened = true})
+
+infoSection:Divider()
+
+infoSection:Paragraph({
+    Title = "您当前的服务器为",
+    Desc = "服务器名\n欢迎使用YG/TNINE",
+    ThumbnailSize = 190,
+})
+infoSection:Paragraph({
+    Title = "持续更新 有bug请提出来",
+    ThumbnailSize = 190,
+})
+infoSection:Paragraph({
+    Title = "作者:怀 凌乱",
+    ThumbnailSize = 190,
+})
+
+local LockSection = Window:Section({
+    Title = "功能以及UI设置",
+    Icon = "crown",
+    Opened = true,
+})
+
+local Settings = Window:Tab({Title = "UI设置", Icon = "palette"})
+Settings:Paragraph({
+    Title = "UI设置",
+    Desc = "绝妙二改WindUI",
+    Image = "settings",
+    ImageSize = 20,
+    Color = "White"
+})
+
+Settings:Toggle({
+    Title = "启用边框",
+    Value = borderEnabled,
+    Callback = function(value)
+        borderEnabled = value
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+            if rainbowStroke then
+                rainbowStroke.Enabled = value
+                if value and windowOpen and not rainbowBorderAnimation then
+                    startBorderAnimation(Window, animationSpeed)
+                elseif not value and rainbowBorderAnimation then
+                    rainbowBorderAnimation:Disconnect()
+                    rainbowBorderAnimation = nil
+                end
+                
+                WindUI:Notify({
+                    Title = "边框",
+                    Content = value and "已启用" or "已禁用",
+                    Duration = 2,
+                    Icon = value and "eye" or "eye-off"
+                })
+            end
+        end
+    end
+})
+
+Settings:Toggle({
+    Title = "启用字体颜色",
+    Value = fontColorEnabled,
+    Callback = function(value)
+        fontColorEnabled = value
+        applyFontColorsToWindow(currentFontColorScheme)
+        
+        WindUI:Notify({
+            Title = "字体颜色",
+            Content = value and "已启用" or "已禁用",
+            Duration = 2,
+            Icon = value and "type" or "type"
+        })
+    end
+})
+
+Settings:Toggle({
+    Title = "启用音效",
+    Value = soundEnabled,
+    Callback = function(value)
+        soundEnabled = value
+        WindUI:Notify({
+            Title = "音效",
+            Content = value and "已启用" or "已禁用",
+            Duration = 2,
+            Icon = value and "volume-2" or "volume-x"
+        })
+    end
+})
+
+Settings:Toggle({
+    Title = "启用背景模糊",
+    Value = blurEnabled,
+    Callback = function(value)
+        blurEnabled = value
+        applyBlurEffect(value)
+        WindUI:Notify({
+            Title = "背景模糊",
+            Content = value and "已启用" or "已禁用",
+            Duration = 2,
+            Icon = value and "cloud-rain" or "cloud"
+        })
+    end
+})
+
+local colorSchemeNames = {}
+for name, _ in pairs(COLOR_SCHEMES) do
+    table.insert(colorSchemeNames, name)
+end
+table.sort(colorSchemeNames)
+
+Settings:Dropdown({
+    Title = "边框颜色方案",
+    Desc = "选择喜欢的颜色组合",
+    Values = colorSchemeNames,
+    Value = "糖果颜色",
+    Callback = function(value)
+        currentBorderColorScheme = value
+        local success = initializeRainbowBorder(value, animationSpeed)
+        playSound()
+    end
+})
+
+Settings:Dropdown({
+    Title = "字体颜色方案",
+    Desc = "选择文字颜色组合",
+    Values = colorSchemeNames,
+    Value = "彩虹颜色",
+    Callback = function(value)
+        currentFontColorScheme = value
+        applyFontColorsToWindow(value)
+        playSound()
+    end
+})
+
+local fontOptions = {}
+for _, fontName in ipairs(FONT_STYLES) do
+    local description = FONT_DESCRIPTIONS[fontName] or fontName
+    table.insert(fontOptions, {text = description, value = fontName})
+end
+
+table.sort(fontOptions, function(a, b)
+    return a.text < b.text
+end)
+
+local fontValues = {}
+local fontValueToName = {}
+for _, option in ipairs(fontOptions) do
+    table.insert(fontValues, option.text)
+    fontValueToName[option.text] = option.value
+end
+
+Settings:Dropdown({
+    Title = "字体样式",
+    Desc = "选择文字字体样式 (" .. #FONT_STYLES .. " 种可用)",
+    Values = fontValues,
+    Value = "标准粗体",
+    Callback = function(value)
+        local fontName = fontValueToName[value]
+        if fontName then
+            currentFontStyle = fontName
+            local successCount, totalCount = applyFontStyleToWindow(fontName)
+            playSound()
+        end
+    end
+})
+
+Settings:Slider({
+    Title = "边框转动速度",
+    Desc = "调整边框旋转的快慢",
+    Value = { 
+        Min = 1,
+        Max = 10,
+        Default = 5,
+    },
+    Callback = function(value)
+        animationSpeed = value
+        if rainbowBorderAnimation then
+            rainbowBorderAnimation:Disconnect()
+            rainbowBorderAnimation = nil
+        end
+        if borderEnabled then
+            startBorderAnimation(Window, animationSpeed)
+        end
+        
+        applyFontColorsToWindow(currentFontColorScheme)
+        playSound()
+    end
+})
+
+Settings:Slider({
+    Title = "UI整体缩放",
+    Desc = "调整UI大小比例",
+    Value = { 
+        Min = 0.5,
+        Max = 1.5,
+        Default = 1,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        uiScale = value
+        applyUIScale(value)
+        playSound()
+    end
+})
+
+Settings:Divider()
+
+Settings:Slider({
+    Title = "UI透明度",
+    Desc = "调整整个UI的透明度",
+    Value = { 
+        Min = 0,
+        Max = 1,
+        Default = 0.2,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        Window:ToggleTransparency(tonumber(value) > 0)
+        WindUI.TransparencyValue = tonumber(value)
+        playSound()
+    end
+})
+
+Settings:Slider({
+    Title = "调整UI宽度",
+    Desc = "调整窗口的宽度",
+    Value = { 
+        Min = 500,
+        Max = 800,
+        Default = 600,
+    },
+    Callback = function(value)
+        if Window.UIElements and Window.UIElements.Main then
+            Window.UIElements.Main.Size = UDim2.fromOffset(value, 400)
+        end
+        playSound()
+    end
+})
+
+Settings:Slider({
+    Title = "调整UI高度",
+    Desc = "调整窗口的高度",
+    Value = { 
+        Min = 300,
+        Max = 600,
+        Default = 400,
+    },
+    Callback = function(value)
+        if Window.UIElements and Window.UIElements.Main then
+            local currentWidth = Window.UIElements.Main.Size.X.Offset
+            Window.UIElements.Main.Size = UDim2.fromOffset(currentWidth, value)
+        end
+        playSound()
+    end
+})
+
+Settings:Slider({
+    Title = "边框粗细",
+    Desc = "调整边框的粗细",
+    Value = { 
+        Min = 1,
+        Max = 5,
+        Default = 1.5,
+    },
+    Step = 0.5,
+    Callback = function(value)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+            if rainbowStroke then
+                rainbowStroke.Thickness = value
+            end
+        end
+        playSound()
+    end
+})
+
+Settings:Slider({
+    Title = "圆角大小",
+    Desc = "调整UI圆角的大小",
+    Value = { 
+        Min = 0,
+        Max = 20,
+        Default = 16,
+    },
+    Callback = function(value)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local corner = mainFrame:FindFirstChildOfClass("UICorner")
+            if not corner then
+                corner = Instance.new("UICorner")
+                corner.Parent = mainFrame
+            end
+            corner.CornerRadius = UDim.new(0, value)
+        end
+        playSound()
+    end
+})
+
+Settings:Button({
+    Title = "恢复UI到原位",
+    Icon = "rotate-ccw",
+    Callback = function()
+        if Window.UIElements and Window.UIElements.Main then
+            Window.UIElements.Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+            playSound()
+        end
+    end
+})
+
+Settings:Button({
+    Title = "重置UI大小",
+    Icon = "maximize-2",
+    Callback = function()
+        if Window.UIElements and Window.UIElements.Main then
+            Window.UIElements.Main.Size = UDim2.fromOffset(600, 400)
+            playSound()
+        end
+    end
+})
+
+Settings:Button({
+    Title = "随机字体",
+    Icon = "shuffle",
+    Callback = function()
+        local randomFont = FONT_STYLES[math.random(1, #FONT_STYLES)]
+        currentFontStyle = randomFont
+        applyFontStyleToWindow(randomFont)
+        playSound()
+    end
+})
+
+Settings:Button({
+    Title = "随机颜色",
+    Icon = "palette",
+    Callback = function()
+        local randomColor = colorSchemeNames[math.random(1, #colorSchemeNames)]
+        currentBorderColorScheme = randomColor
+        initializeRainbowBorder(randomColor, animationSpeed)
+        playSound()
+    end
+})
+
+Settings:Divider()
+
+Settings:Button({
+    Title = "刷新字体颜色",
+    Icon = "refresh-cw",
+    Callback = function()
+        applyFontColorsToWindow(currentFontColorScheme)
+        playSound()
+    end
+})
+
+Settings:Button({
+    Title = "刷新字体样式",
+    Icon = "refresh-cw",
+    Callback = function()
+        local successCount, totalCount = applyFontStyleToWindow(currentFontStyle)
+        playSound()
+    end
+})
+
+Settings:Button({
+    Title = "测试所有字体",
+    Icon = "check-circle",
+    Callback = function()
+        local workingFonts = {}
+        local totalFonts = #FONT_STYLES
+        for i, fontName in ipairs(FONT_STYLES) do
+            local success = pcall(function()
+                local test = Enum.Font[fontName]
+            end)
+            if success then
+                table.insert(workingFonts, fontName)
+            end
+        end
+        playSound()
+    end
+})
+
+Settings:Button({
+    Title = "导出设置",
+    Icon = "download",
+    Callback = function()
+        local settings = {
+            font = currentFontStyle,
+            borderColor = currentBorderColorScheme,
+            fontSize = currentFontColorScheme,
+            speed = animationSpeed,
+            scale = uiScale
+        }
+        setclipboard("YG/TNINE SCRIPT设置: " .. game:GetService("HttpService"):JSONEncode(settings))
+        playSound()
+    end
+})
+
+local FlashMainTab = Window:Tab({Title = "主功能", Icon = "settings", Locked = false})
+FlashMainTab:Toggle({
+    Title = "美国子弹",
+    Desc = "开启/关闭美国子弹功能",
+    Default = bulletAimbotEnabled,
+    Callback = function(value)
+        toggleBulletAimbot(value)
+        playSound()
+    end
+})
+FlashMainTab:Slider({
+    Title = "子弹范围",
+    Desc = "设置美国子弹的瞄准范围",
+    Value = {Min = 50,Max = 2000,Default = bulletAimbotRange},
+    Callback = function(value)
+        bulletAimbotRange = value
+        if bulletAimbotEnabled then
+            WindUI:Notify({Title = "美国子弹",Content = "范围已更新: " .. value,Duration = 2,Icon = "maximize-2"})
+        end
+        playSound()
+    end
+})
+FlashMainTab:Button({
+    Title = "测试子弹",
+    Desc = "测试美国子弹功能",
+    Callback = function()
+        if bulletAimbotEnabled then
+            WindUI:Notify({Title = "美国子弹",Content = "功能已启用，范围: " .. bulletAimbotRange,Duration = 3,Icon = "check"})
+        else
+            WindUI:Notify({Title = "美国子弹",Content = "请先开启美国子弹功能",Duration = 3,Icon = "x"})
+        end
+        playSound()
+    end
+})
+FlashMainTab:Toggle({
+    Title = "无限跳跃",
+    Desc = "启用后可以无限跳跃",
+    Default = infiniteJumpEnabled,
+    Callback = function(value)
+        toggleInfiniteJump(value)
+        playSound()
+    end
+})
+FlashMainTab:Input({
+    Title = "设置重力",
+    Desc = "输入重力值 (默认: " .. tostring(originalGravity) .. ")",
+    Placeholder = "输入重力值",
+    Callback = function(value)
+        setGravity(value)
+        playSound()
+    end
+})
+FlashMainTab:Input({
+    Title = "设置快速跑步速度",
+    Desc = "输入速度 (默认: 1)",
+    Placeholder = "输入速度",
+    Callback = function(value)
+        setSpeed(value)
+        playSound()
+    end
+})
+FlashMainTab:Toggle({
+    Title = "开启快速跑步",
+    Desc = "启用快速跑步功能",
+    Default = speedEnabled,
+    Callback = function(value)
+        toggleSpeed(value)
+        playSound()
+    end
+})
+
+FlashMainTab:Section({Title = "美国子弹弹道设置",TextSize = 16,FontWeight = Enum.FontWeight.SemiBold})
+local BulletTrailOverallColorPicker = FlashMainTab:Colorpicker({
+    Flag = "BulletTrailOverallColor",
+    Title = "整体弹道颜色",
+    Desc = "设置弹道整体颜色（启用后会覆盖渐变颜色）",
+    Default = bulletTrailOverallColor,
+    Transparency = 0,
+    Callback = function(color)
+        bulletTrailOverallColor = color
+        if color == Color3.fromRGB(255, 255, 255) then
+            WindUI:Notify({Title = "颜色已更新",Content = "已启用渐变颜色模式",Duration = 2})
+        else
+            WindUI:Notify({Title = "颜色已更新",Content = "美国子弹弹道整体颜色已设置为: " .. tostring(color),Duration = 2})
+        end
+    end
+})
+FlashMainTab:Button({
+    Title = "启用渐变颜色模式",
+    Desc = "禁用整体颜色，使用下面的渐变颜色设置",
+    Justify = "Center",
+    Icon = "palette",
+    Callback = function()
+        bulletTrailOverallColor = Color3.fromRGB(255, 255, 255)
+        BulletTrailOverallColorPicker:Set(Color3.fromRGB(255, 255, 255))
+        WindUI:Notify({Title = "模式已切换",Content = "已启用渐变颜色模式",Duration = 2})
+        playSound()
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+local BulletTrailColorStartPicker = FlashMainTab:Colorpicker({
+    Flag = "BulletTrailColorStart",
+    Title = "弹道起始颜色",
+    Desc = "设置弹道开始部分的颜色（渐变模式生效）",
+    Default = getgenv().BulletTrailColors.StartColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().BulletTrailColors.StartColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "美国子弹弹道起始颜色已设置为: " .. tostring(color),Duration = 2})
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+local BulletTrailColorMiddle1Picker = FlashMainTab:Colorpicker({
+    Flag = "BulletTrailColorMiddle1",
+    Title = "弹道中间颜色1",
+    Desc = "设置弹道中间部分的颜色（渐变模式生效）",
+    Default = getgenv().BulletTrailColors.MiddleColor1,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().BulletTrailColors.MiddleColor1 = color
+        WindUI:Notify({Title = "颜色已更新",Content = "美国子弹弹道中间颜色1已设置为: " .. tostring(color),Duration = 2})
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+local BulletTrailColorMiddle2Picker = FlashMainTab:Colorpicker({
+    Flag = "BulletTrailColorMiddle2",
+    Title = "弹道中间颜色2",
+    Desc = "设置弹道中间部分的颜色（渐变模式生效）",
+    Default = getgenv().BulletTrailColors.MiddleColor2,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().BulletTrailColors.MiddleColor2 = color
+        WindUI:Notify({Title = "颜色已更新",Content = "美国子弹弹道中间颜色2已设置为: " .. tostring(color),Duration = 2})
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+local BulletTrailColorEndPicker = FlashMainTab:Colorpicker({
+    Flag = "BulletTrailColorEnd",
+    Title = "弹道结束颜色",
+    Desc = "设置弹道结束部分的颜色（渐变模式生效）",
+    Default = getgenv().BulletTrailColors.EndColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().BulletTrailColors.EndColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "美国子弹弹道结束颜色已设置为: " .. tostring(color),Duration = 2})
+    end
+})
+FlashMainTab:Space()
+FlashMainTab:Section({Title = "弹道效果调整",TextSize = 16,FontWeight = Enum.FontWeight.SemiBold})
+FlashMainTab:Slider({
+    Flag = "BulletTrailSize",
+    Title = "弹道尺寸",
+    Desc = "调整美国子弹弹道的粗细",
+    Icons = {From = "minimize",To = "maximize"},
+    Step = 0.05,
+    IsTooltip = true,
+    Value = {Min = 0.1,Max = 0.5,Default = bulletTrailSize},
+    Callback = function(value)
+        bulletTrailSize = value
+        WindUI:Notify({Title = "尺寸已调整",Content = "美国子弹弹道尺寸设置为: " .. string.format("%.2f", value),Duration = 2})
+        playSound()
+    end
+})
+FlashMainTab:Slider({
+    Flag = "BulletTrailTransparency",
+    Title = "弹道透明度",
+    Desc = "调整美国子弹弹道的透明度",
+    Icons = {From = "eye",To = "eye-off"},
+    Step = 0.1,
+    IsTooltip = true,
+    Value = {Min = 0,Max = 1,Default = bulletTrailTransparency},
+    Callback = function(value)
+        bulletTrailTransparency = value
+        WindUI:Notify({Title = "透明度已调整",Content = "美国子弹弹道透明度设置为: " .. value,Duration = 2})
+        playSound()
+    end
+})
+
+FlashMainTab:Section({Title = "美国子弹命中特效设置",TextSize = 16,FontWeight = Enum.FontWeight.SemiBold})
+FlashMainTab:Toggle({
+    Title = "启用命中特效",
+    Desc = "开启/关闭子弹命中时的特效",
+    Default = getgenv().HitEffectConfig.Enabled,
+    Callback = function(value)
+        getgenv().HitEffectConfig.Enabled = value
+        WindUI:Notify({Title = "命中特效",Content = value and "已启用" or "已禁用",Duration = 2})
+        playSound()
+    end
+})
+FlashMainTab:Input({
+    Title = "命中文字",
+    Desc = "设置命中时显示的文字",
+    Placeholder = "输入文字(空格没有文字特效)",
+    Default = getgenv().HitEffectConfig.Text,
+    Callback = function(value)
+        getgenv().HitEffectConfig.Text = value
+        WindUI:Notify({Title = "命中文字",Content = "已设置为: " .. value,Duration = 2})
+        playSound()
+    end
+})
+local HitEffectTextColorPicker = FlashMainTab:Colorpicker({
+    Flag = "HitEffectTextColor",
+    Title = "命中文字颜色",
+    Desc = "设置命中文字的颜色",
+    Default = getgenv().HitEffectConfig.TextColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().HitEffectConfig.TextColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "命中文字颜色已设置",Duration = 2})
+    end
+})
+FlashMainTab:Slider({
+    Flag = "HitEffectTextSize",
+    Title = "命中文字大小",
+    Desc = "调整命中文字的大小",
+    Icons = {From = "minimize",To = "maximize"},
+    Step = 1,
+    IsTooltip = true,
+    Value = {Min = 20,Max = 100,Default = getgenv().HitEffectConfig.TextSize},
+    Callback = function(value)
+        getgenv().HitEffectConfig.TextSize = value
+        WindUI:Notify({Title = "文字大小已调整",Content = "命中文字大小设置为: " .. value,Duration = 2})
+        playSound()
+    end
+})
+local HitEffectColorPicker = FlashMainTab:Colorpicker({
+    Flag = "HitEffectColor",
+    Title = "命中特效颜色",
+    Desc = "设置命中特效的主要颜色",
+    Default = getgenv().HitEffectConfig.EffectColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().HitEffectConfig.EffectColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "命中特效颜色已设置",Duration = 2})
+    end
+})
+FlashMainTab:Slider({
+    Flag = "HitEffectSize",
+    Title = "命中特效大小",
+    Desc = "调整命中特效的整体大小",
+    Icons = {From = "minimize",To = "maximize"},
+    Step = 0.5,
+    IsTooltip = true,
+    Value = {Min = 1,Max = 10,Default = getgenv().HitEffectConfig.EffectSize},
+    Callback = function(value)
+        getgenv().HitEffectConfig.EffectSize = value
+        WindUI:Notify({Title = "特效大小已调整",Content = "命中特效大小设置为: " .. value,Duration = 2})
+        playSound()
+    end
+})
+FlashMainTab:Slider({
+    Flag = "HitEffectDuration",
+    Title = "命中特效持续时间",
+    Desc = "调整命中特效的显示时间",
+    Icons = {From = "fast-forward",To = "clock"},
+    Step = 0.5,
+    IsTooltip = true,
+    Value = {Min = 1,Max = 5,Default = getgenv().HitEffectConfig.Duration},
+    Callback = function(value)
+        getgenv().HitEffectConfig.Duration = value
+        WindUI:Notify({Title = "持续时间已调整",Content = "命中特效持续时间设置为: " .. value .. "秒",Duration = 2})
+        playSound()
+    end
+})
+FlashMainTab:Toggle({
+    Title = "显示爆炸效果",
+    Desc = "开启/关闭命中时的爆炸效果",
+    Default = getgenv().HitEffectConfig.ShowExplosion,
+    Callback = function(value)
+        getgenv().HitEffectConfig.ShowExplosion = value
+        WindUI:Notify({Title = "爆炸效果",Content = value and "已启用" or "已禁用",Duration = 2})
+        playSound()
+    end
+})
+local ExplosionColorPicker = FlashMainTab:Colorpicker({
+    Flag = "ExplosionColor",
+    Title = "爆炸效果颜色",
+    Desc = "设置爆炸效果的颜色",
+    Default = getgenv().HitEffectConfig.ExplosionColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().HitEffectConfig.ExplosionColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "爆炸效果颜色已设置",Duration = 2})
+    end
+})
+FlashMainTab:Toggle({
+    Title = "显示冲击波",
+    Desc = "开启/关闭命中时的冲击波效果",
+    Default = getgenv().HitEffectConfig.ShowShockwave,
+    Callback = function(value)
+        getgenv().HitEffectConfig.ShowShockwave = value
+        WindUI:Notify({Title = "冲击波效果",Content = value and "已启用" or "已禁用",Duration = 2})
+        playSound()
+    end
+})
+local ShockwaveColorPicker = FlashMainTab:Colorpicker({
+    Flag = "ShockwaveColor",
+    Title = "冲击波颜色",
+    Desc = "设置冲击波效果的颜色",
+    Default = getgenv().HitEffectConfig.ShockwaveColor,
+    Transparency = 0,
+    Callback = function(color)
+        getgenv().HitEffectConfig.ShockwaveColor = color
+        WindUI:Notify({Title = "颜色已更新",Content = "冲击波颜色已设置",Duration = 2})
+    end
+})
+FlashMainTab:Space()
+FlashMainTab:Section({Title = "命中特效预览",TextSize = 16,FontWeight = Enum.FontWeight.SemiBold})
+FlashMainTab:Button({
+    Title = "测试命中特效",
+    Desc = "在当前位置生成测试命中特效",
+    Justify = "Center",
+    Icon = "zap",
+    Callback = function()
+        if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hitPosition = localPlayer.Character.HumanoidRootPart.Position
+            local oldEffect = workspace:FindFirstChild("HitEffect_Test")
+            if oldEffect then
+                oldEffect:Destroy()
+            end
+            spawn(function()
+                createHitEffect(hitPosition, localPlayer.Character)
+            end)
+            WindUI:Notify({Title = "测试成功",Content = "命中特效预览已生成",Duration = 3})
+        else
+            WindUI:Notify({Title = "错误",Content = "无法找到角色位置",Duration = 3,Color = "Red"})
+        end
+        playSound()
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+FlashMainTab:Button({
+    Title = "清理所有特效",
+    Desc = "清理屏幕上所有弹道和特效",
+    Justify = "Center",
+    Icon = "trash-2",
+    Color = Color3.fromHex("#ff4830"),
+    Callback = function()
+        cleanupPreviousBulletTrail()
+        local testTrail = workspace:FindFirstChild("BulletTestTrail")
+        if testTrail then
+            testTrail:Destroy()
+        end
+        local testEffect = workspace:FindFirstChild("HitEffect_Test")
+        if testEffect then
+            testEffect:Destroy()
+        end
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name:find("BulletTrail") or obj.Name:find("HitEffect") then
+                obj:Destroy()
+            end
+        end
+        WindUI:Notify({Title = "清理完成",Content = "所有弹道和特效已清理",Duration = 3})
+        playSound()
+    end
+})
+FlashMainTab:Space({ Columns = 1 })
+FlashMainTab:Button({
+    Title = "重置所有设置",
+    Desc = "恢复所有颜色和效果为默认值",
+    Justify = "Center",
+    Icon = "rotate-ccw",
+    Color = Color3.fromHex("#ff4830"),
+    Callback = function()
+        getgenv().BulletTrailColors = {
+            StartColor = Color3.fromRGB(0, 170, 255),
+            EndColor = Color3.fromRGB(255, 0, 0),
+            MiddleColor1 = Color3.fromRGB(255, 0, 255),
+            MiddleColor2 = Color3.fromRGB(255, 255, 0)
+        }
+        getgenv().HitEffectConfig = {
+            Enabled = true,
+            Text = "XD",
+            TextColor = Color3.fromRGB(255, 0, 0),
+            TextSize = 50,
+            EffectColor = Color3.fromRGB(255, 0, 0),
+            EffectSize = 5,
+            Duration = 3,
+            ShowExplosion = true,
+            ExplosionColor = Color3.fromRGB(255, 100, 0),
+            ShowShockwave = true,
+            ShockwaveColor = Color3.fromRGB(255, 200, 0)
+        }
+        bulletTrailOverallColor = Color3.fromRGB(255, 255, 255)
+        bulletTrailSize = 0.25
+        bulletTrailTransparency = 0.3
+        BulletTrailOverallColorPicker:Set(Color3.fromRGB(255, 255, 255))
+        BulletTrailColorStartPicker:Set(Color3.fromRGB(0, 170, 255))
+        BulletTrailColorMiddle1Picker:Set(Color3.fromRGB(255, 0, 255))
+        BulletTrailColorMiddle2Picker:Set(Color3.fromRGB(255, 255, 0))
+        BulletTrailColorEndPicker:Set(Color3.fromRGB(255, 0, 0))
+        HitEffectTextColorPicker:Set(Color3.fromRGB(255, 0, 0))
+        HitEffectColorPicker:Set(Color3.fromRGB(255, 0, 0))
+        ExplosionColorPicker:Set(Color3.fromRGB(255, 100, 0))
+        ShockwaveColorPicker:Set(Color3.fromRGB(255, 200, 0))
+        WindUI:Notify({Title = "重置完成",Content = "所有颜色和效果已恢复为默认值",Duration = 3})
+        playSound()
+    end
+})
+
+local ESPTab = Window:Tab({Title = "透视功能", Icon = "eye", Locked = false})
+ESPTab:Toggle({
+    Title = "玩家透视 (ESP)",
+    Desc = "显示玩家描边和距离",
+    Default = espEnabled,
+    Callback = function(value)
+        toggleESP(value)
+        playSound()
+    end
+})
+ESPTab:Colorpicker({
+    Title = "ESP玩家名字颜色",
+    Desc = "设置玩家名字显示颜色",
+    Default = espNameColor,
+    Callback = function(color)
+        espNameColor = color
+        if espEnabled and not espRainbowEnabled then
+            updateESPColors()
+        end
+        playSound()
+    end
+})
+ESPTab:Colorpicker({
+    Title = "ESP身体绘制颜色",
+    Desc = "设置玩家身体颜色",
+    Default = espBodyColor,
+    Callback = function(color)
+        espBodyColor = color
+        if espEnabled and not espRainbowEnabled then
+            updateESPColors()
+        end
+        playSound()
+    end
+})
+ESPTab:Slider({
+    Title = "ESP玩家名字大小",
+    Desc = "设置玩家名字的文本大小",
+    Value = {Min = 8,Max = 24,Default = espNameSize},
+    Callback = function(value)
+        espNameSize = value
+        if espEnabled then
+            updateESPNameSize()
+        end
+        playSound()
+    end
+})
+ESPTab:Toggle({
+    Title = "ESP彩虹渐变",
+    Desc = "开启透视彩虹效果",
+    Default = espRainbowEnabled,
+    Callback = function(value)
+        espRainbowEnabled = value
+        if espEnabled then
+            updateESPColors()
+        end
+        playSound()
+    end
+})
+ESPTab:Slider({
+    Title = "ESP彩虹速度",
+    Desc = "调整彩虹的速度",
+    Value = {Min = 1,Max = 10,Default = espRainbowSpeed},
+    Callback = function(value)
+        espRainbowSpeed = value
+        playSound()
+    end
+})
+
+local AimbotTab = Window:Tab({Title = "自瞄功能", Icon = "crosshair", Locked = false})
+AimbotTab:Toggle({
+    Title = "启用自瞄",
+    Desc = "开启/关闭自瞄功能",
+    Default = aimbotEnabled,
+    Callback = function(value)
+        toggleAimbot(value)
+        playSound()
+    end
+})
+AimbotTab:Toggle({
+    Title = "FOV彩虹效果",
+    Desc = "开启FOV圆圈彩虹效果",
+    Value = aimbotFOVRainbowEnabled,
+    Callback = function(value)
+        aimbotFOVRainbowEnabled = value
+        updateFOVCircle()
+        playSound()
+    end
+})
+AimbotTab:Slider({
+    Title = "FOV彩虹速度",
+    Desc = "调整彩虹流动的速度",
+    Value = {Min = 1,Max = 20,Default = aimbotFOVRainbowSpeed},
+    Callback = function(value)
+        aimbotFOVRainbowSpeed = value
+        playSound()
+    end
+})
+AimbotTab:Slider({
+    Title = "自瞄范围 (FOV)",
+    Desc = "设置自瞄FOV大小",
+    Value = {Min = 50,Max = 500,Default = aimbotFOV},
+    Callback = function(value)
+        aimbotFOV = value
+        updateFOVCircle()
+        playSound()
+    end
+})
+AimbotTab:Slider({
+    Title = "自瞄平滑度",
+    Desc = "数值越小越强锁",
+    Value = {Min = 1,Max = 50,Default = aimbotSmoothness},
+    Callback = function(value)
+        aimbotSmoothness = value
+        playSound()
+    end
+})
+AimbotTab:Slider({
+    Title = "预判距离",
+    Desc = "设置预判距离(需要强锁直接调到0-3)",
+    Value = {Min = 0,Max = 20,Default = aimbotCrosshairDistance},
+    Callback = function(value)
+        aimbotCrosshairDistance = value
+        playSound()
+    end
+})
+AimbotTab:Colorpicker({
+    Title = "FOV圆圈颜色",
+    Desc = "彩虹模式关闭时生效",
+    Default = aimbotFOVColor,
+    Callback = function(color)
+        aimbotFOVColor = color
+        updateFOVCircle()
+        playSound()
+    end
+})
+AimbotTab:Toggle({
+    Title = "好友检测",
+    Desc = "不秒好友",
+    Value = aimbotFriendCheck,
+    Callback = function(value)
+        aimbotFriendCheck = value
+        playSound()
+    end
+})
+AimbotTab:Toggle({
+    Title = "墙壁检测",
+    Desc = "开启墙壁检测 避免自瞄乱飞",
+    Value = aimbotWallCheck,
+    Callback = function(value)
+        aimbotWallCheck = value
+        playSound()
+    end
+})
+local playerList = {}
+for _, player in ipairs(players:GetPlayers()) do
+    if player ~= localPlayer then
+        table.insert(playerList, player.Name)
+    end
+end
+AimbotTab:Toggle({
+    Title = "目标自瞄模式",
+    Desc = "开启后可以选择目标进行制裁",
+    Value = false,
+    Callback = function(value)
+        aimbotTargetAll = not value
+        playSound()
+    end
+})
+local targetDropdown = AimbotTab:Dropdown({
+    Title = "选择目标玩家",
+    Desc = "选择要自瞄的玩家",
+    Values = playerList,
+    Value = nil,
+    AllowNone = true,
+    Callback = function(selected)
+        aimbotTargetPlayer = selected
+        playSound()
+    end
+})
+players.PlayerAdded:Connect(function(player)
+    table.insert(playerList, player.Name)
+    if targetDropdown and targetDropdown.Refresh then
+        targetDropdown:Refresh(playerList)
+    end
+end)
+players.PlayerRemoving:Connect(function(player)
+    for i, name in ipairs(playerList) do
+        if name == player.Name then
+            table.remove(playerList, i)
+            break
+        end
+    end
+    if targetDropdown and targetDropdown.Refresh then
+        targetDropdown:Refresh(playerList)
+    end
+end)
+local QuickSettings = AimbotTab:Group({})
+QuickSettings:Button({
+    Title = "快速设置: 近距离(强锁)",
+    Desc = "FOV: 80 平滑: 1 预判0",
+    Justify = "Center",
+    Callback = function()
+        aimbotFOV = 80
+        aimbotSmoothness = 1
+        aimbotCrosshairDistance = 0
+        updateFOVCircle()
+        WindUI:Notify({Title = "快速设置",Content = "已使用近距离设置",Icon = "settings"})
+        playSound()
+    end
+})
+QuickSettings:Button({
+    Title = "快速设置: 中距离(小强锁)",
+    Desc = "FOV: 120, 平滑: 4 预判2",
+    Justify = "Center",
+    Callback = function()
+        aimbotFOV = 120
+        aimbotSmoothness = 4
+        aimbotCrosshairDistance = 2
+        updateFOVCircle()
+        WindUI:Notify({Title = "快速设置",Content = "已使用中距离设置",Icon = "settings"})
+        playSound()
+    end
+})
+QuickSettings:Button({
+    Title = "快速设置: 远距离",
+    Desc = "FOV: 130 平滑: 5 预判3",
+    Justify = "Center",
+    Callback = function()
+        aimbotFOV = 130
+        aimbotSmoothness = 5
+        aimbotCrosshairDistance = 3
+        updateFOVCircle()
+        WindUI:Notify({Title = "快速设置",Content = "已使用远距离设置",Icon = "settings"})
+        playSound()
+    end
+})
+
+local FlashBorderTab = Window:Tab({Title = "边框设置", Icon = "palette", Locked = false})
+FlashBorderTab:Toggle({
+    Title = "启用边框",
+    Desc = "开关霓虹灯边框效果",
+    Default = borderEnabled,
+    Callback = function(value)
+        borderEnabled = value
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+            if rainbowStroke then
+                rainbowStroke.Enabled = value
+                if value and not rainbowBorderAnimation then
+                    startBorderAnimation(Window, animationSpeed)
+                elseif not value and rainbowBorderAnimation then
+                    rainbowBorderAnimation:Disconnect()
+                    rainbowBorderAnimation = nil
+                end
+                WindUI:Notify({Title = "边框",Content = value and "已启用" or "已禁用",Duration = 2,Icon = value and "eye" or "eye-off"})
+            end
+        end
+    end
+})
+local colorSchemeNames2 = {}
+for name, _ in pairs(COLOR_SCHEMES) do
+    table.insert(colorSchemeNames2, name)
+end
+table.sort(colorSchemeNames2)
+FlashBorderTab:Dropdown({
+    Title = "边框颜色",
+    Desc = "选择喜欢的颜色组合",
+    Values = colorSchemeNames2,
+    Value = "彩虹颜色",
+    Callback = function(value)
+        currentBorderColorScheme = value
+        local success = initializeRainbowBorder(value, animationSpeed)
+        playSound()
+    end
+})
+FlashBorderTab:Slider({
+    Title = "边框转动速度",
+    Desc = "调整边框旋转的快慢",
+    Value = {Min = 1,Max = 10,Default = 5},
+    Callback = function(value)
+        animationSpeed = value
+        if rainbowBorderAnimation then
+            rainbowBorderAnimation:Disconnect()
+            rainbowBorderAnimation = nil
+        end
+        if borderEnabled then
+            startBorderAnimation(Window, animationSpeed)
+        end
+        playSound()
+    end
+})
+FlashBorderTab:Slider({
+    Title = "边框粗细",
+    Desc = "调整边框的粗细",
+    Value = {Min = 1,Max = 5,Default = 1.5},
+    Step = 0.5,
+    Callback = function(value)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+            if rainbowStroke then
+                rainbowStroke.Thickness = value
+            end
+        end
+        playSound()
+    end
+})
+FlashBorderTab:Slider({
+    Title = "圆角大小",
+    Desc = "调整UI圆角的大小",
+    Value = {Min = 0,Max = 20,Default = 16},
+    Callback = function(value)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        if mainFrame then
+            local corner = mainFrame:FindFirstChildOfClass("UICorner")
+            if not corner then
+                corner = Instance.new("UICorner")
+                corner.Parent = mainFrame
+            end
+            corner.CornerRadius = UDim.new(0, value)
+        end
+        playSound()
+    end
+})
+FlashBorderTab:Button({
+    Title = "随机颜色",
+    Icon = "palette",
+    Callback = function()
+        local randomColor = colorSchemeNames2[math.random(1, #colorSchemeNames2)]
+        currentBorderColorScheme = randomColor
+        initializeRainbowBorder(randomColor, animationSpeed)
+        playSound()
+    end
+})
+
+localPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if espEnabled then
+        if espFolder then
+            for _, esp in ipairs(espFolder:GetChildren()) do
+                esp:Destroy()
+            end
+        end
+        for _, player in ipairs(players:GetPlayers()) do
+            if player ~= localPlayer and player.Character then
+                createPlayerESP(player)
+            end
+        end
+    end
+end)
+players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if espEnabled then
+            task.wait(1)
+            createPlayerESP(player)
+        end
+    end)
+end)
+players.PlayerRemoving:Connect(function(player)
+    if espFolder then
+        local espGui = espFolder:FindFirstChild(player.Name)
+        if espGui then espGui:Destroy() end
+        local highlight = espFolder:FindFirstChild(player.Name .. "_Highlight")
+        if highlight then highlight:Destroy() end
+    end
+end)
+
+runService.Heartbeat:Connect(function(deltaTime)
+    updateESP()
+    if espRainbowEnabled then
+        currentESPHue = currentESPHue + deltaTime * espRainbowSpeed / 10
+        updateESPColors()
+    end
+end)
+
+Window:OnClose(function()
+    windowOpen = false
+    if rainbowBorderAnimation then
+        rainbowBorderAnimation:Disconnect()
+        rainbowBorderAnimation = nil
+    end
+    applyBlurEffect(false)
+end)
+
+Window:OnDestroy(function()
+    windowOpen = false
+    if rainbowBorderAnimation then
+        rainbowBorderAnimation:Disconnect()
+        rainbowBorderAnimation = nil
+    end
+    for _, animation in pairs(fontColorAnimations) do
+        animation:Disconnect()
+    end
+    fontColorAnimations = {}
+    applyBlurEffect(false)
+end)
+
+WindUI:Notify({Title = "TnineHub闪光付费",Content = "欢迎付费用户使用此脚本",Duration = 3,Icon = "check"})
+end
