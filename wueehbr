@@ -865,7 +865,7 @@ local BgPresets = {
     ["你懂的3"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3706.jpeg",
     ["罪恶王冠楪祈"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3710.jpeg",
     ["罪恶王冠楪祈2"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/IMG_3711.jpeg",
-
+    ["这是鸣潮的吗？"] = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/6FCEE1DA-7DEA-469D-AE17-C52A59AA8FDD.png",
 }
 
 local function Notify(title, content, duration, icon)
@@ -3821,6 +3821,12 @@ local MainTab = Window:Tab({
         Locked = false,
     })
 
+MainTab:Paragraph({
+    Title = "夜脚本",
+    Desc = "永久免费！永远不跑路！\n公益脚本禁止倒卖，认准夜脚本",
+    Image = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/27E1B00E-6321-4375-A382-4C9395D1B641.png",
+    ImageSize = 100,
+})
 MainTab:Paragraph({ Title="夜脚本主群", Desc ="1081045774" })
 MainTab:Button({
     Title = "复制QQ群",
@@ -3831,10 +3837,11 @@ MainTab:Button({
 end
 })
 MainTab:Paragraph({
-        Title = "夜脚本V1.4版本更新",
-        Desc = "主要更新：\n子弹追踪！！\n报错弹窗\n预计过几天更新吸人", 
-    })
-
+    Title = "夜脚本V1.4版本更新",
+    Desc = "主要更新：\n子弹追踪！！\n报错弹窗\n预计过几天更新吸人",
+    Image = "https://raw.githubusercontent.com/ylt410/Liquid-glass-script/refs/heads/main/27E1B00E-6321-4375-A382-4C9395D1B641.png",
+    ImageSize = 30,
+})
 MainTab:Paragraph({
         Title = "夜脚本V1.3版本更新",
         Desc = "主要更新：\n边框开关\n边框颜色选择（彩虹、红、蓝）\n更新背景图（背景图更改需要重启脚本应用）\n杂项更新：\n把穿墙调整至玩家功能\n玩家功能新增调整重力", 
@@ -9469,6 +9476,7 @@ local BgPresetNames = {
     "你懂的3",
     "罪恶王冠楪祈",
     "罪恶王冠楪祈2",
+    "这是鸣潮的吗？",
 }
 
 TabConfig:Dropdown({
