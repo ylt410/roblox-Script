@@ -1,3 +1,7 @@
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/gycgchgyfytdttr/shenqin/refs/heads/main/ui.lua"))()
+WindUI.TransparencyValue = 0.2
+WindUI:SetTheme("Dark")
+
 local rainbowBorderAnimation
 local currentBorderColorScheme = "彩虹颜色"
 local currentFontColorScheme = "彩虹颜色"
@@ -1138,6 +1142,91 @@ for i = 1, #username do
         coloredUsername = coloredUsername .. '<font color="' .. goldColor .. '">' .. char .. '</font>'
     end
 end
+
+WindUI:Popup({
+    Title = 'YG/TNINE SCRIPT',
+    IconThemed = true,
+    Icon = "crown",
+    Content = "欢迎尊重的用户 " .. coloredUsername .. " \n感谢您使用我们的脚本\n加入我们QQ1015718032",
+    Buttons = {
+        {
+            Title = "取消",
+            Callback = function() end,
+            Variant = "Secondary",
+        },
+        {
+            Title = "执行",
+            Icon = "arrow-right",
+            Callback = function() 
+                Confirmed = true
+                createUI()
+            end,
+            Variant = "Primary",
+        }
+    }
+})
+function createUI()
+    local Window = WindUI:CreateWindow({
+        Title = 'YG/TNINE SCRIPT',
+        Icon = "crown",
+        IconThemed = true,
+        Author = "怀/凌乱",
+        Folder = "CloudHub",
+        Size = UDim2.fromOffset(375, 278),
+        Transparent = true,
+        Theme = "Rainbow",
+        HideSearchBar = false,
+        ScrollBarEnabled = true,
+        Resizable = true,
+        Background = "https://raw.githubusercontent.com/tnine-n9/TnineHubnb/refs/heads/main/1770443104414_edit_300225054024499.png",
+        BackgroundImageTransparency = 0.45,
+        User = {
+            Enabled = true,
+            Callback = function()
+                WindUI:Notify({
+                    Title = "点击了自己",
+                    Content = "没什么", 
+                    Duration = 1,
+                    Icon = "4483362748"
+                })
+            end,
+            Anonymous = false
+        },
+        SideBarWidth = 250,
+        Search = {
+            Enabled = true,
+            Placeholder = "搜索...",
+            Callback = function(searchText)
+                print("搜索内容:", searchText)
+            end
+        },
+        SidePanel = {
+            Enabled = true,
+            Content = {
+                {
+                    Type = "Button", 
+                    Text = "",
+                    Style = "Subtle", 
+                    Size = UDim2.new(1, -20, 0, 30),
+                    Callback = function()
+                    end
+                }
+            }
+        }
+    })
+
+Window:EditOpenButton({
+    Title = "Paid user",
+    Icon = "crown",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 4,
+    Color = ColorSequence.new(Color3.fromHex("FF6B6B")),
+    Draggable = true,
+})
+Window:Tag({
+    Title = "YG(怀)/messy(凌乱)",
+    Color = Color3.fromHex("#FFA500") 
+})
 spawn(function()
     while true do
         for hue = 0, 1, 0.01 do  
