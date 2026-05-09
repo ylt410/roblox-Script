@@ -1,16 +1,26 @@
 -- ======================================================
 -- WindUI Script Capture 请求/响应分离修复版
--- 修复：
--- ✔ 修复 Expected identifier got ')' 语法问题
+-- ======================================================
+-- 功能：
 -- ✔ 响应 / 请求 两个 Tab
--- ✔ 抓 request 请求
--- ✔ 抓 request 响应
+-- ✔ 抓 HttpGet / HttpGetAsync 响应
+-- ✔ 抓 request / http_request / syn.request 请求
+-- ✔ 抓 request / http_request / syn.request 响应
+-- ✔ 抓 loadstring 内容
+-- ✔ 跨来源响应内容去重，修复 HttpGet + loadstring 重复记录
 -- ✔ 最少记录字数，默认 80
 -- ✔ 独立黑色预览窗口
--- ✔ 复制按钮
+-- ✔ 复制完整内容
+-- ✔ 超长内容安全预览，避免打开卡死
 -- ✔ 预览窗口可拖动
 -- ✔ 代码区域可拖动滑动
 -- ✔ 横竖滚动条统一
+-- ✔ 修复拖动滑动条时滑到代码区域导致两个一起滑动的问题
+-- ✔ 清空抓包文件夹，带二次确认
+-- ✔ 响应 / 请求本次内容清理，带三选项确认
+-- ✔ UI 和本地文件联动：本地文件没了，UI 条目自动清理
+-- ✔ 智能识别混淆：Obfuscator / MoonSec / Luraph 等
+-- ✔ 中文文件名，日期用 年/月/日/时/分/秒
 -- ======================================================
 
 -- ==================== 加载 WindUI ====================
@@ -34,20 +44,25 @@ local minRecordLength = 80
 local responseCount = 0
 local requestCount = 0
 
+local responseNextIndex = 0
+local requestNextIndex = 0
+
+local captureSessionId = 0
+
 local savedResponseHashes = {}
+local savedResponseContentHashes = {}
 local savedRequestHashes = {}
 
 local responseItems = {}
 local requestItems = {}
 
-local function safeCall(func)
-    local ok, result = pcall(func)
-    if ok then
-        return result
-    end
-    return nil
-end
+local responseButtons = {}
+local requestButtons = {}
 
+local updateStatus = nil
+local syncRecordsWithFiles = nil
+
+-- ==================== 安全函数 ====================
 local function safeToString(value)
     local ok, result = pcall(function()
         return tostring(value)
@@ -74,7 +89,37 @@ end
 
 local function getHash(str)
     str = tostring(str or "")
-    return tostring(#str) .. "_" .. tostring(str:sub(1, 120))
+
+    local length = #str
+    local firstPart = str:sub(1, 160)
+    local middlePart = ""
+    local lastPart = ""
+
+    if length > 320 then
+        local middleStart = math.max(1, math.floor(length / 2) - 80)
+        middlePart = str:sub(middleStart, middleStart + 160)
+        lastPart = str:sub(math.max(1, length - 160), length)
+    else
+        lastPart = str:sub(161)
+    end
+
+    local checksum = 0
+    local step = math.max(1, math.floor(length / 512))
+
+    for i = 1, length, step do
+        local byteValue = string.byte(str, i) or 0
+        checksum = (checksum + byteValue * i) % 1000000007
+    end
+
+    return tostring(length)
+        .. "_"
+        .. tostring(checksum)
+        .. "_"
+        .. firstPart
+        .. "_"
+        .. middlePart
+        .. "_"
+        .. lastPart
 end
 
 local function ensureFolder(path)
@@ -162,6 +207,299 @@ local function isMoveInput(input)
 end
 
 -- ======================================================
+-- 文件名美化 / 智能识别
+-- ======================================================
+local function sanitizeFilePart(value, maxLength)
+    value = tostring(value or "未知")
+    maxLength = maxLength or 48
+
+    value = value:gsub("\r", " ")
+    value = value:gsub("\n", " ")
+    value = value:gsub("\t", " ")
+    value = value:gsub("[\\/:*?\"<>|]", "_")
+    value = value:gsub("%s+", "_")
+    value = value:gsub("_+", "_")
+    value = value:gsub("^_+", "")
+    value = value:gsub("_+$", "")
+
+    if value == "" then
+        value = "未知"
+    end
+
+    if #value > maxLength then
+        value = value:sub(1, maxLength)
+        value = value:gsub("_+$", "")
+    end
+
+    if value == "" then
+        value = "未知"
+    end
+
+    return value
+end
+
+local function extractAddress(url)
+    url = tostring(url or "")
+
+    if url == "" or url == "nil" or url == "未知" then
+        return "未知地址"
+    end
+
+    local host = url:match("^[%w_%-]+://([^/%?#]+)")
+
+    if not host then
+        host = url:match("^([^/%?#]+)")
+    end
+
+    host = tostring(host or "未知地址")
+    host = host:gsub("^www%.", "")
+
+    return sanitizeFilePart(host, 48)
+end
+
+local function countPlain(text, needle)
+    text = tostring(text or "")
+    needle = tostring(needle or "")
+
+    if needle == "" then
+        return 0
+    end
+
+    local count = 0
+    local startIndex = 1
+
+    while true do
+        local found = string.find(text, needle, startIndex, true)
+
+        if not found then
+            break
+        end
+
+        count = count + 1
+        startIndex = found + #needle
+    end
+
+    return count
+end
+
+local function analyzeCapturedContent(content)
+    content = tostring(content or "")
+
+    local lower = string.lower(content)
+    local reasons = {}
+    local score = 0
+
+    local function addReason(reason, addScore)
+        table.insert(reasons, reason)
+        score = score + (addScore or 1)
+    end
+
+    local function hasPlain(needle, reason, addScore)
+        if string.find(lower, string.lower(needle), 1, true) then
+            addReason(reason, addScore)
+        end
+    end
+
+    hasPlain("obfuscator", "检测到 Obfuscator", 5)
+    hasPlain("moonsec", "检测到 MoonSec", 4)
+    hasPlain("luraph", "检测到 Luraph", 4)
+    hasPlain("ironbrew", "检测到 IronBrew", 4)
+    hasPlain("prometheus", "检测到 Prometheus", 3)
+    hasPlain("string.char", "检测到 string.char 拼接特征", 2)
+    hasPlain("bit32.bxor", "检测到 bit32.bxor 异或特征", 2)
+    hasPlain("debug.getupvalue", "检测到 debug.getupvalue", 2)
+    hasPlain("debug.setupvalue", "检测到 debug.setupvalue", 2)
+    hasPlain("getfenv", "检测到 getfenv", 1)
+    hasPlain("setfenv", "检测到 setfenv", 1)
+    hasPlain("table.concat", "检测到 table.concat 拼接特征", 1)
+
+    local slashNumberCount = 0
+
+    for _ in string.gmatch(content, "\\%d%d%d") do
+        slashNumberCount = slashNumberCount + 1
+
+        if slashNumberCount >= 30 then
+            break
+        end
+    end
+
+    if slashNumberCount >= 30 then
+        addReason("检测到大量反斜杠数字转义", 3)
+    end
+
+    local loadstringCount = countPlain(lower, "loadstring")
+
+    if loadstringCount >= 3 then
+        addReason("loadstring 出现多次", 2)
+    end
+
+    local isObfuscated = false
+
+    if score >= 4 then
+        isObfuscated = true
+    end
+
+    local label = "未发现明显混淆"
+
+    if isObfuscated then
+        label = "可能被混淆"
+    end
+
+    local reasonText = "无"
+
+    if #reasons > 0 then
+        reasonText = table.concat(reasons, "；")
+    end
+
+    return {
+        IsObfuscated = isObfuscated,
+        Label = label,
+        ReasonText = reasonText,
+        Score = score,
+    }
+end
+
+local function getChineseTimeForFile()
+    return os.date("%Y年%m月%d日_%H时%M分%S秒")
+end
+
+local function getChineseTimeForText()
+    return os.date("%Y年%m月%d日 %H时%M分%S秒")
+end
+
+local function makePrettyFilename(kindChinese, index, sourceName, method, url, analysis, extension)
+    kindChinese = sanitizeFilePart(kindChinese or "记录", 16)
+    sourceName = sanitizeFilePart(sourceName or "未知来源", 28)
+    method = sanitizeFilePart(method or "", 12)
+    extension = extension or ".txt"
+
+    local indexText = string.format("%03d", tonumber(index) or 0)
+    local timeText = getChineseTimeForFile()
+    local addressText = extractAddress(url)
+
+    local flagText = ""
+
+    if analysis and analysis.IsObfuscated then
+        flagText = "_可能被混淆"
+    end
+
+    if method ~= "" then
+        return kindChinese ..
+            "_" ..
+            indexText ..
+            "_" ..
+            method ..
+            "_来源" ..
+            sourceName ..
+            "_地址" ..
+            addressText ..
+            "_" ..
+            timeText ..
+            flagText ..
+            extension
+    end
+
+    return kindChinese ..
+        "_" ..
+        indexText ..
+        "_来源" ..
+        sourceName ..
+        "_地址" ..
+        addressText ..
+        "_" ..
+        timeText ..
+        flagText ..
+        extension
+end
+
+-- ======================================================
+-- 文件删除安全限制
+-- 只允许删除 Captured_Scripts 里面的内容
+-- ======================================================
+local function normalizePath(path)
+    path = tostring(path or "")
+    path = path:gsub("\\", "/")
+    return path
+end
+
+local function isInsideCaptureFolder(path)
+    local normalizedPath = normalizePath(path)
+    local normalizedRoot = normalizePath(folderName)
+
+    if normalizedPath == normalizedRoot then
+        return true
+    end
+
+    if normalizedPath:sub(1, #normalizedRoot + 1) == normalizedRoot .. "/" then
+        return true
+    end
+
+    if normalizedPath:find("/" .. normalizedRoot .. "/", 1, true) then
+        return true
+    end
+
+    return false
+end
+
+local function deleteCapturePath(path)
+    path = tostring(path or "")
+
+    if path == "" then
+        return
+    end
+
+    if not isInsideCaptureFolder(path) then
+        warn("⚠️ 拒绝删除非抓包目录路径:", path)
+        return
+    end
+
+    pcall(function()
+        if isfile and isfile(path) then
+            delfile(path)
+            return
+        end
+
+        if isfolder and isfolder(path) then
+            local children = {}
+
+            pcall(function()
+                if listfiles then
+                    children = listfiles(path)
+                end
+            end)
+
+            for _, child in ipairs(children) do
+                deleteCapturePath(child)
+            end
+
+            if path ~= folderName and delfolder then
+                delfolder(path)
+            end
+        end
+    end)
+end
+
+local function fileStillExists(item)
+    if not item then
+        return false
+    end
+
+    if not item.FileSaved then
+        return true
+    end
+
+    if not item.File then
+        return true
+    end
+
+    if not isfile then
+        return true
+    end
+
+    return isfile(item.File)
+end
+
+-- ======================================================
 -- 自制黑色预览窗口
 -- ======================================================
 local guiParent = getGuiParent()
@@ -202,7 +540,6 @@ previewStroke.Thickness = 1
 previewStroke.Transparency = 0
 previewStroke.Parent = previewWindow
 
--- ==================== 顶部栏 ====================
 local previewTopBar = Instance.new("Frame")
 previewTopBar.Name = "TopBar"
 previewTopBar.Size = UDim2.new(1, 0, 0, 36)
@@ -266,9 +603,6 @@ previewTitle.TextTruncate = Enum.TextTruncate.AtEnd
 previewTitle.ZIndex = 9992
 previewTitle.Parent = previewTopBar
 
--- ======================================================
--- 代码显示区域
--- ======================================================
 local codeViewport = Instance.new("Frame")
 codeViewport.Name = "CodeViewport"
 codeViewport.Size = UDim2.new(1, -30, 1, -62)
@@ -297,9 +631,6 @@ codeText.RichText = false
 codeText.ZIndex = 9992
 codeText.Parent = codeViewport
 
--- ======================================================
--- 自制滚动条
--- ======================================================
 local verticalTrack = Instance.new("Frame")
 verticalTrack.Name = "VerticalTrack"
 verticalTrack.Size = UDim2.new(0, 9, 1, -62)
@@ -363,9 +694,19 @@ horizontalThumbCorner.CornerRadius = UDim.new(1, 0)
 horizontalThumbCorner.Parent = horizontalThumb
 
 -- ======================================================
--- 滚动状态
+-- 预览与滚动状态
 -- ======================================================
 local currentOpenedText = ""
+local currentDisplayText = ""
+
+local MAX_PREVIEW_CHARS = 60000
+local MAX_PREVIEW_LINES = 3000
+local MAX_PREVIEW_LINE_CHARS = 20000
+
+local MAX_MEASURE_LINES = 3500
+local MAX_MEASURE_SAMPLE_CHARS = 240
+local MAX_CANVAS_WIDTH = 220000
+local MAX_CANVAS_HEIGHT = 500000
 
 local contentWidth = 500
 local contentHeight = 260
@@ -391,10 +732,185 @@ local previewDragging = false
 local previewDragStart = nil
 local previewStartPos = nil
 
+local activeDragMode = nil
+local activePointerType = nil
+
+local function beginExclusiveDrag(mode, input)
+    if activeDragMode ~= nil then
+        return false
+    end
+
+    activeDragMode = mode
+    activePointerType = input.UserInputType
+
+    return true
+end
+
+local function endExclusiveDrag(mode)
+    if activeDragMode == mode then
+        activeDragMode = nil
+        activePointerType = nil
+    end
+end
+
+local function isActiveMoveInput(input, mode)
+    if activeDragMode ~= mode then
+        return false
+    end
+
+    if activePointerType == Enum.UserInputType.MouseButton1 then
+        return input.UserInputType == Enum.UserInputType.MouseMovement
+    end
+
+    if activePointerType == Enum.UserInputType.Touch then
+        return input.UserInputType == Enum.UserInputType.Touch
+    end
+
+    return false
+end
+
+local function forceStopContentDrag()
+    contentDragging = false
+    contentDragStart = nil
+    lastContentPos = nil
+end
+
+local function forceStopBarDrag()
+    barDragging = false
+    barAxis = nil
+    barDragStart = nil
+end
+
+local function forceStopPreviewDrag()
+    previewDragging = false
+    previewDragStart = nil
+    previewStartPos = nil
+end
+
+local function makeDisplaySafeText(text)
+    text = tostring(text or "")
+    text = text:gsub(string.char(0), "\\0")
+
+    local pattern =
+        "[" ..
+        string.char(1) ..
+        "-" ..
+        string.char(8) ..
+        string.char(11) ..
+        string.char(12) ..
+        string.char(14) ..
+        "-" ..
+        string.char(31) ..
+        "]"
+
+    text = text:gsub(pattern, ".")
+
+    return text
+end
+
+local function buildSafePreviewText(fullText)
+    fullText = tostring(fullText or "-- 空内容")
+
+    local originalLength = #fullText
+    local truncated = false
+    local reasons = {}
+
+    local limitedText = fullText
+
+    if #limitedText > MAX_PREVIEW_CHARS then
+        limitedText = limitedText:sub(1, MAX_PREVIEW_CHARS)
+        truncated = true
+        table.insert(reasons, "总字符超过 " .. tostring(MAX_PREVIEW_CHARS))
+    end
+
+    limitedText = makeDisplaySafeText(limitedText)
+
+    local lines = {}
+    local lineCount = 0
+
+    for line in string.gmatch(limitedText .. "\n", "(.-)\n") do
+        lineCount = lineCount + 1
+
+        if lineCount > MAX_PREVIEW_LINES then
+            truncated = true
+            table.insert(reasons, "行数超过 " .. tostring(MAX_PREVIEW_LINES))
+            break
+        end
+
+        if #line > MAX_PREVIEW_LINE_CHARS then
+            line = line:sub(1, MAX_PREVIEW_LINE_CHARS) .. " ... [本行过长，预览已截断]"
+            truncated = true
+            table.insert(reasons, "单行超过 " .. tostring(MAX_PREVIEW_LINE_CHARS) .. " 字符")
+        end
+
+        table.insert(lines, line)
+    end
+
+    local displayText = table.concat(lines, "\n")
+
+    if displayText == "" then
+        displayText = "-- 空内容"
+    end
+
+    if truncated then
+        local reasonText = table.concat(reasons, "；")
+
+        if reasonText == "" then
+            reasonText = "未知原因"
+        end
+
+        displayText =
+            "-- ⚠️ 内容过长，预览已自动截断\n" ..
+            "-- 原始长度: " .. tostring(originalLength) .. " 字符\n" ..
+            "-- 截断原因: " .. reasonText .. "\n" ..
+            "-- 复制按钮仍然复制完整内容，不是只复制预览内容\n" ..
+            "-- 文件也已经完整保存，不影响抓包结果\n\n" ..
+            displayText ..
+            "\n\n-- ⚠️ 后续内容未在预览中显示，但完整内容仍可复制 / 已保存到文件"
+    end
+
+    return displayText, truncated
+end
+
+local function safeGetTextSize(text, textSize, font)
+    text = tostring(text or " ")
+
+    if text == "" then
+        text = " "
+    end
+
+    local sample = text
+
+    if #sample > MAX_MEASURE_SAMPLE_CHARS then
+        sample = sample:sub(1, MAX_MEASURE_SAMPLE_CHARS)
+    end
+
+    local ok, measured = pcall(function()
+        return TextService:GetTextSize(
+            sample,
+            textSize,
+            font,
+            Vector2.new(1000000, 1000000)
+        )
+    end)
+
+    if ok and measured then
+        if #text > #sample and #sample > 0 then
+            local avg = measured.X / #sample
+            return Vector2.new(avg * #text, measured.Y)
+        end
+
+        return measured
+    end
+
+    return Vector2.new(#text * 8, textSize + 4)
+end
+
 local function getMaxScroll()
     local viewSize = codeViewport.AbsoluteSize
     local maxX = math.max(0, contentWidth - viewSize.X)
     local maxY = math.max(0, contentHeight - viewSize.Y)
+
     return maxX, maxY
 end
 
@@ -521,23 +1037,23 @@ local function updateCodeCanvas(text)
 
     local maxLineWidth = 0
     local lineCount = 0
+    local measuredLines = 0
 
     for line in string.gmatch(text .. "\n", "(.-)\n") do
         lineCount = lineCount + 1
 
-        if line == "" then
-            line = " "
-        end
+        if measuredLines < MAX_MEASURE_LINES then
+            measuredLines = measuredLines + 1
 
-        local measured = TextService:GetTextSize(
-            line,
-            textSize,
-            font,
-            Vector2.new(1000000, 1000000)
-        )
+            if line == "" then
+                line = " "
+            end
 
-        if measured.X > maxLineWidth then
-            maxLineWidth = measured.X
+            local measured = safeGetTextSize(line, textSize, font)
+
+            if measured.X > maxLineWidth then
+                maxLineWidth = measured.X
+            end
         end
     end
 
@@ -545,17 +1061,14 @@ local function updateCodeCanvas(text)
         lineCount = 1
     end
 
-    local lineMeasured = TextService:GetTextSize(
-        "A",
-        textSize,
-        font,
-        Vector2.new(1000000, 1000000)
-    )
-
+    local lineMeasured = safeGetTextSize("A", textSize, font)
     local lineHeight = lineMeasured.Y + 3
 
     contentWidth = math.max(minWidth, math.ceil(maxLineWidth + paddingX))
     contentHeight = math.max(minHeight, math.ceil(lineCount * lineHeight + paddingY))
+
+    contentWidth = math.min(contentWidth, MAX_CANVAS_WIDTH)
+    contentHeight = math.min(contentHeight, MAX_CANVAS_HEIGHT)
 
     codeText.Size = UDim2.new(0, contentWidth, 0, contentHeight)
 
@@ -568,7 +1081,13 @@ end
 -- ======================================================
 codeViewport.InputBegan:Connect(function(input)
     if isPointerInput(input) then
+        if not beginExclusiveDrag("content", input) then
+            return
+        end
+
         stopInertia()
+        forceStopBarDrag()
+        forceStopPreviewDrag()
 
         contentDragging = true
         contentDragStart = input.Position
@@ -580,11 +1099,14 @@ codeViewport.InputBegan:Connect(function(input)
 
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                if contentDragging then
-                    contentDragging = false
+                if activeDragMode == "content" and contentDragging then
+                    local velocity = scrollVelocity
 
-                    if scrollVelocity.Magnitude > 35 then
-                        startInertia(scrollVelocity)
+                    forceStopContentDrag()
+                    endExclusiveDrag("content")
+
+                    if velocity.Magnitude > 35 then
+                        startInertia(velocity)
                     end
                 end
             end
@@ -593,7 +1115,7 @@ codeViewport.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if contentDragging and isMoveInput(input) then
+    if contentDragging and isActiveMoveInput(input, "content") then
         local now = tick()
         local dt = math.max(now - lastContentTime, 1 / 240)
 
@@ -620,7 +1142,13 @@ end)
 -- 横竖滚动条统一拖动
 -- ======================================================
 local function beginBarDrag(axis, input)
+    if not beginExclusiveDrag("bar", input) then
+        return false
+    end
+
     stopInertia()
+    forceStopContentDrag()
+    forceStopPreviewDrag()
 
     barDragging = true
     barAxis = axis
@@ -630,14 +1158,22 @@ local function beginBarDrag(axis, input)
 
     input.Changed:Connect(function()
         if input.UserInputState == Enum.UserInputState.End then
-            barDragging = false
-            barAxis = nil
+            if activeDragMode == "bar" then
+                forceStopBarDrag()
+                endExclusiveDrag("bar")
+            end
         end
     end)
+
+    return true
 end
 
 local function updateBarDrag(input)
     if not barDragging then
+        return
+    end
+
+    if activeDragMode ~= "bar" then
         return
     end
 
@@ -687,13 +1223,13 @@ verticalThumb.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if barDragging and isMoveInput(input) then
+    if barDragging and isActiveMoveInput(input, "bar") then
         updateBarDrag(input)
     end
 end)
 
 local function jumpHorizontalTrack(input)
-    local maxX, maxY = getMaxScroll()
+    local maxX = getMaxScroll()
 
     if maxX <= 0 then
         return
@@ -712,7 +1248,7 @@ local function jumpHorizontalTrack(input)
 end
 
 local function jumpVerticalTrack(input)
-    local maxX, maxY = getMaxScroll()
+    local _, maxY = getMaxScroll()
 
     if maxY <= 0 then
         return
@@ -732,6 +1268,10 @@ end
 
 horizontalTrack.InputBegan:Connect(function(input)
     if isPointerInput(input) then
+        if activeDragMode ~= nil then
+            return
+        end
+
         stopInertia()
         jumpHorizontalTrack(input)
         beginBarDrag("X", input)
@@ -740,6 +1280,10 @@ end)
 
 verticalTrack.InputBegan:Connect(function(input)
     if isPointerInput(input) then
+        if activeDragMode ~= nil then
+            return
+        end
+
         stopInertia()
         jumpVerticalTrack(input)
         beginBarDrag("Y", input)
@@ -783,20 +1327,31 @@ previewTopBar.InputBegan:Connect(function(input)
             return
         end
 
+        if not beginExclusiveDrag("preview", input) then
+            return
+        end
+
+        stopInertia()
+        forceStopContentDrag()
+        forceStopBarDrag()
+
         previewDragging = true
         previewDragStart = input.Position
         previewStartPos = previewWindow.Position
 
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                previewDragging = false
+                if activeDragMode == "preview" then
+                    forceStopPreviewDrag()
+                    endExclusiveDrag("preview")
+                end
             end
         end)
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if previewDragging and isMoveInput(input) then
+    if previewDragging and isActiveMoveInput(input, "preview") then
         local delta = input.Position - previewDragStart
 
         previewWindow.Position = UDim2.new(
@@ -809,11 +1364,16 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ======================================================
--- 复制 / 关闭
+-- 预览打开 / 复制 / 关闭
 -- ======================================================
 closePreviewBtn.MouseButton1Click:Connect(function()
     previewWindow.Visible = false
     stopInertia()
+    forceStopContentDrag()
+    forceStopBarDrag()
+    forceStopPreviewDrag()
+    activeDragMode = nil
+    activePointerType = nil
 end)
 
 copyBtn.MouseButton1Click:Connect(function()
@@ -835,7 +1395,7 @@ copyBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        print("✅ 已复制当前内容")
+        print("✅ 已复制当前完整内容")
     else
         copyBtn.Text = "失败"
 
@@ -854,18 +1414,31 @@ local function openPreviewWindow(title, text)
     text = tostring(text or "-- 空内容")
 
     stopInertia()
+    forceStopContentDrag()
+    forceStopBarDrag()
+    forceStopPreviewDrag()
+    activeDragMode = nil
+    activePointerType = nil
 
     currentOpenedText = text
+
+    local displayText, truncated = buildSafePreviewText(text)
+    currentDisplayText = displayText
 
     previewGui.Enabled = true
     previewWindow.Visible = true
     previewWindow.Position = UDim2.new(0.5, -260, 0.5, -160)
 
-    previewTitle.Text = title
-    codeText.Text = text
+    if truncated then
+        previewTitle.Text = title .. "（预览截断）"
+    else
+        previewTitle.Text = title
+    end
+
+    codeText.Text = currentDisplayText
 
     task.defer(function()
-        updateCodeCanvas(text)
+        updateCodeCanvas(currentDisplayText)
         setScrollPosition(0, 0)
     end)
 
@@ -873,8 +1446,8 @@ local function openPreviewWindow(title, text)
 end
 
 codeViewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-    if currentOpenedText and currentOpenedText ~= "" then
-        updateCodeCanvas(currentOpenedText)
+    if currentDisplayText and currentDisplayText ~= "" then
+        updateCodeCanvas(currentDisplayText)
     end
 end)
 
@@ -905,6 +1478,7 @@ local Window = WindUI:CreateWindow({
         Anonymous = true,
     },
 })
+
 local ABTab = Window:Tab({
     Title = "公告",
     Icon = "megaphone",
@@ -930,6 +1504,245 @@ local RequestTab = Window:Tab({
 })
 
 ABTab:Select()
+
+-- ======================================================
+-- UI 条目清理 / 文件联动
+-- ======================================================
+local function destroyElement(element)
+    if not element then
+        return
+    end
+
+    pcall(function()
+        if element.Destroy then
+            element:Destroy()
+        end
+    end)
+end
+
+local function recalculateCounts()
+    local r = 0
+    local q = 0
+
+    for _, item in pairs(responseItems) do
+        if item then
+            r = r + 1
+        end
+    end
+
+    for _, item in pairs(requestItems) do
+        if item then
+            q = q + 1
+        end
+    end
+
+    responseCount = r
+    requestCount = q
+end
+
+local function removeResponseItem(index, deleteFile)
+    local item = responseItems[index]
+
+    if item and deleteFile and item.FileSaved and item.File then
+        deleteCapturePath(item.File)
+    end
+
+    destroyElement(responseButtons[index])
+
+    responseItems[index] = nil
+    responseButtons[index] = nil
+end
+
+local function removeRequestItem(index, deleteFile)
+    local item = requestItems[index]
+
+    if item and deleteFile and item.FileSaved and item.File then
+        deleteCapturePath(item.File)
+    end
+
+    destroyElement(requestButtons[index])
+
+    requestItems[index] = nil
+    requestButtons[index] = nil
+end
+
+syncRecordsWithFiles = function()
+    local changed = false
+
+    if isfile then
+        for index, item in pairs(responseItems) do
+            if item and item.FileSaved and item.File and not isfile(item.File) then
+                destroyElement(responseButtons[index])
+                responseItems[index] = nil
+                responseButtons[index] = nil
+                changed = true
+            end
+        end
+
+        for index, item in pairs(requestItems) do
+            if item and item.FileSaved and item.File and not isfile(item.File) then
+                destroyElement(requestButtons[index])
+                requestItems[index] = nil
+                requestButtons[index] = nil
+                changed = true
+            end
+        end
+    end
+
+    if changed then
+        recalculateCounts()
+    end
+end
+
+local function clearTypeRecords(kind, deleteFiles)
+    if kind == "response" then
+        for index, _ in pairs(responseItems) do
+            removeResponseItem(index, deleteFiles)
+        end
+
+        responseItems = {}
+        responseButtons = {}
+        savedResponseHashes = {}
+        savedResponseContentHashes = {}
+        responseCount = 0
+        responseNextIndex = 0
+    end
+
+    if kind == "request" then
+        for index, _ in pairs(requestItems) do
+            removeRequestItem(index, deleteFiles)
+        end
+
+        requestItems = {}
+        requestButtons = {}
+        savedRequestHashes = {}
+        requestCount = 0
+        requestNextIndex = 0
+    end
+
+    captureSessionId = captureSessionId + 1
+
+    if updateStatus then
+        updateStatus(true)
+    end
+end
+
+local function clearCapturedFolderInternal()
+    local ok = pcall(function()
+        ensureFolder(folderName)
+
+        local children = {}
+
+        if listfiles then
+            children = listfiles(folderName)
+        end
+
+        for _, child in ipairs(children) do
+            deleteCapturePath(child)
+        end
+
+        ensureFolder(folderName)
+        ensureFolder(folderName .. "/Responses")
+        ensureFolder(folderName .. "/Requests")
+    end)
+
+    clearTypeRecords("response", false)
+    clearTypeRecords("request", false)
+
+    if not ok then
+        warn("⚠️ 清空失败：当前环境可能不支持 listfiles / delfile / delfolder")
+        return false
+    end
+
+    print("✅ 已清空抓包文件夹内容:", folderName)
+    return true
+end
+
+local function showPopup(title, content, buttons)
+    local ok = pcall(function()
+        WindUI:Popup({
+            Title = title,
+            Icon = "info",
+            Content = content,
+            Buttons = buttons,
+        })
+    end)
+
+    if not ok then
+        warn("⚠️ Popup 创建失败，WindUI 当前版本可能不支持 Popup")
+    end
+end
+
+local function showClearFolderConfirm()
+    showPopup(
+        "确认清空抓包文件夹？",
+        "只会清空 Captured_Scripts 文件夹内的内容，不会删除其他本地文件。这个操作会同时清理响应和请求列表。",
+        {
+            {
+                Title = "取消",
+                Variant = "Tertiary",
+                Callback = function()
+                    print("已取消清空抓包文件夹")
+                end,
+            },
+            {
+                Title = "确认清空",
+                Icon = "trash",
+                Variant = "Primary",
+                Callback = function()
+                    clearCapturedFolderInternal()
+                end,
+            },
+        }
+    )
+end
+
+local function showClearTypeConfirm(kind)
+    local titleText = "清理本次内容？"
+    local contentText = "请选择清理方式。"
+
+    if kind == "response" then
+        titleText = "清理本次响应内容？"
+        contentText = "取消：不做任何事。\n继续：只清理当前响应 UI 列表，保留已保存文件。\n清理文件并继续：清理当前响应 UI，并删除本次响应保存的文件。"
+    end
+
+    if kind == "request" then
+        titleText = "清理本次请求内容？"
+        contentText = "取消：不做任何事。\n继续：只清理当前请求 UI 列表，保留已保存文件。\n清理文件并继续：清理当前请求 UI，并删除本次请求保存的文件。"
+    end
+
+    showPopup(
+        titleText,
+        contentText,
+        {
+            {
+                Title = "取消",
+                Variant = "Tertiary",
+                Callback = function()
+                    print("已取消清理")
+                end,
+            },
+            {
+                Title = "继续",
+                Icon = "arrow-right",
+                Variant = "Primary",
+                Callback = function()
+                    clearTypeRecords(kind, false)
+                    print("✅ 已清理本次 UI 内容，文件已保留")
+                end,
+            },
+            {
+                Title = "清理文件并继续",
+                Icon = "trash",
+                Variant = "Primary",
+                Callback = function()
+                    clearTypeRecords(kind, true)
+                    print("✅ 已清理本次 UI 内容，并删除对应保存文件")
+                end,
+            },
+        }
+    )
+end
 
 -- ======================================================
 -- 公告内容
@@ -969,6 +1782,20 @@ ABTab:Button({
         end
     end
 })
+ABTab:Paragraph({
+    Title = "更新公告",
+    Desc = [[本次更新内容：
+
+1. 修复预览窗口超长内容卡死问题
+2. 修复滑动条和代码区域一起滑动的问题
+3. 新增清空抓包文件夹功能
+4. 新增响应 / 请求列表单独清理功能
+5. 新增 UI 与本地文件联动，本地文件删除后 UI 自动同步
+6. 新增混淆检查，疑似混淆内容会标记为“可能被混淆”
+7. 优化文件命名，改为中文可读格式
+8. 修复 HttpGet 和 Loadstring 同内容重复记录的问题]],
+})
+
 local StatusParagraph = MainTab:Paragraph({
     Title = "状态",
     Desc = "抓取已开启 | 响应 0 个 | 请求 0 个 | 最少 80 字",
@@ -987,7 +1814,11 @@ local RequestInfo = RequestTab:Paragraph({
     Color = "Blue",
 })
 
-local function updateStatus()
+updateStatus = function(skipSync)
+    if not skipSync and syncRecordsWithFiles then
+        syncRecordsWithFiles()
+    end
+
     if StatusParagraph and StatusParagraph.SetDesc then
         StatusParagraph:SetDesc(
             (isCapturing and "抓取已开启" or "抓取已关闭")
@@ -1002,7 +1833,7 @@ local function updateStatus()
     end
 
     if ResponseInfo and ResponseInfo.SetDesc then
-        ResponseInfo:SetDesc("已记录 " .. tostring(responseCount) .. " 个响应。点击条目打开预览。")
+        ResponseInfo:SetDesc("已记录 " .. tostring(responseCount) .. " 个响应。点击条目打开预览。重复内容会自动跳过。")
     end
 
     if RequestInfo and RequestInfo.SetDesc then
@@ -1010,7 +1841,7 @@ local function updateStatus()
     end
 end
 
--- ==================== 抓取开关 ====================
+-- ==================== 主控制按钮 ====================
 MainTab:Toggle({
     Title = "启动抓取",
     Desc = "关闭后不会继续记录请求和响应",
@@ -1023,7 +1854,6 @@ MainTab:Toggle({
     end
 })
 
--- ==================== 最少字数限制 ====================
 MainTab:Input({
     Title = "最少记录字数",
     Desc = "低于这个字数的请求 / 响应不会被记录，默认 80",
@@ -1065,16 +1895,16 @@ MainTab:Button({
 
 MainTab:Button({
     Title = "测试预览窗口",
-    Desc = "测试滚动 / 复制 / 拖动",
+    Desc = "测试滚动 / 复制 / 拖动 / 长文本预览",
     Locked = false,
 
     Callback = function()
         openPreviewWindow(
             "测试内容.lua",
             [[-- 测试预览窗口
--- 横竖滚动条、复制按钮、拖动窗口都在这里测试
+-- 横竖滚动条、复制按钮、拖动窗口、超长预览保护都在这里测试
 
-local long_line = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+local long_line = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 for i = 1, 120 do
     print("测试行", i)
@@ -1092,13 +1922,48 @@ MainTab:Button({
     Callback = function()
         previewWindow.Visible = false
         stopInertia()
+        forceStopContentDrag()
+        forceStopBarDrag()
+        forceStopPreviewDrag()
+        activeDragMode = nil
+        activePointerType = nil
+    end
+})
+
+MainTab:Button({
+    Title = "清空抓包文件夹",
+    Desc = "二次确认后，只清空 Captured_Scripts 内的内容",
+    Locked = false,
+
+    Callback = function()
+        showClearFolderConfirm()
+    end
+})
+
+ResponseTab:Button({
+    Title = "清理本次响应内容",
+    Desc = "二次确认：可只清 UI，也可同时删除本次响应保存文件",
+    Locked = false,
+
+    Callback = function()
+        showClearTypeConfirm("response")
+    end
+})
+
+RequestTab:Button({
+    Title = "清理本次请求内容",
+    Desc = "二次确认：可只清 UI，也可同时删除本次请求保存文件",
+    Locked = false,
+
+    Callback = function()
+        showClearTypeConfirm("request")
     end
 })
 
 -- ======================================================
 -- 保存响应
 -- ======================================================
-local function saveResponse(content, prefix, extraInfo)
+local function saveResponse(content, prefix, extraInfo, sourceUrl)
     if typeof(content) ~= "string" then
         return
     end
@@ -1107,68 +1972,112 @@ local function saveResponse(content, prefix, extraInfo)
         return
     end
 
-    local hash = getHash(prefix .. "\n" .. content)
+    local contentHash = getHash(content)
+    local sourceHash = getHash(prefix .. "\n" .. tostring(sourceUrl or "") .. "\n" .. content)
 
-    if savedResponseHashes[hash] then
+    -- 跨来源内容去重：
+    -- 修复 loadstring(game:HttpGet(...)) 同时被 HttpGet 和 Loadstring 记录的问题。
+    if savedResponseContentHashes[contentHash] then
+        print("ℹ️ 已跳过重复响应内容:", tostring(prefix))
         return
     end
 
-    savedResponseHashes[hash] = true
+    if savedResponseHashes[sourceHash] then
+        return
+    end
+
+    savedResponseContentHashes[contentHash] = true
+    savedResponseHashes[sourceHash] = true
+
+    responseNextIndex = responseNextIndex + 1
     responseCount = responseCount + 1
 
-    local timeShort = os.date("%H:%M:%S")
-    local timestamp = os.date("%Y%m%d_%H%M%S")
+    local itemIndex = responseNextIndex
+    local analysis = analyzeCapturedContent(content)
 
-    local filename =
-        folderName ..
-        "/Responses/" ..
-        timestamp ..
-        "_" ..
-        tostring(prefix) ..
-        "_" ..
-        tostring(responseCount) ..
+    local timeShort = os.date("%H:%M:%S")
+    local timestamp = getChineseTimeForText()
+
+    local filename = makePrettyFilename(
+        "响应",
+        itemIndex,
+        prefix,
+        "",
+        sourceUrl or prefix,
+        analysis,
         ".lua"
+    )
+
+    local fullPath = folderName .. "/Responses/" .. filename
 
     local finalText =
         "-- 时间: " .. timestamp .. "\n" ..
         "-- 类型: 响应 / " .. tostring(prefix) .. "\n" ..
+        "-- 智能识别: " .. tostring(analysis.Label) .. "\n" ..
+        "-- 识别原因: " .. tostring(analysis.ReasonText) .. "\n" ..
+        "-- 文件名: " .. tostring(filename) .. "\n" ..
         tostring(extraInfo or "") .. "\n\n" ..
         content
 
+    local fileSaved = false
+
     pcall(function()
-        writefile(filename, finalText)
+        writefile(fullPath, finalText)
+        fileSaved = true
     end)
 
-    local itemIndex = responseCount
+    local itemSession = captureSessionId
+    local obfTitle = ""
+
+    if analysis.IsObfuscated then
+        obfTitle = " ⚠可能混淆"
+    end
 
     responseItems[itemIndex] = {
         Text = finalText,
         Prefix = prefix,
         Time = timeShort,
-        File = filename,
+        File = fullPath,
+        Filename = filename,
         Length = #content,
+        Analysis = analysis,
+        Session = itemSession,
+        FileSaved = fileSaved,
     }
 
-    ResponseTab:Button({
-        Title = "#" .. tostring(itemIndex) .. " [" .. tostring(prefix) .. "] " .. timeShort,
-        Desc = tostring(#content) .. " 字 | " .. filename,
+    responseButtons[itemIndex] = ResponseTab:Button({
+        Title = "#" .. string.format("%03d", itemIndex) .. " 响应 [" .. tostring(prefix) .. "]" .. obfTitle .. " " .. timeShort,
+        Desc = tostring(#content) .. " 字 | " .. tostring(analysis.Label) .. " | " .. filename,
         Locked = false,
 
         Callback = function()
             local item = responseItems[itemIndex]
 
-            if item then
+            if item and item.Session == captureSessionId and fileStillExists(item) then
                 openPreviewWindow(
-                    "响应 #" .. tostring(itemIndex) .. " [" .. tostring(item.Prefix) .. "]",
+                    "响应 #" .. string.format("%03d", itemIndex) .. " [" .. tostring(item.Prefix) .. "]",
                     item.Text
                 )
+            else
+                removeResponseItem(itemIndex, false)
+                recalculateCounts()
+                updateStatus(true)
+                warn("⚠️ 该响应记录已被清空或本地文件已不存在，UI 已同步移除")
             end
         end
     })
 
     updateStatus()
 
-    print("✅ 已保存响应:", filename)
+    if fileSaved then
+        print("✅ 已保存响应:", fullPath)
+    else
+        warn("⚠️ 响应已记录到 UI，但写入文件失败")
+    end
+
+    if analysis.IsObfuscated then
+        warn("⚠️ 智能识别：该响应可能被混淆 |", analysis.ReasonText)
+    end
 end
 
 -- ======================================================
@@ -1204,31 +2113,49 @@ local function saveRequest(req, sourceName)
     end
 
     savedRequestHashes[hash] = true
+
+    requestNextIndex = requestNextIndex + 1
     requestCount = requestCount + 1
 
-    local timeShort = os.date("%H:%M:%S")
-    local timestamp = os.date("%Y%m%d_%H%M%S")
+    local itemIndex = requestNextIndex
+    local analysis = analyzeCapturedContent(requestText)
 
-    local filename =
-        folderName ..
-        "/Requests/" ..
-        timestamp ..
-        "_" ..
-        tostring(sourceName) ..
-        "_" ..
-        tostring(requestCount) ..
+    local timeShort = os.date("%H:%M:%S")
+    local timestamp = getChineseTimeForText()
+
+    local filename = makePrettyFilename(
+        "请求",
+        itemIndex,
+        sourceName,
+        method,
+        url,
+        analysis,
         ".txt"
+    )
+
+    local fullPath = folderName .. "/Requests/" .. filename
 
     local finalText =
         "-- 时间: " .. timestamp .. "\n" ..
-        "-- 类型: 请求 / " .. tostring(sourceName) .. "\n\n" ..
+        "-- 类型: 请求 / " .. tostring(sourceName) .. "\n" ..
+        "-- 智能识别: " .. tostring(analysis.Label) .. "\n" ..
+        "-- 识别原因: " .. tostring(analysis.ReasonText) .. "\n" ..
+        "-- 文件名: " .. tostring(filename) .. "\n\n" ..
         requestText
 
+    local fileSaved = false
+
     pcall(function()
-        writefile(filename, finalText)
+        writefile(fullPath, finalText)
+        fileSaved = true
     end)
 
-    local itemIndex = requestCount
+    local itemSession = captureSessionId
+    local obfTitle = ""
+
+    if analysis.IsObfuscated then
+        obfTitle = " ⚠可能混淆"
+    end
 
     requestItems[itemIndex] = {
         Text = finalText,
@@ -1236,30 +2163,47 @@ local function saveRequest(req, sourceName)
         Method = method,
         Url = url,
         Time = timeShort,
-        File = filename,
+        File = fullPath,
+        Filename = filename,
         Length = #requestText,
+        Analysis = analysis,
+        Session = itemSession,
+        FileSaved = fileSaved,
     }
 
-    RequestTab:Button({
-        Title = "#" .. tostring(itemIndex) .. " [" .. tostring(method) .. "] " .. timeShort,
-        Desc = tostring(#requestText) .. " 字 | " .. tostring(url),
+    requestButtons[itemIndex] = RequestTab:Button({
+        Title = "#" .. string.format("%03d", itemIndex) .. " 请求 [" .. tostring(method) .. "]" .. obfTitle .. " " .. timeShort,
+        Desc = tostring(#requestText) .. " 字 | " .. tostring(analysis.Label) .. " | " .. filename,
         Locked = false,
 
         Callback = function()
             local item = requestItems[itemIndex]
 
-            if item then
+            if item and item.Session == captureSessionId and fileStillExists(item) then
                 openPreviewWindow(
-                    "请求 #" .. tostring(itemIndex) .. " [" .. tostring(item.Method) .. "]",
+                    "请求 #" .. string.format("%03d", itemIndex) .. " [" .. tostring(item.Method) .. "]",
                     item.Text
                 )
+            else
+                removeRequestItem(itemIndex, false)
+                recalculateCounts()
+                updateStatus(true)
+                warn("⚠️ 该请求记录已被清空或本地文件已不存在，UI 已同步移除")
             end
         end
     })
 
     updateStatus()
 
-    print("✅ 已保存请求:", filename)
+    if fileSaved then
+        print("✅ 已保存请求:", fullPath)
+    else
+        warn("⚠️ 请求已记录到 UI，但写入文件失败")
+    end
+
+    if analysis.IsObfuscated then
+        warn("⚠️ 智能识别：该请求可能包含混淆内容 |", analysis.ReasonText)
+    end
 end
 
 -- ======================================================
@@ -1274,7 +2218,8 @@ pcall(function()
                 saveResponse(
                     code,
                     "Loadstring",
-                    "-- Chunk: " .. tostring(chunkname)
+                    "-- Chunk: " .. tostring(chunkname),
+                    tostring(chunkname or "loadstring")
                 )
             end
 
@@ -1298,7 +2243,8 @@ local function hookHttp(name, func)
                     saveResponse(
                         result,
                         name,
-                        "-- URL: " .. tostring(url)
+                        "-- URL: " .. tostring(url),
+                        tostring(url)
                     )
                 end
 
@@ -1344,7 +2290,8 @@ local function hookRequest(name, func)
                             saveResponse(
                                 resp.Body,
                                 name,
-                                "-- URL: " .. tostring(urlText)
+                                "-- URL: " .. tostring(urlText),
+                                tostring(urlText)
                             )
                         end
                     end
@@ -1370,7 +2317,25 @@ pcall(function()
     end
 end)
 
+-- ======================================================
+-- 定时同步：本地文件没了，UI 自动清理
+-- ======================================================
+task.spawn(function()
+    while true do
+        task.wait(5)
+
+        if syncRecordsWithFiles then
+            syncRecordsWithFiles()
+        end
+
+        if updateStatus then
+            updateStatus(true)
+        end
+    end
+end)
+
 -- ==================== 启动提示 ====================
 updateStatus()
 
 print("抓包已启动")
+print("保存目录:", folderName)
