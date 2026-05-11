@@ -1,0 +1,807 @@
+-- WindUI Version
+-- 原作者: mafuyu
+-- 汉化 & WindUI 重构
+
+local MainTab = Window:Tab({
+    Title = "主要功能",
+    Icon = "lucide:home",
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Camera = workspace.CurrentCamera
+
+local player = Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp
+
+local remote = nil
+local sharkName = nil
+
+local validWeapons = ReplicatedStorage:WaitForChild("ClientViewportObjects"):WaitForChild("Weapons")
+
+local remotesFolder = ReplicatedStorage
+    :WaitForChild("Projectiles")
+    :WaitForChild("Events")
+    :WaitForChild("Weapons")
+    :WaitForChild("remotes")
+
+--------------------------------------------------
+-- Hook Remote
+--------------------------------------------------
+
+local function hookRemote(remoteObject)
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+
+    local oldNamecall = mt.__namecall
+
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+
+        if self == remoteObject and (method == "FireServer" or method == "InvokeServer") then
+            remote = self.Name
+
+            mt.__namecall = oldNamecall
+            setreadonly(mt, true)
+        end
+
+        return oldNamecall(self, ...)
+    end)
+end
+
+for _, child in ipairs(remotesFolder:GetChildren()) do
+    if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+        pcall(hookRemote, child)
+    end
+end
+
+--------------------------------------------------
+-- 防挂机
+--------------------------------------------------
+
+local afk = player.PlayerScripts:FindFirstChild("AFK")
+if afk then
+    afk:Destroy()
+end
+
+local hud = player.PlayerScripts:FindFirstChild("HUD")
+
+if hud then
+    local oxygen = hud:FindFirstChild("Oxygen")
+
+    if oxygen then
+        oxygen:Destroy()
+    end
+end
+
+--------------------------------------------------
+-- 更新角色
+--------------------------------------------------
+
+local function updateHRP()
+    character = player.Character or player.CharacterAdded:Wait()
+    backpack = player:WaitForChild("Backpack")
+
+    local humanoid = character:WaitForChild("Humanoid")
+
+    hrp = humanoid and humanoid.RootPart
+end
+
+player.CharacterAdded:Connect(updateHRP)
+
+if player.Character then
+    updateHRP()
+end
+
+--------------------------------------------------
+-- 取消坐下
+--------------------------------------------------
+
+local function unseat()
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if humanoid and humanoid.SeatPart then
+        humanoid.Sit = false
+    end
+end
+
+--------------------------------------------------
+-- 鲨鱼检测
+--------------------------------------------------
+
+local sharksFolder = workspace:WaitForChild("Sharks")
+
+local function getShark()
+    for _, shark in ipairs(sharksFolder:GetChildren()) do
+        if shark:IsA("Model") then
+            sharkName = shark.Name
+            return
+        end
+    end
+
+    sharkName = nil
+end
+
+getShark()
+
+sharksFolder.ChildAdded:Connect(getShark)
+sharksFolder.ChildRemoved:Connect(getShark)
+
+--------------------------------------------------
+-- 鲨鱼中心计算
+--------------------------------------------------
+
+local currentSide = 1
+local sharkCenterResults = {{}, {}, {}, {}}
+
+local sharkRaycastParams = RaycastParams.new()
+sharkRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function getSharkCenter(shark)
+    local boundingCFrame, boundingSize = shark:GetBoundingBox()
+
+    local sharkCenter = boundingCFrame.Position - Vector3.new(0, boundingSize.Y * 0.125, 0)
+
+    sharkRaycastParams.FilterDescendantsInstances = {character, shark}
+
+    for i, angle in ipairs({0, 90, 180, 270}) do
+        local rad = math.rad(angle)
+
+        local dirToTest = Vector3.new(math.cos(rad), 0, math.sin(rad))
+
+        local rayResult = workspace:Raycast(
+            sharkCenter,
+            dirToTest * 300,
+            sharkRaycastParams
+        )
+
+        sharkCenterResults[i].dist = rayResult and rayResult.Distance or 300
+        sharkCenterResults[i].dir = dirToTest
+    end
+
+    if sharkCenterResults[currentSide].dist < 150 then
+        local bestSide = currentSide
+        local bestDist = sharkCenterResults[currentSide].dist
+
+        for i = 1, 4 do
+            if sharkCenterResults[i].dist > bestDist then
+                bestDist = sharkCenterResults[i].dist
+                bestSide = i
+            end
+        end
+
+        currentSide = bestSide
+    end
+
+    local current = sharkCenterResults[currentSide]
+
+    return sharkCenter + current.dir * current.dist
+end
+
+--------------------------------------------------
+-- 杀鲨鱼
+--------------------------------------------------
+
+local function KillShark()
+    if sharkName and remote then
+        local shark = sharksFolder:FindFirstChild(sharkName)
+
+        if shark then
+            remotesFolder:WaitForChild(remote):FireServer(shark, true)
+        end
+    end
+end
+
+--------------------------------------------------
+-- 自动农场 Section
+--------------------------------------------------
+
+local AutoFarmSection = MainTab:Section({
+    Title = "自动刷钱",
+    Opened = true,
+})
+
+local runningConnection
+local lastClickTime = 0
+local clickCooldown = 1
+
+AutoFarmSection:Toggle({
+    Title = "自动击杀鲨鱼",
+    Desc = "投射物武器无效",
+    Value = false,
+    Flag = "AutoKillShark",
+
+    Callback = function(on)
+
+        if on and (not getrawmetatable or not setreadonly or not newcclosure) then
+
+            WindUI:Notify({
+                Title = "执行器不支持",
+                Content = "缺少 getrawmetatable / setreadonly / newcclosure",
+                Duration = 4,
+                Icon = "lucide:triangle-alert",
+            })
+
+            return
+        end
+
+        if on then
+
+            runningConnection = RunService.Heartbeat:Connect(function()
+
+                if not (player.Team and player.Team.Name == "Survivor" and hrp) then
+                    return
+                end
+
+                if not sharkName then
+
+                    Camera.CameraType = Enum.CameraType.Custom
+
+                    local chinook = workspace:FindFirstChild("Chinook")
+                    local interior = chinook and chinook:FindFirstChild("interior")
+
+                    if interior then
+                        unseat()
+                        hrp.CFrame = interior.CFrame
+                    end
+
+                else
+
+                    local shark = sharksFolder:FindFirstChild(sharkName)
+
+                    if shark then
+
+                        local sharkPart =
+                            shark.PrimaryPart
+                            or shark:FindFirstChildWhichIsA("BasePart", true)
+
+                        if sharkPart then
+
+                            if next(backpack:GetChildren()) then
+                                for _, tool in ipairs(backpack:GetChildren()) do
+                                    if tool:IsA("Tool") and validWeapons:FindFirstChild(tool.Name) then
+                                        tool.Parent = character
+                                    end
+                                end
+                            end
+
+                            if not remote then
+
+                                local boundingCFrame, boundingSize = shark:GetBoundingBox()
+
+                                local directCenter =
+                                    boundingCFrame.Position
+                                    - Vector3.new(0, boundingSize.Y * 0.125, 0)
+
+                                unseat()
+
+                                hrp.CFrame = CFrame.new(directCenter)
+
+                                Camera.CameraType = Enum.CameraType.Scriptable
+                                Camera.CFrame = CFrame.new(directCenter, sharkPart.Position)
+
+                                local equippedTool = character:FindFirstChildOfClass("Tool")
+
+                                if equippedTool then
+
+                                    local now = os.clock()
+
+                                    if now - lastClickTime >= clickCooldown then
+
+                                        local vp = Camera.ViewportSize
+
+                                        local cx, cy = vp.X / 2, vp.Y / 2
+
+                                        VirtualInputManager:SendMouseMoveEvent(cx, cy, game)
+
+                                        VirtualInputManager:SendMouseButtonEvent(
+                                            cx,
+                                            cy,
+                                            0,
+                                            true,
+                                            game,
+                                            1
+                                        )
+
+                                        VirtualInputManager:SendMouseButtonEvent(
+                                            cx,
+                                            cy,
+                                            0,
+                                            false,
+                                            game,
+                                            1
+                                        )
+
+                                        lastClickTime = now
+                                    end
+                                end
+
+                            else
+
+                                local sharkCenter = getSharkCenter(shark)
+
+                                Camera.CameraType = Enum.CameraType.Custom
+
+                                unseat()
+
+                                hrp.CFrame = CFrame.new(sharkCenter)
+
+                                KillShark()
+                            end
+                        end
+                    end
+                end
+            end)
+
+        else
+
+            Camera.CameraType = Enum.CameraType.Custom
+
+            if runningConnection then
+                runningConnection:Disconnect()
+                runningConnection = nil
+            end
+        end
+    end
+})
+
+--------------------------------------------------
+-- 鲨鱼自动胜利
+--------------------------------------------------
+
+local DestructionParts = {}
+
+local AutoWinConnection
+local SharksDescendantConnection
+
+local function getSharkModel(part)
+
+    local current = part.Parent
+
+    while current and current ~= sharksFolder do
+
+        if current.Parent == sharksFolder then
+            return current
+        end
+
+        current = current.Parent
+    end
+
+    return nil
+end
+
+local function getFrontPart(shark, parts)
+
+    if #parts == 0 then
+        return nil
+    end
+
+    if #parts == 1 then
+        return parts[1]
+    end
+
+    local root =
+        shark.PrimaryPart
+        or shark:FindFirstChildWhichIsA("BasePart", true)
+
+    if not root then
+        return parts[1]
+    end
+
+    local lookVector = root.CFrame.LookVector
+
+    local bestPart
+    local bestDot = -math.huge
+
+    for _, part in ipairs(parts) do
+
+        if part and part.Parent then
+
+            local dir = part.Position - root.Position
+
+            if dir.Magnitude > 0 then
+
+                local dot = lookVector:Dot(dir.Unit)
+
+                if dot > bestDot then
+                    bestDot = dot
+                    bestPart = part
+                end
+            end
+        end
+    end
+
+    return bestPart
+end
+
+local function addDestructionPart(part)
+
+    local shark = getSharkModel(part)
+
+    if not shark then
+        return
+    end
+
+    if not DestructionParts[shark] then
+
+        DestructionParts[shark] = {}
+
+        shark.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                DestructionParts[shark] = nil
+            end
+        end)
+    end
+
+    table.insert(DestructionParts[shark], part)
+
+    part.AncestryChanged:Connect(function(_, parent)
+
+        if parent then
+            return
+        end
+
+        local list = DestructionParts[shark]
+
+        if not list then
+            return
+        end
+
+        for i = #list, 1, -1 do
+            if list[i] == part then
+                table.remove(list, i)
+                break
+            end
+        end
+    end)
+end
+
+local function getNearestSurvivorToPart(part)
+
+    local nearestPlayer
+    local nearestDist = math.huge
+
+    for _, plr in Players:GetPlayers() do
+
+        if plr ~= player and plr.Team and plr.Team.Name == "Survivor" then
+
+            local char = plr.Character
+
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+            local hrpTarget = humanoid and humanoid.RootPart
+
+            if hrpTarget and not hrpTarget:FindFirstChild("Attachment") then
+
+                local dist = (hrpTarget.Position - part.Position).Magnitude
+
+                if dist < nearestDist then
+                    nearestDist = dist
+                    nearestPlayer = plr
+                end
+            end
+        end
+    end
+
+    return nearestPlayer
+end
+
+AutoFarmSection:Toggle({
+    Title = "鲨鱼自动获胜",
+    Desc = "作为鲨鱼自动追击玩家",
+    Value = false,
+    Flag = "AutoWinShark",
+
+    Callback = function(state)
+
+        if state then
+
+            for _, d in ipairs(sharksFolder:GetDescendants()) do
+                if d:IsA("BasePart") and d.Name == "DestructionPart" then
+                    addDestructionPart(d)
+                end
+            end
+
+            SharksDescendantConnection =
+                sharksFolder.DescendantAdded:Connect(function(desc)
+
+                    if desc:IsA("BasePart") and desc.Name == "DestructionPart" then
+                        addDestructionPart(desc)
+                    end
+                end)
+
+            AutoWinConnection = RunService.Heartbeat:Connect(function()
+
+                if not (player.Team and player.Team.Name == "Shark") then
+                    return
+                end
+
+                for shark, parts in DestructionParts do
+
+                    local ownerValue = shark:FindFirstChild("PlayerOwner")
+
+                    if not (
+                        ownerValue
+                        and ownerValue:IsA("ObjectValue")
+                        and ownerValue.Value == player
+                    ) then
+                        continue
+                    end
+
+                    local frontPart = getFrontPart(shark, parts)
+
+                    if not frontPart or not frontPart.Parent then
+                        continue
+                    end
+
+                    local targetPlayer = getNearestSurvivorToPart(frontPart)
+
+                    if targetPlayer and targetPlayer.Character then
+
+                        local humanoid =
+                            targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+                        local targetHRP = humanoid and humanoid.RootPart
+
+                        if targetHRP then
+
+                            local rotation =
+                                CFrame.Angles(math.rad(-90), math.rad(90), 0)
+
+                            frontPart.CFrame =
+                                CFrame.new(targetHRP.Position)
+                                * rotation
+                                * CFrame.new(-frontPart.Size.X / 2, 0, 0)
+                        end
+                    end
+                end
+            end)
+
+        else
+
+            if AutoWinConnection then
+                AutoWinConnection:Disconnect()
+                AutoWinConnection = nil
+            end
+
+            if SharksDescendantConnection then
+                SharksDescendantConnection:Disconnect()
+                SharksDescendantConnection = nil
+            end
+
+            table.clear(DestructionParts)
+        end
+    end
+})
+
+--------------------------------------------------
+-- ESP Section
+--------------------------------------------------
+
+local ESPSection = MainTab:Section({
+    Title = "鲨鱼透视",
+    Opened = true,
+})
+
+local sharkESPConnections = {}
+local espWatching = false
+
+local function setSharkESP(enabled)
+
+    for _, conn in ipairs(sharkESPConnections) do
+        conn:Disconnect()
+    end
+
+    table.clear(sharkESPConnections)
+
+    espWatching = false
+
+    for _, desc in ipairs(sharksFolder:GetDescendants()) do
+
+        if desc:IsA("Highlight") then
+
+            desc.Enabled = enabled
+            desc.OutlineTransparency = enabled and 0 or 1
+
+            if enabled then
+
+                table.insert(
+                    sharkESPConnections,
+
+                    desc:GetPropertyChangedSignal("Enabled"):Connect(function()
+
+                        if not desc.Enabled then
+                            desc.Enabled = true
+                        end
+                    end)
+                )
+
+                table.insert(
+                    sharkESPConnections,
+
+                    desc:GetPropertyChangedSignal("OutlineTransparency"):Connect(function()
+
+                        if desc.OutlineTransparency ~= 0 then
+                            desc.OutlineTransparency = 0
+                        end
+                    end)
+                )
+            end
+        end
+    end
+
+    if enabled and not espWatching then
+
+        espWatching = true
+
+        table.insert(
+            sharkESPConnections,
+
+            sharksFolder.DescendantAdded:Connect(function(desc)
+
+                if desc:IsA("Highlight") then
+
+                    desc.Enabled = true
+                    desc.OutlineTransparency = 0
+
+                    table.insert(
+                        sharkESPConnections,
+
+                        desc:GetPropertyChangedSignal("Enabled"):Connect(function()
+
+                            if not desc.Enabled then
+                                desc.Enabled = true
+                            end
+                        end)
+                    )
+
+                    table.insert(
+                        sharkESPConnections,
+
+                        desc:GetPropertyChangedSignal("OutlineTransparency"):Connect(function()
+
+                            if desc.OutlineTransparency ~= 0 then
+                                desc.OutlineTransparency = 0
+                            end
+                        end)
+                    )
+                end
+            end)
+        )
+    end
+end
+
+ESPSection:Toggle({
+    Title = "高亮鲨鱼 ESP",
+    Desc = "持续显示鲨鱼轮廓",
+    Value = false,
+    Flag = "SharkESP",
+
+    Callback = function(state)
+        setSharkESP(state)
+    end
+})
+
+--------------------------------------------------
+-- 花瓶 Section
+--------------------------------------------------
+
+local VaseSection = MainTab:Section({
+    Title = "自动花瓶",
+    Opened = true,
+})
+
+local VaseTouchParts = {}
+local VaseConnections = {}
+local VaseHeartbeat
+
+local function AddVaseTouch(part)
+
+    table.insert(VaseTouchParts, part)
+
+    part.AncestryChanged:Connect(function(_, parent)
+
+        if parent then
+            return
+        end
+
+        for i = #VaseTouchParts, 1, -1 do
+            if VaseTouchParts[i] == part then
+                table.remove(VaseTouchParts, i)
+                break
+            end
+        end
+    end)
+end
+
+VaseSection:Toggle({
+    Title = "自动触碰花瓶",
+    Desc = "高风险功能，容易被检测",
+    Value = false,
+    Flag = "AutoTouchVases",
+
+    Callback = function(state)
+
+        if state then
+
+            local folder = workspace:FindFirstChild("Vases")
+
+            if folder then
+
+                for _, d in ipairs(folder:GetDescendants()) do
+                    if d:IsA("TouchTransmitter") then
+                        AddVaseTouch(d)
+                    end
+                end
+
+                table.insert(
+                    VaseConnections,
+
+                    folder.DescendantAdded:Connect(function(desc)
+
+                        if desc:IsA("TouchTransmitter") then
+                            AddVaseTouch(desc)
+                        end
+                    end)
+                )
+            end
+
+            VaseHeartbeat = RunService.Heartbeat:Connect(function()
+
+                local char = player.Character
+
+                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+                local charHRP = humanoid and humanoid.RootPart
+
+                if not charHRP then
+                    return
+                end
+
+                for _, t in ipairs(VaseTouchParts) do
+
+                    if t and t.Parent and t.Parent:IsA("BasePart") then
+
+                        local part = t.Parent
+
+                        unseat()
+
+                        charHRP.CFrame = part.CFrame
+
+                        firetouchinterest(charHRP, part, 0)
+                        firetouchinterest(charHRP, part, 1)
+                    end
+                end
+            end)
+
+        else
+
+            for _, c in ipairs(VaseConnections) do
+                c:Disconnect()
+            end
+
+            table.clear(VaseConnections)
+            table.clear(VaseTouchParts)
+
+            if VaseHeartbeat then
+                VaseHeartbeat:Disconnect()
+                VaseHeartbeat = nil
+            end
+        end
+    end
+})
+
+--------------------------------------------------
+-- 加载通知
+--------------------------------------------------
+
+WindUI:Notify({
+    Title = "加载成功",
+    Content = "Sharkbite 2 WindUI 汉化版已启动",
+    Duration = 5,
+    Icon = "lucide:check",
+})
