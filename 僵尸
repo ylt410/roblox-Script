@@ -16,7 +16,6 @@ end
 local Confirmed = false
 local Tabs = {}
 Tabs.MainTab = Window:Tab({ Title = "主页", Icon = "home" })
-Tabs.SettingsTab = Window:Tab({ Title = "设置", Icon = "settings" })
 Tabs.ESPTab = Window:Tab({ Title = "透视", Icon = "eye" })
 
 local function setWalkSpeed(value)
