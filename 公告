@@ -1,6 +1,6 @@
 -- ================= 配置 =================
 local Players = game:GetService("Players")
-local FILE_NAME = "saveV1.6.txt"
+local FILE_NAME = "saveV1.6.3.txt"
 local BALL_COUNT = 14
 
 -- ================= 状态检测 =================
@@ -150,7 +150,7 @@ if not alreadyRead then
     TextLabel.TextYAlignment = Enum.TextYAlignment.Top
     TextLabel.TextTransparency = 1
     TextLabel.ZIndex = 11
-    TextLabel.Text = "公告\n最近确实没想到更新什么\n要什么功能自行进群反馈"
+    TextLabel.Text = "公告\n更新了很多东西\n还有就是你们别在我群里乱聊\n已经禁止搜索了"
     TextLabel.Parent = Frame
 
     -- 按钮
