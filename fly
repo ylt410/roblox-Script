@@ -1,212 +1,471 @@
--- 精简版：GUI 左上（小），速度以 1 为单位增减，但每 1 单位映射为更快的实际速度
--- 把此 LocalScript 放在 StarterGui
+-- 夜脚本制作：左上小型可拖动飞行 GUI
+-- 放入 StarterGui 的 LocalScript
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ===== UI（左上、缩小版） =====
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SimpleVIPFlyUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- 防止重复生成 GUI
+local oldGui = playerGui:FindFirstChild("NightFlyUI")
+if oldGui then
+	oldGui:Destroy()
+end
 
-local leftFrame = Instance.new("Frame")
-leftFrame.Size = UDim2.new(0, 200, 0, 110)
-leftFrame.Position = UDim2.new(0, 12, 0, 12)
-leftFrame.BackgroundTransparency = 1
-leftFrame.Parent = screenGui
+-- =========================
+-- 配置区
+-- =========================
 
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 180, 0, 40)
-toggleBtn.Position = UDim2.new(0, 0, 0, 0)
-toggleBtn.TextScaled = true
-toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-toggleBtn.TextColor3 = Color3.fromRGB(1,1,1)
-toggleBtn.Parent = leftFrame
-local tCorner = Instance.new("UICorner", toggleBtn); tCorner.CornerRadius = UDim.new(0,6)
-local tStroke = Instance.new("UIStroke", toggleBtn); tStroke.Color = Color3.fromRGB(120,120,255); tStroke.Thickness = 2
+local UI_NAME = "NightFlyUI"
+local TITLE_NAME = "夜脚本制作"
+local TITLE_OFF = "夜脚本制作 · 开启飞行"
+local TITLE_ON = "夜脚本制作 · 飞行中"
 
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0, 180, 0, 20)
-speedLabel.Position = UDim2.new(0, 0, 0, 44)
-speedLabel.BackgroundTransparency = 1
-speedLabel.TextScaled = false
-speedLabel.TextSize = 18
-speedLabel.TextColor3 = Color3.fromRGB(230,230,230)
-speedLabel.TextXAlignment = Enum.TextXAlignment.Left
-speedLabel.Parent = leftFrame
-
-local minusBtn = Instance.new("TextButton")
-minusBtn.Size = UDim2.new(0, 36, 0, 36)
-minusBtn.Position = UDim2.new(0, 0, 0, 68)
-minusBtn.Text = "-"
-minusBtn.TextScaled = true
-minusBtn.BackgroundColor3 = Color3.fromRGB(55,55,55)
-minusBtn.Parent = leftFrame
-local mCorner = Instance.new("UICorner", minusBtn); mCorner.CornerRadius = UDim.new(0,6)
-
-local plusBtn = Instance.new("TextButton")
-plusBtn.Size = UDim2.new(0, 36, 0, 36)
-plusBtn.Position = UDim2.new(0, 144, 0, 68)
-plusBtn.Text = "+"
-plusBtn.TextScaled = true
-plusBtn.BackgroundColor3 = Color3.fromRGB(55,55,55)
-plusBtn.Parent = leftFrame
-local pCorner = Instance.new("UICorner", plusBtn); pCorner.CornerRadius = UDim.new(0,6)
-
-local speedHint = Instance.new("TextLabel")
-speedHint.Size = UDim2.new(0, 100, 0, 36)
-speedHint.Position = UDim2.new(0, 44, 0, 68)
-speedHint.BackgroundTransparency = 1
-speedHint.Text = "速度"
-speedHint.TextScaled = true
-speedHint.TextColor3 = Color3.fromRGB(200,200,200)
-speedHint.Parent = leftFrame
-
--- ===== 飞行变量 =====
-local flying = false
-local bv, bg
-local renderConn, charRemovingConn
-
--- 用户可见的“单位速度”，从 1 开始，每次 +1 / -1
+-- 用户看到的速度：1, 2, 3, 4...
 local speed = 1
-local minSpeed, maxSpeed = 0.1, 200   -- 用户可见速度范围（可调整）
-local speedStep = 1                    -- 每次 +1 / -1
+local minSpeed = 1
+local maxSpeed = 80
+local speedStep = 1
 
--- speedScale：把“1 单位”映射成多少实际 studs/s（你要每 1 更快就调大这个值）
-local speedScale = 40                  -- ← 关键：每 1 单位等于 40 studs/s（你可以改成更大）
-local function effectiveSpeed()
+-- 每 1 点速度映射成多少真实速度
+-- 想更快就改大，比如 70 / 90 / 120
+local speedScale = 55
+
+local function getRealSpeed()
 	return speed * speedScale
 end
 
-local function refreshSpeedLabel()
-	-- 显示两者：用户单位和实际速度，便于调试
-	speedLabel.Text = string.format("速度：%.0f  (实速：%.1f)", speed, effectiveSpeed())
+-- =========================
+-- UI 工具函数
+-- =========================
+
+local function addCorner(obj, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 6)
+	corner.Parent = obj
+	return corner
 end
+
+local function addStroke(obj, color, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color or Color3.fromRGB(120, 120, 255)
+	stroke.Thickness = thickness or 1
+	stroke.Parent = obj
+	return stroke
+end
+
+local function makeTextButton(parent, size, position, text)
+	local btn = Instance.new("TextButton")
+	btn.Size = size
+	btn.Position = position
+	btn.Text = text
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamBold
+	btn.BackgroundColor3 = Color3.fromRGB(42, 42, 48)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.AutoButtonColor = true
+	btn.Parent = parent
+
+	addCorner(btn, 6)
+
+	return btn
+end
+
+local function makeTextLabel(parent, size, position, text)
+	local label = Instance.new("TextLabel")
+	label.Size = size
+	label.Position = position
+	label.Text = text
+	label.TextScaled = false
+	label.TextSize = 15
+	label.Font = Enum.Font.Gotham
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(230, 230, 230)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = parent
+
+	return label
+end
+
+-- =========================
+-- 创建 UI
+-- =========================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = UI_NAME
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 190, 0, 126)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+mainFrame.BackgroundTransparency = 0.12
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+addCorner(mainFrame, 8)
+addStroke(mainFrame, Color3.fromRGB(100, 100, 170), 1)
+
+-- 顶部拖动栏
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, -8, 0, 28)
+topBar.Position = UDim2.new(0, 4, 0, 4)
+topBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+topBar.BackgroundTransparency = 0.05
+topBar.Active = true
+topBar.Parent = mainFrame
+
+addCorner(topBar, 6)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -38, 1, 0)
+titleLabel.Position = UDim2.new(0, 8, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = TITLE_NAME
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextColor3 = Color3.fromRGB(235, 235, 255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+local closeBtn = makeTextButton(
+	topBar,
+	UDim2.new(0, 26, 0, 22),
+	UDim2.new(1, -30, 0, 3),
+	"×"
+)
+closeBtn.BackgroundColor3 = Color3.fromRGB(95, 35, 45)
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local toggleBtn = makeTextButton(
+	mainFrame,
+	UDim2.new(0, 174, 0, 32),
+	UDim2.new(0, 8, 0, 38),
+	TITLE_OFF
+)
+addStroke(toggleBtn, Color3.fromRGB(120, 120, 255), 1.5)
+
+local speedLabel = makeTextLabel(
+	mainFrame,
+	UDim2.new(0, 174, 0, 20),
+	UDim2.new(0, 8, 0, 73),
+	""
+)
+
+local minusBtn = makeTextButton(
+	mainFrame,
+	UDim2.new(0, 34, 0, 26),
+	UDim2.new(0, 8, 0, 95),
+	"-"
+)
+
+local plusBtn = makeTextButton(
+	mainFrame,
+	UDim2.new(0, 34, 0, 26),
+	UDim2.new(0, 148, 0, 95),
+	"+"
+)
+
+local speedHint = Instance.new("TextLabel")
+speedHint.Size = UDim2.new(0, 100, 0, 26)
+speedHint.Position = UDim2.new(0, 45, 0, 95)
+speedHint.BackgroundTransparency = 1
+speedHint.Text = "速度"
+speedHint.TextScaled = true
+speedHint.Font = Enum.Font.GothamBold
+speedHint.TextColor3 = Color3.fromRGB(210, 210, 210)
+speedHint.Parent = mainFrame
+
+local function refreshSpeedLabel()
+	speedLabel.Text = string.format("速度：%d  |  实速：%d", speed, getRealSpeed())
+end
+
 refreshSpeedLabel()
 
--- ===== 创建/清理 BV/BG =====
-local function createBVBG(hrp)
+-- =========================
+-- 拖动功能
+-- =========================
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+local dragInput = nil
+
+local function updateDrag(input)
+	local delta = input.Position - dragStart
+
+	mainFrame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End
+				or input.UserInputState == Enum.UserInputState.Cancel then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		updateDrag(input)
+	end
+end)
+
+-- =========================
+-- 飞行状态
+-- =========================
+
+local flying = false
+local bv = nil
+local bg = nil
+local renderConn = nil
+local charRemovingConn = nil
+
+local currentHumanoid = nil
+local currentChar = nil
+local oldPlatformStand = nil
+local oldAutoRotate = nil
+
+local function setButtonState(isFlying)
+	if isFlying then
+		toggleBtn.Text = TITLE_ON
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 75, 55)
+	else
+		toggleBtn.Text = TITLE_OFF
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(42, 42, 48)
+	end
+end
+
+local function disconnectRender()
+	if renderConn then
+		renderConn:Disconnect()
+		renderConn = nil
+	end
+end
+
+local function disconnectCharacterRemoving()
+	if charRemovingConn then
+		charRemovingConn:Disconnect()
+		charRemovingConn = nil
+	end
+end
+
+local function destroyFlightObjects(char)
+	if bv then
+		bv:Destroy()
+		bv = nil
+	end
+
+	if bg then
+		bg:Destroy()
+		bg = nil
+	end
+
+	if char then
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			for _, obj in ipairs(hrp:GetChildren()) do
+				if obj.Name == "NightFly_BV" or obj.Name == "NightFly_BG" then
+					obj:Destroy()
+				end
+			end
+		end
+	end
+end
+
+local function restoreHumanoidState()
+	if currentHumanoid and currentHumanoid.Parent then
+		if oldPlatformStand ~= nil then
+			currentHumanoid.PlatformStand = oldPlatformStand
+		else
+			currentHumanoid.PlatformStand = false
+		end
+
+		if oldAutoRotate ~= nil then
+			currentHumanoid.AutoRotate = oldAutoRotate
+		else
+			currentHumanoid.AutoRotate = true
+		end
+	end
+
+	currentHumanoid = nil
+	oldPlatformStand = nil
+	oldAutoRotate = nil
+end
+
+local function createFlightObjects(hrp)
 	local newBV = Instance.new("BodyVelocity")
-	newBV.Name = "VIPFly_BV"
-	newBV.MaxForce = Vector3.new(1e5,1e5,1e5)
-	newBV.P = 1e4
-	newBV.Velocity = Vector3.new(0,0,0)
+	newBV.Name = "NightFly_BV"
+	newBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	newBV.P = 12000
+	newBV.Velocity = Vector3.zero
 	newBV.Parent = hrp
 
 	local newBG = Instance.new("BodyGyro")
-	newBG.Name = "VIPFly_BG"
-	newBG.MaxTorque = Vector3.new(1e5,1e5,1e5)
-	newBG.P = 1e4
+	newBG.Name = "NightFly_BG"
+	newBG.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+	newBG.P = 12000
+	newBG.D = 500
 	newBG.CFrame = hrp.CFrame
 	newBG.Parent = hrp
 
 	return newBV, newBG
 end
 
-local function clearFlightObjects(char)
-	if char then
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			for _, v in ipairs(hrp:GetChildren()) do
-				if v.Name == "VIPFly_BV" or v.Name == "VIPFly_BG" then
-					v:Destroy()
-				end
-			end
-		end
-	end
-	if renderConn and renderConn.Connected then
-		renderConn:Disconnect()
-		renderConn = nil
-	end
-	if charRemovingConn and charRemovingConn.Connected then
-		charRemovingConn:Disconnect()
-		charRemovingConn = nil
-	end
-end
+local stopFlying
 
--- ===== 飞行启动/停止（使用 Humanoid.MoveDirection + 摄像机朝向） =====
 local function startFlying()
-	if flying then return end
+	if flying then
+		return
+	end
+
 	local char = player.Character or player.CharacterAdded:Wait()
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not humanoid or not hrp then return end
 
-	-- 在此插入你的 VIP 检查（如需要）
-	-- if not isPlayerVIP(player) then return end
+	if not humanoid or not hrp then
+		return
+	end
 
-	clearFlightObjects(char)
+	if humanoid.Health <= 0 then
+		return
+	end
 
-	bv, bg = createBVBG(hrp)
-	local prevPlatformStand = humanoid.PlatformStand
+	-- VIP 检查可以插这里
+	-- if not isPlayerVIP(player) then
+	-- 	return
+	-- end
+
+	destroyFlightObjects(char)
+	disconnectRender()
+	disconnectCharacterRemoving()
+
+	currentChar = char
+	currentHumanoid = humanoid
+	oldPlatformStand = humanoid.PlatformStand
+	oldAutoRotate = humanoid.AutoRotate
+
 	humanoid.PlatformStand = true
+	humanoid.AutoRotate = false
+
+	bv, bg = createFlightObjects(hrp)
+
+	flying = true
+	setButtonState(true)
 
 	renderConn = RunService.RenderStepped:Connect(function()
-		if not char or not char.Parent then return end
+		if not flying then
+			return
+		end
+
+		if not char.Parent or not humanoid.Parent or not hrp.Parent then
+			stopFlying()
+			return
+		end
+
+		if humanoid.Health <= 0 then
+			stopFlying()
+			return
+		end
 
 		local cam = workspace.CurrentCamera
+		if not cam then
+			return
+		end
+
 		local moveDir = humanoid.MoveDirection
+
 		local camForwardH = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
-		if camForwardH.Magnitude == 0 then camForwardH = Vector3.new(0,0,-1) end
-		camForwardH = camForwardH.Unit
+		if camForwardH.Magnitude < 0.001 then
+			camForwardH = Vector3.new(0, 0, -1)
+		else
+			camForwardH = camForwardH.Unit
+		end
+
 		local camRightH = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z)
-		if camRightH.Magnitude == 0 then camRightH = Vector3.new(1,0,0) end
-		camRightH = camRightH.Unit
+		if camRightH.Magnitude < 0.001 then
+			camRightH = Vector3.new(1, 0, 0)
+		else
+			camRightH = camRightH.Unit
+		end
 
 		local inputX = moveDir:Dot(camRightH)
 		local inputZ = moveDir:Dot(camForwardH)
 
-		local camRightFull = cam.CFrame.RightVector
-		local camForwardFull = cam.CFrame.LookVector
+		local finalDir = cam.CFrame.RightVector * inputX + cam.CFrame.LookVector * inputZ
+		local finalVelocity = Vector3.zero
 
-		local finalDir = (camRightFull * inputX) + (camForwardFull * inputZ)
-		local finalVel
-		local eff = effectiveSpeed()
 		if finalDir.Magnitude > 0.001 then
-			finalVel = finalDir.Unit * eff
-		else
-			finalVel = Vector3.new(0,0,0)
+			finalVelocity = finalDir.Unit * getRealSpeed()
 		end
 
 		if bv and bv.Parent then
-			bv.Velocity = finalVel
+			bv.Velocity = finalVelocity
 		end
+
 		if bg and bg.Parent then
 			bg.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.CFrame.LookVector)
 		end
 	end)
 
 	charRemovingConn = player.CharacterRemoving:Connect(function()
-		if humanoid and humanoid.Parent then
-			humanoid.PlatformStand = prevPlatformStand
-		end
-		clearFlightObjects(char)
+		destroyFlightObjects(char)
+		disconnectRender()
+		disconnectCharacterRemoving()
+		restoreHumanoidState()
+
 		flying = false
-		toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
+		currentChar = nil
+		setButtonState(false)
 	end)
-
-	flying = true
-	toggleBtn.Text = "环绕阴乐开发 · 飞行中"
 end
 
-local function stopFlying()
-	if not flying then return end
-	local char = player.Character
-	if char then
-		local humanoid = char:FindFirstChildOfClass("Humanoid")
-		if humanoid then humanoid.PlatformStand = false end
-		clearFlightObjects(char)
+stopFlying = function()
+	if not flying then
+		return
 	end
+
+	local char = currentChar or player.Character
+
+	destroyFlightObjects(char)
+	disconnectRender()
+	disconnectCharacterRemoving()
+	restoreHumanoidState()
+
 	flying = false
-	toggleBtn.Text = "环绕阴乐开发 · 开启飞行"
+	currentChar = nil
+	setButtonState(false)
 end
 
--- ===== UI 事件 =====
+-- =========================
+-- UI 事件
+-- =========================
+
 toggleBtn.MouseButton1Click:Connect(function()
 	if flying then
 		stopFlying()
@@ -219,18 +478,29 @@ minusBtn.MouseButton1Click:Connect(function()
 	speed = math.max(minSpeed, speed - speedStep)
 	refreshSpeedLabel()
 end)
+
 plusBtn.MouseButton1Click:Connect(function()
 	speed = math.min(maxSpeed, speed + speedStep)
 	refreshSpeedLabel()
 end)
 
--- 清理保护
+closeBtn.MouseButton1Click:Connect(function()
+	stopFlying()
+	screenGui:Destroy()
+end)
+
+-- GUI 被删除时自动清理
 screenGui.AncestryChanged:Connect(function(_, parent)
-	if not parent and flying then
+	if not parent then
 		stopFlying()
 	end
 end)
 
+-- 重生后默认关闭飞行
 player.CharacterAdded:Connect(function()
-	wait(0.05)
+	if flying then
+		stopFlying()
+	end
+
+	setButtonState(false)
 end)
