@@ -1,0 +1,2344 @@
+local CloneRef = cloneref or (clonereference or function(ref)
+    return ref
+end)
+
+local Vector3_zero = Vector3.zero
+local Vector3_new = Vector3.new
+local CFrame_new = CFrame.new
+local task_wait = task.wait
+local task_spawn = task.spawn
+local task_defer = task.defer
+local math_max = math.max
+local math_min = math.min
+local math_floor = math.floor
+local math_clamp = math.clamp
+local string_format = string.format
+local pairs = pairs
+local ipairs = ipairs
+local pcall = pcall
+local tick = tick
+
+local Services = {
+    RunService = CloneRef(game:GetService("RunService")),
+    Players = CloneRef(game:GetService("Players")),
+    Workspace = CloneRef(game:GetService("Workspace")),
+    TweenService = CloneRef(game:GetService("TweenService")),
+    HttpService = CloneRef(game:GetService("HttpService")),
+    UserInputService = CloneRef(game:GetService("UserInputService")),
+    UserService = CloneRef(game:GetService("UserService"))
+}
+
+local TARGET_LOBBY_PLACE_ID = 125810438250765
+local inLobby = game.PlaceId == TARGET_LOBBY_PLACE_ID
+
+
+WindUI:AddTheme({
+    Name = "My Theme",
+    Accent = Color3.fromHex("#18181b"),
+    Background = Color3.fromHex("#101010"),
+    Outline = Color3.fromHex("#FFFFFF"),
+    Text = Color3.fromHex("#FFFFFF"),
+    Placeholder = Color3.fromHex("#7a7a7a"),
+    Button = Color3.fromHex("#52525b"),
+    Icon = Color3.fromHex("#a1a1aa"),
+})
+
+
+local COLOR_SCHEMES = {
+    ["彩虹颜色"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,    Color3.fromHex("FF0000")),
+        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromHex("00FF00")),
+        ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+        ColorSequenceKeypoint.new(1,    Color3.fromHex("EE82EE"))
+    }), "palette"},
+
+    ["绿黄渐变"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   Color3.fromHex("30FF6A")),
+        ColorSequenceKeypoint.new(0.5, Color3.fromHex("a8ff00")),
+        ColorSequenceKeypoint.new(1,   Color3.fromHex("e7ff2f"))
+    }), "waves"},
+}
+
+local borderAnimation
+local animationSpeed = 5
+
+local function createRainbowBorder(window, colorScheme)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+
+    local existingStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if existingStroke then existingStroke:Destroy() end
+
+    if not mainFrame:FindFirstChildOfClass("UICorner") then
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 16)
+        corner.Parent = mainFrame
+    end
+
+    local rainbowStroke = Instance.new("UIStroke")
+    rainbowStroke.Name = "RainbowStroke"
+    rainbowStroke.Thickness = 2
+    rainbowStroke.Color = Color3.new(1, 1, 1)
+    rainbowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rainbowStroke.LineJoinMode = Enum.LineJoinMode.Round
+    rainbowStroke.Parent = mainFrame
+
+    local glowEffect = Instance.new("UIGradient")
+    glowEffect.Name = "GlowEffect"
+    local schemeData = COLOR_SCHEMES[colorScheme or "彩虹颜色"]
+    glowEffect.Color = schemeData and schemeData[1] or COLOR_SCHEMES["彩虹颜色"][1]
+    glowEffect.Rotation = 0
+    glowEffect.Parent = rainbowStroke
+
+    return rainbowStroke
+end
+
+local function startBorderAnimation(window, speed)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+    local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if not rainbowStroke then return nil end
+    local glowEffect = rainbowStroke:FindFirstChild("GlowEffect")
+    if not glowEffect then return nil end
+
+    return game:GetService("RunService").Heartbeat:Connect(function()
+        if not rainbowStroke or rainbowStroke.Parent == nil then return end
+        glowEffect.Rotation = (tick() * speed * 10) % 360
+    end)
+end
+
+local rainbowStroke = createRainbowBorder(Window, "彩虹颜色")
+if rainbowStroke then
+    borderAnimation = startBorderAnimation(Window, animationSpeed)
+end
+
+local Lighting = game:GetService("Lighting")
+local TweenServiceBlur = game:GetService("TweenService")
+
+local blur = Lighting:FindFirstChildOfClass("BlurEffect")
+if not blur then
+    blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = Lighting
+end
+
+task.spawn(function()
+    local wasOpen = false
+    while true do
+        task.wait(0.1)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        local isOpen = mainFrame and mainFrame.Visible or false
+        
+        if isOpen ~= wasOpen then
+            wasOpen = isOpen
+            TweenServiceBlur:Create(blur, TweenInfo.new(0.3), {
+                Size = isOpen and 20 or 0
+            }):Play()
+        end
+    end
+end)
+
+local Tabs = {
+    Main = Window:Tab({
+        Title = "主要功能",
+        Icon = "atom"
+    }),
+    Auto = Window:Tab({
+        Title = "农场",
+        Icon = "play-circle"
+    }),
+    Esp = Window:Tab({
+        Title = "ESP",
+        Icon = "eye"
+    }),
+    Malicious = Window:Tab({
+        Title = "绕过",
+        Icon = "sigma"
+    }),
+    Config = Window:Tab({
+        Title = "配置",
+        Icon = "settings"
+    })
+}
+Window:SelectTab(1)
+
+getgenv().Aero = getgenv().Aero or {
+    SpeedEnabled = false,
+    StaminaEnabled = false,
+    InvincibleEnabled = false,
+    AnySellEnabled = false,
+    FullBrightEnabled = false,
+    ItemEspEnabled = false,
+    ItemEspTypes = {"价格"},
+    ItemEspMinPrice = "0",
+    MonsterEspEnabled = false,
+    MonsterEspTypes = {"方框"},
+    NpcEspEnabled = false,
+    NpcEspTypes = {"方框", "名称", "距离"},
+    AutoCollectEnabled = false,
+    AutoOpenEnabled = false,
+    AutoNextFloorEnabled = false,
+    AutoPickupEnabled = false,
+    AutoCollectEggEnabled = false,
+    AutoStartEnabled = true,
+    AutoStopEnabled = false,
+    StopFloor = "5",
+}
+
+_G.AeroControls = _G.AeroControls or {}
+
+local WorldLoots = nil
+local Camera = nil
+if not inLobby then
+    WorldLoots = Services.Workspace.GameSystem.Loots:WaitForChild("World")
+    Camera = Services.Workspace.CurrentCamera
+end
+
+local EspSystem = {}
+EspSystem.Config = {
+    Item = {
+        Enabled = false,
+        Types = {
+            Tracer = false,
+            Name = false,
+            Distance = false,
+            Price = true
+        },
+        Colors = {
+            Tracer = Color3.fromRGB(255, 255, 255),
+            Text = Color3.fromRGB(255, 255, 255)
+        },
+        MinPrice = 0,
+        MaxDistance = math.huge
+    },
+    Monster = {
+        Enabled = false,
+        Types = {
+            Box = true,
+            Name = false,
+            Distance = false
+        },
+        Colors = {
+            Box = Color3.fromRGB(255, 0, 0),
+            Text = Color3.fromRGB(255, 0, 0)
+        },
+        MaxDistance = math.huge
+    },
+    Npc = {
+        Enabled = false,
+        Types = {
+            Box = true,
+            Name = true,
+            Distance = true
+        },
+        Colors = {
+            Box = Color3.fromRGB(0, 255, 0),
+            Text = Color3.fromRGB(0, 255, 0)
+        },
+        MaxDistance = math.huge
+    }
+}
+
+EspSystem.Item = {
+    Tracers = {},
+    EspCache = {},
+    RenderConn = nil,
+    ChildAddedConn = nil,
+    ChildrenCache = {}, 
+    LastUpdateTime = 0,
+    UpdateInterval = 0.033 
+}
+
+EspSystem.Monster = {
+    EspCache = {},
+    RenderConn = nil,
+    ChildAddedConn = nil,
+    ChildrenCache = {},
+    NetworkOwnershipSet = {},
+    LastUpdateTime = 0,
+    UpdateInterval = 0.033
+}
+
+EspSystem.Npc = {
+    EspCache = {},
+    RenderConn = nil,
+    ChildAddedConn = nil,
+    ChildrenCache = {},
+    NetworkOwnershipSet = {},
+    LastUpdateTime = 0,
+    UpdateInterval = 0.033
+}
+
+function EspSystem.CreateTracer()
+    local line = Drawing.new("Line")
+    line.Thickness = 3
+    line.Transparency = 0.15
+    line.Visible = false
+    return line
+end
+
+function EspSystem.CreateText()
+    local text = Drawing.new("Text")
+    text.Size = 16
+    text.Center = true
+    text.Outline = true
+    text.OutlineColor = Color3.fromRGB(0, 0, 0)
+    if Drawing.Fonts then
+        text.Font = Drawing.Fonts.Monospace
+    end
+    text.Visible = false
+    return text
+end
+
+function EspSystem.GetPriceColor(price)
+    if price >= 10000 then
+        return Color3.fromRGB(255, 215, 0)
+    elseif price >= 5000 then
+        return Color3.fromRGB(255, 165, 0)
+    elseif price >= 2000 then
+        return Color3.fromRGB(50, 205, 50)
+    elseif price >= 1000 then
+        return Color3.fromRGB(135, 206, 250)
+    else
+        return Color3.fromRGB(255, 255, 255)
+    end
+end
+
+function EspSystem.TranslateItemName(englishName)
+    if not englishName or englishName == "" then
+        return "未知物品"
+    end
+    local nameMap = {
+        ["Knife"] = "小刀",["Sword"] = "剑",["Gun"] = "枪",["Pistol"] = "手枪",["Rifle"] = "步枪",["Shotgun"] = "霰弹枪",
+        ["Axe"] = "斧头",["Hammer"] = "锤子",["Bat"] = "球棒",["Crowbar"] = "撬棍",["Flashlight"] = "手电筒",["Key"] = "钥匙",
+        ["Lockpick"] = "开锁器",["Medkit"] = "医疗包",["Bandage"] = "绷带",["Food"] = "食物",["Water"] = "水",["Battery"] = "电池",
+        ["Box"] = "箱子",["Crate"] = "板条箱",["Container"] = "容器",["Bag"] = "包",["Backpack"] = "背包",["Fridge"] = "冰箱",
+        ["Freezer"] = "冷冻柜",["Cabinet"] = "柜子",["Drawer"] = "抽屉",["Money"] = "金钱",["Cash"] = "现金",["Coin"] = "硬币",
+        ["Gold"] = "黄金",["Silver"] = "白银",["Metal"] = "金属",["Wood"] = "木材",["Stone"] = "石头",["Cloth"] = "布料",
+        ["Egg"] = "蛋",["Item"] = "物品",["Loot"] = "战利品",["Treasure"] = "宝藏",["Artifact"] = "文物",["Document"] = "文件",
+        ["Note"] = "笔记",["Paper"] = "纸张",["Book"] = "书",["Map"] = "地图",["Keycard"] = "门卡",["ID Card"] = "身份证",
+        ["Phone"] = "手机",["Radio"] = "收音机",["Tool"] = "工具",["Equipment"] = "装备",["Weapon"] = "武器",["Ammo"] = "弹药",
+        ["Bullet"] = "子弹",["Grenade"] = "手榴弹",
+    }
+    if nameMap[englishName] then
+        return nameMap[englishName]
+    end
+    local lowerName = string.lower(englishName)
+    for eng, chn in pairs(nameMap) do
+        if string.lower(eng) == lowerName then
+            return chn
+        end
+    end
+    for eng, chn in pairs(nameMap) do
+        if string.find(lowerName, string.lower(eng)) or string.find(string.lower(eng), lowerName) then
+            return chn
+        end
+    end
+    return englishName
+end
+
+function EspSystem.FormatPrice(price)
+    if price >= 10000 then
+        return string.format("%.1f千", price / 1000)
+    elseif price >= 1000 then
+        return string.format("%.2f千", price / 1000)
+    else
+        return tostring(price)
+    end
+end
+
+function EspSystem.CreateBox()
+    local highlight = Instance.new("Highlight")
+    highlight.FillTransparency = 1
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = false
+    return highlight
+end
+
+function EspSystem.FindInteractablePart(item)
+    for _, descendant in ipairs(item:GetDescendants()) do
+        if descendant:IsA("BasePart") and descendant.Name == "Interactable" then
+            return descendant
+        end
+    end
+    return nil
+end
+
+function EspSystem.GetPrimaryPart(model)
+    return model.PrimaryPart 
+        or model:FindFirstChild("HumanoidRootPart", true) 
+        or model:FindFirstChild("Checker", true) 
+        or model:FindFirstChild("Hitbox", true)
+        or model:FindFirstChildOfClass("BasePart", true)
+end
+
+function EspSystem.GetMonsterName(monster)
+    if monster:FindFirstChild("BZ") and monster:FindFirstChild("CBZ") and monster:FindFirstChild("CBY") then
+        return "火鸡"
+    elseif monster:FindFirstChild("none") and monster:FindFirstChild("Y0") then
+        return "坑虫"
+    elseif monster:FindFirstChild("Head") and monster.Head:FindFirstChild("LayerCount") then
+        return "模仿者"
+    elseif monster:FindFirstChild("1C1") and monster:FindFirstChild("Door") then
+        return "假冰箱"
+    elseif monster:FindFirstChild("LeLower_Leg") and monster:FindFirstChild("HumanoidRootPart") then
+        return "行走食物"
+    elseif monster:FindFirstChild("Waist1") and monster:FindFirstChild("AnimSaves") then
+        return "遗忘者"
+    elseif monster:FindFirstChild("Bubble") and monster:FindFirstChild("Mouth") then
+        return "鳄鱼"
+    elseif monster:FindFirstChild("Tail") and monster:FindFirstChild("WB2") then
+        return "猫"
+    elseif monster:FindFirstChild("WB1") and monster:FindFirstChild("YER") then
+        return "偷袭鼠"
+    elseif monster:FindFirstChild("FullFace") and monster:FindFirstChild("hat") then
+        return "Guest666"
+    end
+    return monster.Name or "未知的怪物"
+end
+
+function EspSystem.CreateItemEsp(item)
+    pcall(function()
+        local lootUI = item:FindFirstChild("LootUI", true)
+        if not lootUI then return end
+        local frame = lootUI:FindFirstChild("Frame")
+        if not frame then return end
+        local nameLbl = frame:FindFirstChild("ItemName")
+        local priceLbl = frame:FindFirstChild("Price")
+        if not nameLbl or not priceLbl then return end
+        local price = tonumber(priceLbl.Text:match("%d+")) or 0
+        if price < EspSystem.Config.Item.MinPrice then return end
+        local adornPart = item:FindFirstChildWhichIsA("BasePart", true)
+        if not adornPart then return end
+        if EspSystem.Item.EspCache[item] then
+            if EspSystem.Item.EspCache[item].highlight then
+                EspSystem.Item.EspCache[item].highlight:Destroy()
+            end
+            if EspSystem.Item.EspCache[item].billboard then
+                EspSystem.Item.EspCache[item].billboard:Destroy()
+            end
+        end
+        local itemColor = Color3.fromRGB(255, 215, 0)
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = itemColor
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = item
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ItemESP"
+        billboard.Adornee = adornPart
+        billboard.Size = UDim2.new(0, 150, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = adornPart
+        local yPos = 0
+        local lineHeight = 0.33
+        local txtName = Instance.new("TextLabel")
+        txtName.Size = UDim2.new(1, 0, lineHeight, 0)
+        txtName.Position = UDim2.new(0, 0, yPos, 0)
+        txtName.BackgroundTransparency = 1
+        txtName.Text = nameLbl.Text
+        txtName.TextColor3 = itemColor
+        txtName.TextStrokeTransparency = 0
+        txtName.TextScaled = false
+        txtName.TextSize = 10
+        txtName.Font = Enum.Font.GothamBold
+        txtName.Visible = EspSystem.Config.Item.Types.Name
+        txtName.Parent = billboard
+        if EspSystem.Config.Item.Types.Name then
+            yPos = yPos + lineHeight
+        end
+        local txtPrice = Instance.new("TextLabel")
+        txtPrice.Size = UDim2.new(1, 0, lineHeight, 0)
+        txtPrice.Position = UDim2.new(0, 0, yPos, 0)
+        txtPrice.BackgroundTransparency = 1
+        txtPrice.Text = price .. "美元"
+        txtPrice.TextColor3 = itemColor
+        txtPrice.TextStrokeTransparency = 0
+        txtPrice.TextScaled = false
+        txtPrice.TextSize = 10
+        txtName.Font = Enum.Font.GothamBold
+        txtPrice.Visible = EspSystem.Config.Item.Types.Price
+        txtPrice.Parent = billboard
+        if EspSystem.Config.Item.Types.Price then
+            yPos = yPos + lineHeight
+        end
+        local txtDist = Instance.new("TextLabel")
+        txtDist.Size = UDim2.new(1, 0, lineHeight, 0)
+        txtDist.Position = UDim2.new(0, 0, yPos, 0)
+        txtDist.BackgroundTransparency = 1
+        txtDist.Text = "0m"
+        txtDist.TextColor3 = itemColor
+        txtDist.TextStrokeTransparency = 0
+        txtDist.TextScaled = false
+        txtDist.TextSize = 10
+        txtDist.Font = Enum.Font.Gotham
+        txtDist.Visible = EspSystem.Config.Item.Types.Distance
+        txtDist.Parent = billboard
+        EspSystem.Item.EspCache[item] = {
+            highlight = highlight,
+            billboard = billboard,
+            txtName = txtName,
+            txtPrice = txtPrice,
+            txtDist = txtDist,
+            price = price
+        }
+    end)
+end
+
+function EspSystem.CreateEntityEsp(model, cache, color, getNameFunc, config)
+    if cache[model] then return end
+    local root = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart", true) or model:FindFirstChildWhichIsA("BasePart", true)
+    if not root then return end
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = color
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.6
+    highlight.OutlineTransparency = 0
+    highlight.Enabled = config and config.Types.Box or false
+    highlight.Parent = model
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EntityESP"
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0, 150, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = root
+    local yPos = 0
+    local lineHeight = 0.5
+    local txtName = Instance.new("TextLabel")
+    txtName.Size = UDim2.new(1, 0, lineHeight, 0)
+    txtName.Position = UDim2.new(0, 0, yPos, 0)
+    txtName.BackgroundTransparency = 1
+    txtName.Text = getNameFunc(model)
+    txtName.TextColor3 = color
+    txtName.TextStrokeTransparency = 0
+    txtName.TextSize = 12
+    txtName.Font = Enum.Font.GothamBold
+    txtName.Visible = config and config.Types.Name or false
+    txtName.Parent = billboard
+    if config and config.Types.Name then
+        yPos = yPos + lineHeight
+    end
+    local txtDist = Instance.new("TextLabel")
+    txtDist.Size = UDim2.new(1, 0, lineHeight, 0)
+    txtDist.Position = UDim2.new(0, 0, yPos, 0)
+    txtDist.BackgroundTransparency = 1
+    txtDist.Text = "0m"
+    txtDist.TextColor3 = color
+    txtDist.TextSize = 10
+    txtDist.Font = Enum.Font.Gotham
+    txtDist.Visible = config and config.Types.Distance or false
+    txtDist.Parent = billboard
+    cache[model] = {
+        highlight = highlight,
+        billboard = billboard,
+        txtName = txtName,
+        txtDist = txtDist
+    }
+end
+
+function EspSystem.CleanupItemEspCache()
+    for item, visuals in pairs(EspSystem.Item.EspCache) do
+        if visuals.highlight then visuals.highlight:Destroy() end
+        if visuals.billboard then visuals.billboard:Destroy() end
+    end
+    EspSystem.Item.EspCache = {}
+end
+
+function EspSystem.CleanupEntityEspCache(cache)
+    for item, visuals in pairs(cache) do
+        if visuals.highlight then visuals.highlight:Destroy() end
+        if visuals.billboard then visuals.billboard:Destroy() end
+    end
+    table.clear(cache)
+end
+
+function EspSystem.UpdateItemEsp()
+    if inLobby then return end
+    local currentTime = tick()
+    if currentTime - EspSystem.Item.LastUpdateTime < EspSystem.Item.UpdateInterval then
+        return
+    end
+    EspSystem.Item.LastUpdateTime = currentTime
+    local LocalPlayer = Services.Players.LocalPlayer
+    local Character = LocalPlayer.Character
+    local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+    local rootPos = RootPart and RootPart.Position
+    if EspSystem.Config.Item.Enabled then
+        local childrenCache = EspSystem.Item.ChildrenCache
+        if #childrenCache == 0 then
+            for _, item in pairs(WorldLoots:GetChildren()) do
+                if item:IsA("Tool") or item:IsA("Model") then
+                    table.insert(childrenCache, item)
+                end
+            end
+        end
+        for item, data in pairs(EspSystem.Item.EspCache) do
+            if not item.Parent or (data.price and data.price < EspSystem.Config.Item.MinPrice) then
+                if data.highlight then data.highlight:Destroy() end
+                if data.billboard then data.billboard:Destroy() end
+                EspSystem.Item.EspCache[item] = nil
+            else
+                if data.txtName then
+                    data.txtName.Visible = EspSystem.Config.Item.Types.Name
+                end
+                if data.txtPrice then
+                    data.txtPrice.Visible = EspSystem.Config.Item.Types.Price
+                end
+                if data.txtDist then
+                    data.txtDist.Visible = EspSystem.Config.Item.Types.Distance
+                    if EspSystem.Config.Item.Types.Distance and rootPos then
+                        local adornPart = item:FindFirstChildWhichIsA("BasePart", true)
+                        if adornPart then
+                            local dist = (rootPos - adornPart.Position).Magnitude
+                            data.txtDist.Text = string_format("%.0fm", dist)
+                        end
+                    end
+                end
+            end
+        end
+        for i = #childrenCache, 1, -1 do
+            local item = childrenCache[i]
+            if not item.Parent then
+                table.remove(childrenCache, i)
+            elseif not EspSystem.Item.EspCache[item] then
+                EspSystem.CreateItemEsp(item)
+            end
+        end
+    else
+        EspSystem.CleanupItemEspCache()
+    end
+    local cameraCFrame = Camera.CFrame
+    local cameraPos = cameraCFrame.Position
+    local viewportSize = Camera.ViewportSize
+    local maxDistSqr = EspSystem.Config.Item.MaxDistance * EspSystem.Config.Item.MaxDistance
+    for item, tracer in pairs(EspSystem.Item.Tracers) do
+        if not item.Parent or not item:IsDescendantOf(Services.Workspace) then
+            tracer:Remove()
+            EspSystem.Item.Tracers[item] = nil
+        else
+            local interactablePart = EspSystem.FindInteractablePart(item)
+            if interactablePart then
+                local viewportPoint, onScreen = Camera:WorldToViewportPoint(interactablePart.Position)
+                if onScreen then
+                    local itemPos = interactablePart.Position
+                    local diff = itemPos - cameraPos
+                    local distSqr = diff.X * diff.X + diff.Y * diff.Y + diff.Z * diff.Z
+                    if distSqr <= maxDistSqr then
+                        local lootUI = item:FindFirstChild("LootUI", true)
+                        if lootUI and lootUI:FindFirstChild("Frame") then
+                            local frame = lootUI.Frame
+                            local priceText = frame:FindFirstChild("Price") and frame.Price.Text or "0"
+                            local price = tonumber(priceText:match("%d+")) or 0
+                            if price >= EspSystem.Config.Item.MinPrice then
+                                if EspSystem.Config.Item.Types.Tracer then
+                                    local priceColor = EspSystem.GetPriceColor(price)
+                                    tracer.Color = priceColor
+                                    local distance = math.sqrt(distSqr)
+                                    local distanceRatio = math_clamp(distance / 500, 0, 1)
+                                    tracer.Transparency = math_max(0.1, 0.15 + (distanceRatio * 0.5))
+                                    tracer.Thickness = math_max(2, 4 - (distanceRatio * 1.5))
+                                    tracer.From = Vector2.new(viewportSize.X / 2, viewportSize.Y)
+                                    tracer.To = Vector2.new(viewportPoint.X, viewportPoint.Y)
+                                    tracer.Visible = true
+                                else
+                                    tracer.Visible = false
+                                end
+                            else
+                                tracer.Visible = false
+                            end
+                        else
+                            tracer.Visible = false
+                        end
+                    else
+                        tracer.Visible = false
+                    end
+                else
+                    tracer.Visible = false
+                end
+            else
+                tracer.Visible = false
+            end
+        end
+    end
+end
+
+function EspSystem.UpdateMonsterEsp()
+    if inLobby then return end
+    local currentTime = tick()
+    if currentTime - EspSystem.Monster.LastUpdateTime < EspSystem.Monster.UpdateInterval then
+        return
+    end
+    EspSystem.Monster.LastUpdateTime = currentTime
+    local LocalPlayer = Services.Players.LocalPlayer
+    local Character = LocalPlayer.Character
+    local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+    local rootPos = RootPart and RootPart.Position
+    local MonsterFolder = Services.Workspace.GameSystem.Monsters
+    local monsterColor = Color3.fromRGB(255, 0, 0)
+    if EspSystem.Config.Monster.Enabled then
+        local childrenCache = EspSystem.Monster.ChildrenCache
+        if #childrenCache == 0 then
+            for _, monster in pairs(MonsterFolder:GetChildren()) do
+                if monster:IsA("Model") then
+                    table.insert(childrenCache, monster)
+                end
+            end
+        end
+        for i = #childrenCache, 1, -1 do
+            local monster = childrenCache[i]
+            if not monster.Parent then
+                table.remove(childrenCache, i)
+            elseif not EspSystem.Monster.EspCache[monster] then
+                EspSystem.CreateEntityEsp(monster, EspSystem.Monster.EspCache, monsterColor, EspSystem.GetMonsterName, EspSystem.Config.Monster)
+            end
+        end
+        for model, data in pairs(EspSystem.Monster.EspCache) do
+            if not model.Parent then
+                if data.highlight then data.highlight:Destroy() end
+                if data.billboard then data.billboard:Destroy() end
+                EspSystem.Monster.EspCache[model] = nil
+            else
+                if data.highlight then
+                    data.highlight.Enabled = EspSystem.Config.Monster.Types.Box
+                end
+                if data.txtName then
+                    data.txtName.Visible = EspSystem.Config.Monster.Types.Name
+                end
+                if data.txtDist then
+                    data.txtDist.Visible = EspSystem.Config.Monster.Types.Distance
+                    if EspSystem.Config.Monster.Types.Distance and rootPos then
+                        local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+                        if root then
+                            local dist = (rootPos - root.Position).Magnitude
+                            data.txtDist.Text = string_format("%.0fm", dist)
+                        end
+                    end
+                end
+            end
+        end
+    else
+        EspSystem.CleanupEntityEspCache(EspSystem.Monster.EspCache)
+        table.clear(EspSystem.Monster.ChildrenCache)
+    end
+end
+
+function EspSystem.UpdateNpcEsp()
+    if inLobby then return end
+    local currentTime = tick()
+    if currentTime - EspSystem.Npc.LastUpdateTime < EspSystem.Npc.UpdateInterval then
+        return
+    end
+    EspSystem.Npc.LastUpdateTime = currentTime
+    local LocalPlayer = Services.Players.LocalPlayer
+    local Character = LocalPlayer.Character
+    local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+    local rootPos = RootPart and RootPart.Position
+    local NpcFolder = Services.Workspace.GameSystem.NPCModels
+    local npcColor = Color3.fromRGB(0, 255, 0)
+    if EspSystem.Config.Npc.Enabled then
+        local childrenCache = EspSystem.Npc.ChildrenCache
+        if #childrenCache == 0 then
+            for _, npc in pairs(NpcFolder:GetChildren()) do
+                if npc:IsA("Model") then
+                    table.insert(childrenCache, npc)
+                end
+            end
+        end
+        for i = #childrenCache, 1, -1 do
+            local npc = childrenCache[i]
+            if not npc.Parent then
+                table.remove(childrenCache, i)
+            elseif not EspSystem.Npc.EspCache[npc] then
+                EspSystem.CreateEntityEsp(npc, EspSystem.Npc.EspCache, npcColor, function(m) return m.Name end, EspSystem.Config.Npc)
+            end
+        end
+        for model, data in pairs(EspSystem.Npc.EspCache) do
+            if not model.Parent then
+                if data.highlight then data.highlight:Destroy() end
+                if data.billboard then data.billboard:Destroy() end
+                EspSystem.Npc.EspCache[model] = nil
+            else
+                if data.highlight then
+                    data.highlight.Enabled = EspSystem.Config.Npc.Types.Box
+                end
+                if data.txtName then
+                    data.txtName.Visible = EspSystem.Config.Npc.Types.Name
+                end
+                if data.txtDist then
+                    data.txtDist.Visible = EspSystem.Config.Npc.Types.Distance
+                    if EspSystem.Config.Npc.Types.Distance and rootPos then
+                        local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+                        if root then
+                            local dist = (rootPos - root.Position).Magnitude
+                            data.txtDist.Text = string_format("%.0fm", dist)
+                        end
+                    end
+                end
+            end
+        end
+    else
+        EspSystem.CleanupEntityEspCache(EspSystem.Npc.EspCache)
+        table.clear(EspSystem.Npc.ChildrenCache)
+    end
+end
+
+function EspSystem.InitializeItemEsp()
+    if inLobby then return end
+    for _, child in ipairs(WorldLoots:GetChildren()) do
+        if not EspSystem.Item.Tracers[child] then
+            EspSystem.Item.Tracers[child] = EspSystem.CreateTracer()
+        end
+    end
+end
+
+function EspSystem.CleanupItemEsp()
+    if EspSystem.Item.RenderConn then
+        EspSystem.Item.RenderConn:Disconnect()
+        EspSystem.Item.RenderConn = nil
+    end
+    if EspSystem.Item.ChildAddedConn then
+        EspSystem.Item.ChildAddedConn:Disconnect()
+        EspSystem.Item.ChildAddedConn = nil
+    end
+    for item, tracer in pairs(EspSystem.Item.Tracers) do
+        tracer:Remove()
+    end
+    EspSystem.Item.Tracers = {}
+    EspSystem.CleanupItemEspCache()
+end
+
+function EspSystem.CleanupMonsterEsp()
+    if EspSystem.Monster.RenderConn then
+        EspSystem.Monster.RenderConn:Disconnect()
+        EspSystem.Monster.RenderConn = nil
+    end
+    if EspSystem.Monster.ChildAddedConn then
+        EspSystem.Monster.ChildAddedConn:Disconnect()
+        EspSystem.Monster.ChildAddedConn = nil
+    end
+    EspSystem.CleanupEntityEspCache(EspSystem.Monster.EspCache)
+end
+
+function EspSystem.CleanupNpcEsp()
+    if EspSystem.Npc.RenderConn then
+        EspSystem.Npc.RenderConn:Disconnect()
+        EspSystem.Npc.RenderConn = nil
+    end
+    if EspSystem.Npc.ChildAddedConn then
+        EspSystem.Npc.ChildAddedConn:Disconnect()
+        EspSystem.Npc.ChildAddedConn = nil
+    end
+    EspSystem.CleanupEntityEspCache(EspSystem.Npc.EspCache)
+end
+
+if not inLobby then
+    Tabs.Esp:Section({ Title = "物品透视" })
+    local itemEspTypes = Tabs.Esp:Dropdown({
+        Title = "显示类型",
+        Values = {"追踪线", "名称", "距离", "价格"},
+        Value = getgenv().Aero.ItemEspTypes,
+        Multi = true,
+        AllowNone = false,
+        Callback = function(selectedValues)
+            getgenv().Aero.ItemEspTypes = selectedValues
+            for key in pairs(EspSystem.Config.Item.Types) do
+                EspSystem.Config.Item.Types[key] = false
+            end
+            for _, value in pairs(selectedValues) do
+                local espKey = (value == "追踪线" and "Tracer") or (value == "名称" and "Name") or (value == "距离" and "Distance") or (value == "价格" and "Price")
+                if EspSystem.Config.Item.Types[espKey] ~= nil then
+                    EspSystem.Config.Item.Types[espKey] = true
+                end
+            end
+        end
+    })
+    _G.AeroControls["ItemEspTypes"] = itemEspTypes
+
+    local itemEspToggle = Tabs.Esp:Toggle({
+        Title = "启用物品透视",
+        Default = getgenv().Aero.ItemEspEnabled,
+        Callback = function(state)
+            getgenv().Aero.ItemEspEnabled = state
+            EspSystem.Config.Item.Enabled = state
+            if state then
+                EspSystem.InitializeItemEsp()
+                table.clear(EspSystem.Item.ChildrenCache)
+                EspSystem.Item.ChildAddedConn = WorldLoots.ChildAdded:Connect(function(newItem)
+                    if (newItem:IsA("Tool") or newItem:IsA("Model")) then
+                        table.insert(EspSystem.Item.ChildrenCache, newItem)
+                        if not EspSystem.Item.Tracers[newItem] then
+                            EspSystem.Item.Tracers[newItem] = EspSystem.CreateTracer()
+                        end
+                    end
+                end)
+                WorldLoots.ChildRemoved:Connect(function(removedItem)
+                    for i = #EspSystem.Item.ChildrenCache, 1, -1 do
+                        if EspSystem.Item.ChildrenCache[i] == removedItem then
+                            table.remove(EspSystem.Item.ChildrenCache, i)
+                            break
+                        end
+                    end
+                end)
+                EspSystem.Item.RenderConn = Services.RunService.Heartbeat:Connect(function()
+                    EspSystem.UpdateItemEsp()
+                end)
+            else
+                EspSystem.CleanupItemEsp()
+                table.clear(EspSystem.Item.ChildrenCache)
+            end
+        end
+    })
+    _G.AeroControls["ItemEspEnabled"] = itemEspToggle
+
+    local itemPriceInput = Tabs.Esp:Input({
+        Title = "最低价格",
+        Value = getgenv().Aero.ItemEspMinPrice,
+        InputIcon = "dollar-sign",
+        Type = "Input",
+        Placeholder = "价格 ...",
+        Callback = function(inputValue)
+            if string.match(inputValue, "^%d+$") then
+                getgenv().Aero.ItemEspMinPrice = inputValue
+                EspSystem.Config.Item.MinPrice = tonumber(inputValue)
+            else
+                getgenv().Aero.ItemEspMinPrice = "0"
+                itemPriceInput:Highlight()
+                itemPriceInput:Set("0")
+                EspSystem.Config.Item.MinPrice = 0
+            end
+        end
+    })
+    _G.AeroControls["ItemEspMinPrice"] = itemPriceInput
+
+    Tabs.Esp:Section({ Title = "怪物透视" })
+    local monsterEspTypes = Tabs.Esp:Dropdown({
+        Title = "显示类型",
+        Values = {"方框", "名称", "距离"},
+        Value = getgenv().Aero.MonsterEspTypes,
+        Multi = true,
+        AllowNone = false,
+        Callback = function(selectedValues)
+            getgenv().Aero.MonsterEspTypes = selectedValues
+            for key in pairs(EspSystem.Config.Monster.Types) do
+                EspSystem.Config.Monster.Types[key] = false
+            end
+            for _, value in pairs(selectedValues) do
+                local espKey = (value == "方框" and "Box") or (value == "名称" and "Name") or (value == "距离" and "Distance")
+                if EspSystem.Config.Monster.Types[espKey] ~= nil then
+                    EspSystem.Config.Monster.Types[espKey] = true
+                end
+            end
+        end
+    })
+    _G.AeroControls["MonsterEspTypes"] = monsterEspTypes
+
+    local monsterEspToggle = Tabs.Esp:Toggle({
+        Title = "启用怪物透视",
+        Default = getgenv().Aero.MonsterEspEnabled,
+        Callback = function(state)
+            getgenv().Aero.MonsterEspEnabled = state
+            EspSystem.Config.Monster.Enabled = state
+            if state then
+                table.clear(EspSystem.Monster.ChildrenCache)
+                EspSystem.Monster.ChildAddedConn = Services.Workspace.GameSystem.Monsters.ChildAdded:Connect(function(newMonster)
+                    if newMonster:IsA("Model") then
+                        table.insert(EspSystem.Monster.ChildrenCache, newMonster)
+                    end
+                end)
+                Services.Workspace.GameSystem.Monsters.ChildRemoved:Connect(function(removedMonster)
+                    for i = #EspSystem.Monster.ChildrenCache, 1, -1 do
+                        if EspSystem.Monster.ChildrenCache[i] == removedMonster then
+                            table.remove(EspSystem.Monster.ChildrenCache, i)
+                            break
+                        end
+                    end
+                end)
+                EspSystem.Monster.RenderConn = Services.RunService.Heartbeat:Connect(function()
+                    EspSystem.UpdateMonsterEsp()
+                end)
+            else
+                EspSystem.CleanupMonsterEsp()
+                table.clear(EspSystem.Monster.ChildrenCache)
+            end
+        end
+    })
+    _G.AeroControls["MonsterEspEnabled"] = monsterEspToggle
+
+    Tabs.Esp:Section({ Title = "NPC透视" })
+    local npcEspTypes = Tabs.Esp:Dropdown({
+        Title = "显示类型",
+        Values = {"方框", "名称", "距离"},
+        Value = getgenv().Aero.NpcEspTypes,
+        Multi = true,
+        AllowNone = false,
+        Callback = function(selectedValues)
+            getgenv().Aero.NpcEspTypes = selectedValues
+            for key in pairs(EspSystem.Config.Npc.Types) do
+                EspSystem.Config.Npc.Types[key] = false
+            end
+            for _, value in pairs(selectedValues) do
+                local espKey = (value == "方框" and "Box") or (value == "名称" and "Name") or (value == "距离" and "Distance")
+                if EspSystem.Config.Npc.Types[espKey] ~= nil then
+                    EspSystem.Config.Npc.Types[espKey] = true
+                end
+            end
+        end
+    })
+    _G.AeroControls["NpcEspTypes"] = npcEspTypes
+
+    local npcEspToggle = Tabs.Esp:Toggle({
+        Title = "启用NPC透视",
+        Default = getgenv().Aero.NpcEspEnabled,
+        Callback = function(state)
+            getgenv().Aero.NpcEspEnabled = state
+            EspSystem.Config.Npc.Enabled = state
+            if state then
+                table.clear(EspSystem.Npc.ChildrenCache)
+                EspSystem.Npc.ChildAddedConn = Services.Workspace.GameSystem.NPCModels.ChildAdded:Connect(function(newNpc)
+                    if newNpc:IsA("Model") then
+                        table.insert(EspSystem.Npc.ChildrenCache, newNpc)
+                    end
+                end)
+                Services.Workspace.GameSystem.NPCModels.ChildRemoved:Connect(function(removedNpc)
+                    for i = #EspSystem.Npc.ChildrenCache, 1, -1 do
+                        if EspSystem.Npc.ChildrenCache[i] == removedNpc then
+                            table.remove(EspSystem.Npc.ChildrenCache, i)
+                            break
+                        end
+                    end
+                end)
+                EspSystem.Npc.RenderConn = Services.RunService.Heartbeat:Connect(function()
+                    EspSystem.UpdateNpcEsp()
+                end)
+            else
+                EspSystem.CleanupNpcEsp()
+                table.clear(EspSystem.Npc.ChildrenCache)
+            end
+        end
+    })
+    _G.AeroControls["NpcEspEnabled"] = npcEspToggle
+end
+
+Tabs.Main:Section({ Title = "人物功能" })
+do
+    local speedEnabled = false
+    local speedValue = 50
+    local originalSpeed = nil
+    local speedConnection = nil
+    local characterAddedConnection = nil
+    local function ApplySpeed(character)
+        if not character then return end
+        pcall(function()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if not originalSpeed then
+                    originalSpeed = humanoid.WalkSpeed
+                end
+                humanoid.WalkSpeed = speedValue
+            end
+        end)
+    end
+    local function StartSpeed()
+        if speedConnection then return end
+        local plr = Services.Players.LocalPlayer
+        if plr.Character then
+            ApplySpeed(plr.Character)
+        end
+        speedConnection = Services.RunService.Heartbeat:Connect(function()
+            if not speedEnabled then
+                if speedConnection then
+                    speedConnection:Disconnect()
+                    speedConnection = nil
+                end
+                return
+            end
+            local chr = plr.Character
+            if chr then
+                ApplySpeed(chr)
+            end
+        end)
+        characterAddedConnection = plr.CharacterAdded:Connect(function(character)
+            if speedEnabled then
+                task.wait(0.1)
+                originalSpeed = nil
+                ApplySpeed(character)
+            end
+        end)
+    end
+    local function StopSpeed()
+        if speedConnection then
+            speedConnection:Disconnect()
+            speedConnection = nil
+        end
+        if characterAddedConnection then
+            characterAddedConnection:Disconnect()
+            characterAddedConnection = nil
+        end
+        local plr = Services.Players.LocalPlayer
+        if plr.Character then
+            pcall(function()
+                local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+                if humanoid and originalSpeed then
+                    humanoid.WalkSpeed = originalSpeed
+                    originalSpeed = nil
+                end
+            end)
+        end
+    end
+    local speedToggle = Tabs.Main:Toggle({
+        Title = "速度加快",
+        Default = getgenv().Aero.SpeedEnabled,
+        Callback = function(state)
+            if inLobby then
+                Library:Notify({ Title = "提示", Content = "大厅中无法使用此功能", Duration = 2 })
+                return
+            end
+            getgenv().Aero.SpeedEnabled = state
+            speedEnabled = state
+            if state then
+                StartSpeed()
+            else
+                StopSpeed()
+            end
+        end
+    })
+    _G.AeroControls["SpeedEnabled"] = speedToggle
+end
+
+do
+    local infiniteStaminaEnabled = false
+    local staminaConnection = nil
+    local function StartInfiniteStamina()
+        if staminaConnection then return end
+        pcall(function()
+            local ReplicatedStorage = CloneRef(game:GetService("ReplicatedStorage"))
+            local RunService = CloneRef(game:GetService("RunService"))
+            local Value = require(ReplicatedStorage.Shared.Core.Value)
+            for _, Connection in getconnections(RunService.PreRender) do
+                local Source = debug.info(Connection.Function, "s")
+                if Source == "ReplicatedStorage.Client.System.Property.StaminaHandle" then
+                    Connection:Disconnect()
+                end
+            end
+            staminaConnection = RunService.PreRender:Connect(function()
+                if infiniteStaminaEnabled then
+                    Value.Stamina = 100
+                end
+            end)
+        end)
+    end
+    local function StopInfiniteStamina()
+        if staminaConnection then
+            staminaConnection:Disconnect()
+            staminaConnection = nil
+        end
+    end
+    local staminaToggle = Tabs.Main:Toggle({
+        Title = "无限体力",
+        Default = getgenv().Aero.StaminaEnabled,
+        Callback = function(state)
+            if inLobby then
+                Library:Notify({ Title = "提示", Content = "大厅中无法使用此功能", Duration = 2 })
+                return
+            end
+            getgenv().Aero.StaminaEnabled = state
+            infiniteStaminaEnabled = state
+            if state then
+                StartInfiniteStamina()
+            else
+                StopInfiniteStamina()
+            end
+        end
+    })
+    _G.AeroControls["StaminaEnabled"] = staminaToggle
+end
+
+do
+    local invincibleEnabled = false
+    local invincibleConnection = nil
+    local function enableInvincible()
+        local character = Services.Players.LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local clone = character.HumanoidRootPart:Clone()
+            clone.Parent = character
+        end
+    end
+    local function onCharacterAdded(character)
+        task.wait(0.5)
+        if invincibleEnabled then
+            enableInvincible()
+        end
+    end
+    local invincibleToggle = Tabs.Main:Toggle({
+        Title = "无敌",
+        Default = getgenv().Aero.InvincibleEnabled,
+        Callback = function(state)
+            if inLobby then
+                Library:Notify({ Title = "提示", Content = "大厅中无法使用此功能", Duration = 2 })
+                return
+            end
+            getgenv().Aero.InvincibleEnabled = state
+            invincibleEnabled = state
+            if state then
+                enableInvincible()
+                if invincibleConnection then
+                    invincibleConnection:Disconnect()
+                end
+                invincibleConnection = Services.Players.LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+            else
+                if invincibleConnection then
+                    invincibleConnection:Disconnect()
+                    invincibleConnection = nil
+                end
+            end
+        end
+    })
+    _G.AeroControls["InvincibleEnabled"] = invincibleToggle
+end
+
+local anySellToggle = Tabs.Main:Toggle({
+    Title = "随处出售",
+    Default = getgenv().Aero.AnySellEnabled,
+    Callback = function(state)
+        if inLobby then
+            Library:Notify({ Title = "提示", Content = "大厅中无法使用此功能", Duration = 2 })
+            return
+        end
+        getgenv().Aero.AnySellEnabled = state
+        if state then
+            pcall(function()
+                local v_u_3 = require(game:GetService("ReplicatedStorage").Shared.Core.TEvent)
+                local v_u_11 = game:GetService("Players").LocalPlayer
+                if v_u_11.Character and v_u_11.Character.PrimaryPart then
+                    v_u_3.FireRemote("PlayerInElevator", true, v_u_11.Character.PrimaryPart.CFrame.Position, v_u_3.UnixTimeMillis())
+                end
+            end)
+        end
+    end
+})
+_G.AeroControls["AnySellEnabled"] = anySellToggle
+
+Tabs.Main:Section({ Title = "环境功能" })
+local Lighting = CloneRef(game:GetService("Lighting"))
+local Atmosphere = Lighting:FindFirstChild("Atmosphere")
+local OriginalAtmosphereDensity = nil
+if Atmosphere then
+    OriginalAtmosphereDensity = Atmosphere.Density
+end
+local OriginalGlobalShadows = Lighting.GlobalShadows
+local OriginalClockTime = Lighting.ClockTime
+local OriginalBrightness = Lighting.Brightness
+local OriginalFogEnd = Lighting.FogEnd
+local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
+local fullBrightToggle = Tabs.Main:Toggle({
+    Title = "全亮",
+    Default = getgenv().Aero.FullBrightEnabled,
+    Callback = function(state)
+        if inLobby then
+            Library:Notify({ Title = "提示", Content = "大厅中无法使用此功能", Duration = 2 })
+            return
+        end
+        getgenv().Aero.FullBrightEnabled = state
+        if state then
+            if Atmosphere then Atmosphere.Density = 0 end
+            Lighting.GlobalShadows = false
+            Lighting.ClockTime = 12
+            Lighting.Brightness = 4
+            Lighting.FogEnd = 100000
+            Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        else
+            if Atmosphere and OriginalAtmosphereDensity then Atmosphere.Density = OriginalAtmosphereDensity end
+            Lighting.GlobalShadows = OriginalGlobalShadows
+            Lighting.ClockTime = OriginalClockTime
+            Lighting.Brightness = OriginalBrightness
+            Lighting.FogEnd = OriginalFogEnd
+            Lighting.OutdoorAmbient = OriginalOutdoorAmbient
+        end
+    end
+})
+_G.AeroControls["FullBrightEnabled"] = fullBrightToggle
+
+PushMonsterToggle = nil
+
+local LocalPlayer = Services.Players.LocalPlayer
+local WorldLootsFolder = nil
+local ReplicatedStorage = CloneRef(game:GetService("ReplicatedStorage"))
+local TEvent = nil
+if not inLobby then
+    WorldLootsFolder = Services.Workspace.GameSystem.Loots.World
+    TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
+end
+local function InteractWithItem(item)
+    if inLobby then return end
+    if (item:IsA("Model") or item:IsA("Tool")) and (item:HasTag("Interactable") and item:GetAttribute("en")) then
+        TEvent.FireRemote("Interactable", item)
+    end
+end
+local AutoOpenConn = nil
+
+local AutoNextFloorEnabled = false
+local AutoNextFloorConn = nil
+local function CheckCashAndNextFloor()
+    if inLobby then return end
+    local plr = Services.Players.LocalPlayer
+    local PlayerGui = plr:FindFirstChild("PlayerGui")
+    if not PlayerGui then return end
+    local Main = PlayerGui:FindFirstChild("Main")
+    if not Main then return end
+    local HomePage = Main:FindFirstChild("HomePage")
+    if not HomePage then return end
+    local Goal = HomePage:FindFirstChild("Goal")
+    if not Goal then return end
+    local GoalProgressBar = Goal:FindFirstChild("GoalProgressBar")
+    if not GoalProgressBar then return end
+    local GoalText = GoalProgressBar:FindFirstChild("GoalText")
+    if not GoalText then return end
+    
+    local CashText = GoalText:FindFirstChild("Cash")
+    local GoalNumText = GoalText:FindFirstChild("Goal")
+    if not CashText or not GoalNumText then return end
+    
+    local currentCash = tonumber(CashText.Text:match("%d+")) or 0
+    local goalNum = tonumber(GoalNumText.Text:match("/(%d+)")) or 0
+    
+    if currentCash >= goalNum then
+        TEvent.FireRemote("SubmitVote", "continue")
+        task.wait(1)
+    end
+end
+
+local AutoPickupConn = nil
+local v_u_6 = nil
+local v_u_7 = nil
+local v_u_8 = nil
+local function InitializeQuickPickup()
+    if inLobby then return end
+    if v_u_6 and v_u_7 and v_u_8 then return end
+    local ReplicatedStorage = CloneRef(game:GetService("ReplicatedStorage"))
+    v_u_6 = require(ReplicatedStorage.Shared.Core.TEvent)
+    v_u_7 = require(ReplicatedStorage.Shared.Core.Value)
+    for _, m in pairs(ReplicatedStorage:GetDescendants()) do
+        if m:IsA("ModuleScript") and m.Name == "Config" then
+            local success, result = pcall(require, m)
+            if success and type(result) == "table" and result.Get then
+                v_u_8 = result
+                break
+            end
+        end
+    end
+end
+local function getLootFolder()
+    if inLobby then return nil end
+    local success, folder = pcall(function()
+        return Services.Workspace.GameSystem.Loots.World
+    end)
+    return success and folder or nil
+end
+
+local AutoCollectEggEnabled = false
+
+local ElevatorPosition = nil
+if not inLobby then
+    pcall(function()
+        local elevatorModel = Services.Workspace:FindFirstChild("电梯")
+        if elevatorModel then
+            local left4 = elevatorModel:FindFirstChild("Left4")
+            if left4 then
+                local elevator = left4:FindFirstChild("升降梯") or left4:FindFirstChild("Elevator") or left4:FindFirstChildOfClass("Model")
+                if elevator then
+                    local ground = elevator:FindFirstChild("Ground")
+                    if ground then
+                        local targetPoint = ground:FindFirstChild("电梯到达点") or ground:FindFirstChild("TargetPoint") or ground:FindFirstChildOfClass("BasePart")
+                        if targetPoint and targetPoint:IsA("BasePart") then
+                            ElevatorPosition = targetPoint
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+local ForceConfig = {
+    BoiTsThePowerOfFORCEPull = 180,
+    MonsterForceRadius = 100,
+    Strength = 500,
+    MinDistance = 10
+}
+local function IsPlayerOwned(part)
+    local iter, state, index = ipairs(Services.Players:GetPlayers())
+    while true do
+        local player
+        index, player = iter(state, index)
+        if index == nil then
+            break
+        end
+        if player.Character and part:IsDescendantOf(player.Character) then
+            return true
+        end
+    end
+    return false
+end
+Tabs.Malicious:Section({ Title = "物品控制" })
+
+local AutoCollectConfig = {
+    Enabled = false
+}
+local AutoCollectOpenConn = nil
+
+local PlayerGui = Services.Players.LocalPlayer:WaitForChild("PlayerGui")
+local MainGui = PlayerGui:WaitForChild("Main")
+local InteractiveItemsFolder = nil
+local WorldLootFolder = nil
+local ElevatorDropoff = nil
+local TimerFrame = nil
+local InventorySlots = {}
+local HandsFullUI = nil
+local HealthValue = nil
+if not inLobby then
+    InteractiveItemsFolder = Services.Workspace.GameSystem.InteractiveItem
+    WorldLootFolder = Services.Workspace.GameSystem.Loots.World
+    ElevatorDropoff = Services.Workspace.GameSystem.Loots.ElevatorCollect.SoundPlay
+    TimerFrame = MainGui.HomePage.Countdown.Main.ElapsedTime.CanvasGroup2.Frame
+    InventorySlots = {
+        MainGui.HomePage.Bottom["1"].ItemDetails.ItemName,
+        MainGui.HomePage.Bottom["2"].ItemDetails.ItemName,
+        MainGui.HomePage.Bottom["3"].ItemDetails.ItemName,
+        MainGui.HomePage.Bottom["4"].ItemDetails.ItemName
+    }
+    HandsFullUI = MainGui.HomePage.HandsFull
+    HealthValue = MainGui.HomePage.Property.HealthBar.Bar.Value
+    PrevHealth = HealthValue.Value
+end
+
+local ItemCache = {}
+local CACHE_DURATION = 0.5
+
+local function GetItemPrice(item)
+    if inLobby then return 0 end
+    local cacheKey = tostring(item)
+    local cached = ItemCache[cacheKey]
+    if cached and tick() - cached.time < CACHE_DURATION then
+        return cached.price
+    end
+    local price = 0
+    pcall(function()
+        local lootUI = item:FindFirstChild("LootUI", true)
+        if lootUI and lootUI:FindFirstChild("Frame") then
+            local frame = lootUI.Frame
+            local priceText = frame:FindFirstChild("Price") and frame.Price.Text or "0"
+            price = tonumber(priceText:match("%d+")) or 0
+        end
+    end)
+    ItemCache[cacheKey] = {price = price, time = tick()}
+    return price
+end
+
+local function IsItemAvailable(item)
+    if inLobby then return false end
+    if not item or not item.Parent then return false end
+    local isLeft = item:GetAttribute("left") == true
+    if isLeft then
+        local z1Part = item:FindFirstChild("z1", true)
+        if z1Part and z1Part:IsA("BasePart") then
+            local color = z1Part.Color
+            if math.round(color.R * 255) == 226 and math.round(color.G * 255) == 178 and math.round(color.B * 255) == 58 then
+                isLeft = false
+            end
+        end
+    end
+    return not isLeft
+end
+
+local MonsterItemsCache = {}
+local MonsterParentsCache = {}
+local MonsterCacheTime = 0
+local MONSTER_CACHE_DURATION = 2
+
+local function UpdateMonsterCache()
+    if inLobby then return end
+    local currentTime = tick()
+    if currentTime - MonsterCacheTime < MONSTER_CACHE_DURATION then
+        return
+    end
+    table.clear(MonsterItemsCache)
+    table.clear(MonsterParentsCache)
+    local MonsterFolder = Services.Workspace.GameSystem.Monsters
+    if MonsterFolder then
+        for _, monsterItem in pairs(MonsterFolder:GetChildren()) do
+            MonsterItemsCache[monsterItem] = true
+            if monsterItem.Parent then
+                MonsterParentsCache[monsterItem.Parent] = true
+            end
+        end
+    end
+    MonsterCacheTime = currentTime
+end
+
+local function IsItemInMonsters(item)
+    if inLobby then return false end
+    if not item then return false end
+    UpdateMonsterCache()
+    if MonsterItemsCache[item] == true then
+        return true
+    end
+    if item.Parent and MonsterParentsCache[item.Parent] == true then
+        return true
+    end
+    return false
+end
+
+local function IsHandsFull()
+    if inLobby then return false end
+    return HandsFullUI.Visible
+end
+
+local function IsInventoryFull()
+    if inLobby then return false end
+    for _, slot in pairs(InventorySlots) do
+        if slot.Text == "" or slot.Text == " " or slot.Text == nil then
+            return false
+        end
+    end
+    return true
+end
+
+local function SetCollision(active)
+    if inLobby then return end
+    local character = Services.Players.LocalPlayer.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part ~= rootPart then
+            part.CanCollide = not active
+        end
+    end
+end
+
+local function SmartTeleport(targetPos)
+    if inLobby then return false end
+    local character = Services.Players.LocalPlayer.Character
+    if not character then return false end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    local currentPos = rootPart.Position
+    local diff = targetPos - currentPos
+    local distSqr = diff.X * diff.X + diff.Y * diff.Y + diff.Z * diff.Z
+    if distSqr < 25 then
+        rootPart.CFrame = CFrame_new(targetPos)
+        return true
+    end
+    SetCollision(true)
+    rootPart.Anchored = true
+    rootPart.CFrame = CFrame_new(targetPos)
+    task_wait(0.1)
+    if rootPart then rootPart.Anchored = false end
+    SetCollision(false)
+    return true
+end
+
+local function ReturnToElevator()
+    if inLobby then return end
+    local character = Services.Players.LocalPlayer.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    local targetPos = ElevatorDropoff.Position
+    SmartTeleport(targetPos)
+    local maxWait = 0
+    local targetDistSqr = 25
+    while maxWait < 20 do
+        if rootPart then
+            local diff = rootPart.Position - targetPos
+            local distSqr = diff.X * diff.X + diff.Y * diff.Y + diff.Z * diff.Z
+            if distSqr < targetDistSqr then
+                break
+            end
+        end
+        task_wait(0.1)
+        maxWait = maxWait + 1
+    end
+    task_wait(0.2)
+end
+
+local function CollectItem(item)
+    if inLobby then return false end
+    if not AutoCollectConfig.Enabled then return false end
+    local character = Services.Players.LocalPlayer.Character
+    if not character then return false end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    if not IsItemAvailable(item) then return false end
+    if IsItemInMonsters(item) then return false end
+    local interactablePart = item.PrimaryPart or (item:FindFirstChild("Interactable", true) or item:FindFirstChild("Handle", true) or item:FindFirstChildWhichIsA("BasePart", true))
+    if not interactablePart then return false end
+    local playerPos = rootPart.Position
+    local itemPos = interactablePart.Position
+    local diff = itemPos - playerPos
+    local distSqr = diff.X * diff.X + diff.Y * diff.Y + diff.Z * diff.Z
+    local interactDistance = item:GetAttribute("sz") or 30
+    local interactDistSqr = interactDistance * interactDistance
+
+    SmartTeleport(itemPos + Vector3_new(0, 1.5, 0))
+    task_wait(0.2)
+
+    local collectSuccess = false
+    for i = 1, 8 do
+        if not item.Parent then collectSuccess = true break end
+        InteractWithItem(item)
+        pcall(function()
+            TEvent.FireRemote("Interactable", item)
+            TEvent.FireBindable("Interactable", item)
+        end)
+        task_wait(0.2)
+        if not item.Parent then collectSuccess = true break end
+    end
+    return collectSuccess
+end
+
+local function WaitForHandsEmpty()
+    if inLobby then return end
+    local waitCount = 0
+    while IsHandsFull() and AutoCollectConfig.Enabled do
+        task.wait(0.15)
+        waitCount = waitCount + 1
+        if waitCount > 30 then break end
+    end
+end
+
+local function OpenAllInteractiveItems()
+    if inLobby then return end
+    local items = {}
+    for _, item in pairs(InteractiveItemsFolder:GetChildren()) do
+        if item:IsA("Model") or item:IsA("Tool") then
+            table.insert(items, item)
+        end
+    end
+    for i = 1, #items, 3 do
+        if not AutoCollectConfig.Enabled then return end
+        for j = i, math.min(i + 2, #items) do
+            task.spawn(function()
+                InteractWithItem(items[j])
+                pcall(function()
+                    TEvent.FireRemote("Interactable", items[j])
+                end)
+            end)
+        end
+        task.wait(0.1)
+    end
+    if not AutoCollectOpenConn then
+        AutoCollectOpenConn = InteractiveItemsFolder.ChildAdded:Connect(function(newItem)
+            if AutoCollectConfig.Enabled and (newItem:IsA("Model") or newItem:IsA("Tool")) then
+                task.wait(0.05)
+                InteractWithItem(newItem)
+                pcall(function()
+                    TEvent.FireRemote("Interactable", newItem)
+                end)
+            end
+        end)
+    end
+end
+
+local function SortItemsByPriority(items, playerPos)
+    if inLobby then return {} end
+    local itemData = {}
+    for _, item in pairs(items) do
+        if IsItemAvailable(item) and not IsItemInMonsters(item) then
+            local interactablePart = item.PrimaryPart or (item:FindFirstChild("Interactable", true) or item:FindFirstChild("Handle", true))
+            if interactablePart then
+                local distance = (interactablePart.Position - playerPos).Magnitude
+                local price = GetItemPrice(item)
+                local distanceWeight = distance < 50 and 0.5 or 0.2
+                local priceWeight = price > 1000 and 0.8 or 0.5
+                local priority = price * priceWeight - distance * distanceWeight
+                table.insert(itemData, {
+                    item = item,
+                    distance = distance,
+                    price = price,
+                    priority = priority
+                })
+            end
+        end
+    end
+    table.sort(itemData, function(a, b)
+        return a.priority > b.priority
+    end)
+    return itemData
+end
+
+local function HasRemainingItems()
+    if inLobby then return false end
+    local worldItemCount = 0
+    for _, item in pairs(WorldLootFolder:GetChildren()) do
+        if (item:IsA("Tool") or item:IsA("Model")) and item.Parent then
+            if IsItemAvailable(item) and not IsItemInMonsters(item) then
+                worldItemCount = worldItemCount + 1
+            end
+        end
+    end
+    local interactiveItemCount = 0
+    for _, item in pairs(InteractiveItemsFolder:GetChildren()) do
+        if (item:IsA("Model") or item:IsA("Tool")) and item.Parent then
+            if item:HasTag("Interactable") and item:GetAttribute("en") then
+                interactiveItemCount = interactiveItemCount + 1
+            end
+        end
+    end
+    return worldItemCount > 0 or interactiveItemCount > 0
+end
+
+local AutoCollectLoop = nil
+if not inLobby then
+    local autoCollectToggle = Tabs.Auto:Toggle({
+        Title = "自动收集",
+        Default = getgenv().Aero.AutoCollectEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoCollectEnabled = state
+            AutoCollectConfig.Enabled = state
+            if state then
+                if AutoCollectLoop then
+                    AutoCollectLoop:Disconnect()
+                end
+                AutoCollectLoop = task.spawn(function()
+                    while AutoCollectConfig.Enabled do
+                        if IsHandsFull() or IsInventoryFull() then
+                            ReturnToElevator()
+                            WaitForHandsEmpty()
+                            task.wait(0.5)
+                            continue
+                        end
+                        OpenAllInteractiveItems()
+                        local character = Services.Players.LocalPlayer.Character
+                        if not character then
+                            task.wait(0.1)
+                            continue
+                        end
+                        local rootPart = character:FindFirstChild("HumanoidRootPart")
+                        if not rootPart then
+                            task.wait(0.1)
+                            continue
+                        end
+                        local playerPos = rootPart.Position
+                        local items = {}
+                        for _, item in pairs(WorldLootFolder:GetChildren()) do
+                            if (item:IsA("Tool") or item:IsA("Model")) and item.Parent then
+                                table.insert(items, item)
+                            end
+                        end
+                        local sortedItems = SortItemsByPriority(items, playerPos)
+                        for _, data in pairs(sortedItems) do
+                            if not AutoCollectConfig.Enabled then break end
+                            if IsHandsFull() or IsInventoryFull() then break end
+                            CollectItem(data.item)
+                        end
+                        if not HasRemainingItems() then
+                            task.wait(1)
+                        end
+                        task.wait(0.1)
+                    end
+                end)
+            else
+                if AutoCollectLoop then
+                    AutoCollectLoop:Disconnect()
+                    AutoCollectLoop = nil
+                end
+                if AutoCollectOpenConn then
+                    AutoCollectOpenConn:Disconnect()
+                    AutoCollectOpenConn = nil
+                end
+            end
+        end
+    })
+    _G.AeroControls["AutoCollectEnabled"] = autoCollectToggle
+end
+
+if not inLobby then
+    local autoOpenToggle = Tabs.Auto:Toggle({
+        Title = "自动打开",
+        Default = getgenv().Aero.AutoOpenEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoOpenEnabled = state
+            if state then
+                task.spawn(function()
+                    local iter, state2, item = pairs(Services.Workspace.GameSystem.InteractiveItem:GetChildren())
+                    while true do
+                        local interactiveItem
+                        item, interactiveItem = iter(state2, item)
+                        if item == nil then
+                            break
+                        end
+                        InteractWithItem(interactiveItem)
+                    end
+                end)
+                AutoOpenConn = Services.Workspace.GameSystem.InteractiveItem.ChildAdded:Connect(InteractWithItem)
+            elseif AutoOpenConn then
+                AutoOpenConn:Disconnect()
+                AutoOpenConn = nil
+            end
+        end
+    })
+    _G.AeroControls["AutoOpenEnabled"] = autoOpenToggle
+end
+
+if not inLobby then
+    local autoNextFloorToggle = Tabs.Auto:Toggle({
+        Title = "自动下一层",
+        Default = getgenv().Aero.AutoNextFloorEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoNextFloorEnabled = state
+            AutoNextFloorEnabled = state
+            if state then
+                if AutoNextFloorConn then AutoNextFloorConn:Disconnect() end
+                AutoNextFloorConn = Services.RunService.Heartbeat:Connect(function()
+                    if AutoNextFloorEnabled then
+                        pcall(CheckCashAndNextFloor)
+                    end
+                end)
+            else
+                if AutoNextFloorConn then
+                    AutoNextFloorConn:Disconnect()
+                    AutoNextFloorConn = nil
+                end
+            end
+        end
+    })
+    _G.AeroControls["AutoNextFloorEnabled"] = autoNextFloorToggle
+end
+
+if not inLobby then
+    local autoPickupToggle = Tabs.Auto:Toggle({
+        Title = "自动拾取",
+        Default = getgenv().Aero.AutoPickupEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoPickupEnabled = state
+            if state then
+                InitializeQuickPickup()
+                if not v_u_8 then
+                    return
+                end
+                _G.FastLootOnly = true
+                if AutoPickupConn then
+                    AutoPickupConn:Disconnect()
+                end
+                AutoPickupConn = Services.RunService.Heartbeat:Connect(function()
+                    if not _G.FastLootOnly then return end
+                    local target = nil
+                    pcall(function() target = v_u_7.InteractTarget() end)
+                    if target then
+                        local success, v12 = pcall(function() return v_u_8.Get(target) end)
+                        if success and v12 and v12.instance then
+                            local lootFolder = getLootFolder()
+                            if lootFolder and v12.instance:IsDescendantOf(lootFolder) then
+                                if v12.server then
+                                    v_u_6.FireRemote("Interactable", v12.instance)
+                                end
+                                v_u_6.FireBindable("Interactable", v12.instance)
+                                if v_u_8.Trigger then
+                                    pcall(function() v_u_8.Trigger(target) end)
+                                end
+                                v_u_7.InteractTick = os.clock() + 0.02
+                                v_u_7.InteractTarget = nil
+                                v_u_6.FireBindable("InteractTargetChanged", nil)
+                            end
+                        end
+                    end
+                end)
+            else
+                _G.FastLootOnly = false
+                if AutoPickupConn then
+                    AutoPickupConn:Disconnect()
+                    AutoPickupConn = nil
+                end
+            end
+        end
+    })
+    _G.AeroControls["AutoPickupEnabled"] = autoPickupToggle
+end
+
+if not inLobby then
+    local autoCollectEggToggle = Tabs.Auto:Toggle({
+        Title = "自动收集蛋",
+        Default = getgenv().Aero.AutoCollectEggEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoCollectEggEnabled = state
+            AutoCollectEggEnabled = state
+            task.spawn(function()
+                while AutoCollectEggEnabled do
+                    local shouldBreak = false
+                    local function BreakLoop()
+                        shouldBreak = true
+                    end
+                    local character = Services.Players.LocalPlayer.Character
+                    if character then
+                        character = character:FindFirstChild("HumanoidRootPart")
+                    end
+                    if character then
+                        local originalCFrame = character.CFrame
+                        local iter, state2, item = pairs(Services.Workspace.GameSystem.Loots.World:GetChildren())
+                        while true do
+                            local loot
+                            item, loot = iter(state2, item)
+                            if item == nil then
+                                break
+                            end
+                            if not AutoCollectEggEnabled then
+                                BreakLoop()
+                            end
+                            local eggPart = loot:FindFirstChild("Egg", true)
+                            if eggPart and (eggPart.Parent and eggPart.Parent.Parent) and eggPart.Parent.Parent:IsA("Tool") then
+                                local eggTool = eggPart.Parent.Parent
+                                local primaryPart = eggTool.PrimaryPart or eggTool:FindFirstChildWhichIsA("BasePart")
+                                if not primaryPart then
+                                    break
+                                end
+                                local originalPushState = PushMonsterToggle and PushMonsterToggle.Value or false
+                                if PushMonsterToggle and not originalPushState then
+                                    PushMonsterToggle:Set(true)
+                                end
+                                character.CFrame = primaryPart.CFrame
+                                task.wait(0.1)
+                                if (primaryPart.Position - character.Position).Magnitude <= 5 then
+                                    for _ = 1, 10 do
+                                        if Services.Workspace.GameSystem.Loots.Player:FindFirstChild(eggTool.Name, true) then
+                                            BreakLoop()
+                                        end
+                                        InteractWithItem(eggTool)
+                                        task.wait(0.1)
+                                    end
+                                    if Services.Workspace.GameSystem.Loots.Player:FindFirstChild(eggTool.Name, true) then
+                                        character.CFrame = originalCFrame
+                                        if PushMonsterToggle then
+                                            PushMonsterToggle:Set(originalPushState)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(0.5)
+                    else
+                        task.wait()
+                    end
+                    if shouldBreak then
+                        break
+                    end
+                end
+            end)
+        end
+    })
+    _G.AeroControls["AutoCollectEggEnabled"] = autoCollectEggToggle
+end
+
+local StopFloor = tonumber(getgenv().Aero.StopFloor) or 5
+local AutoStopEnabled = false
+local AutoStopConn = nil
+
+local function GetCurrentFloor()
+    if inLobby then return 0 end
+    local MapFolder = Services.Workspace.GameSystem.Map
+    if not MapFolder then return 0 end
+    local maxFloor = 0
+    for _, folder in pairs(MapFolder:GetChildren()) do
+        if folder:IsA("Folder") and string.match(folder.Name, "^Map(%d+)$") then
+            local floorNum = tonumber(string.match(folder.Name, "^Map(%d+)$")) or 0
+            if floorNum > maxFloor then
+                maxFloor = floorNum
+            end
+        end
+    end
+    return maxFloor
+end
+
+local function CheckCashForRetreat()
+    if inLobby then return false end
+    local plr = Services.Players.LocalPlayer
+    local PlayerGui = plr:FindFirstChild("PlayerGui")
+    if not PlayerGui then return false end
+    local Main = PlayerGui:FindFirstChild("Main")
+    if not Main then return false end
+    local HomePage = Main:FindFirstChild("HomePage")
+    if not HomePage then return false end
+    local Goal = HomePage:FindFirstChild("Goal")
+    if not Goal then return false end
+    local GoalProgressBar = Goal:FindFirstChild("GoalProgressBar")
+    if not GoalProgressBar then return false end
+    local GoalText = GoalProgressBar:FindFirstChild("GoalText")
+    if not GoalText then return false end
+    
+    local CashText = GoalText:FindFirstChild("Cash")
+    local GoalNumText = GoalText:FindFirstChild("Goal")
+    if not CashText or not GoalNumText then return false end
+    
+    local currentCash = tonumber(CashText.Text:match("%d+")) or 0
+    local goalNum = tonumber(GoalNumText.Text:match("/(%d+)")) or 0
+    
+    return currentCash >= goalNum
+end
+
+local function CheckFloorAndRetreat()
+    if inLobby then return end
+    if not AutoStopEnabled then return end
+    local currentFloor = GetCurrentFloor()
+    if currentFloor >= StopFloor then
+        if CheckCashForRetreat() then
+            TEvent.FireRemote("SubmitVote", "retreat")
+            AutoStopEnabled = false
+            if AutoStopConn then
+                AutoStopConn:Disconnect()
+                AutoStopConn = nil
+            end
+        end
+    end
+end
+
+local AutoStartConfig = {
+    Enabled = true,
+    TargetPlaceID = TARGET_LOBBY_PLACE_ID,
+    TeleportDelay = 1.0,
+    ClickDelay = 0.1
+}
+local AutoStartLoop = nil
+
+local Positions = {
+    Vector3_new(-1.73656654, 19.7737446, -14.1641445),
+    Vector3_new(16.5216942, 19.8947258, -13.2114286),
+    Vector3_new(35.3569298, 19.2672329, -14.4279108)
+}
+
+local function SimulateMouseClick(xScale, yScale)
+    local viewportSize = Services.Workspace.CurrentCamera.ViewportSize
+    local x = viewportSize.X * xScale
+    local y = viewportSize.Y * yScale
+    VirtualInputManager:SendMouseMoveEvent(x, y, game, 0)
+    task.wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local function IsCreatePartyUIVisible()
+    local plr = Services.Players.LocalPlayer
+    local PlayerGui = plr:FindFirstChild("PlayerGui")
+    if not PlayerGui then return false end
+    local Main = PlayerGui:FindFirstChild("Main")
+    if not Main then return false end
+    local Func = Main:FindFirstChild("Func")
+    if not Func then return false end
+    local CreateParty = Func:FindFirstChild("CreateParty")
+    return CreateParty and CreateParty:IsA("GuiObject") and CreateParty.Visible
+end
+
+local function StartAutoStart()
+    if game.PlaceId ~= AutoStartConfig.TargetPlaceID then
+        Library:Notify({
+            Title = "自动开局",
+            Content = "当前不在大厅，功能未启动",
+            Duration = 3,
+            Icon = "warning"
+        })
+        return
+    end
+
+    AutoStartLoop = task.spawn(function()
+        while AutoStartConfig.Enabled do
+            for _, pos in ipairs(Positions) do
+                if not AutoStartConfig.Enabled then break end
+                local plr = Services.Players.LocalPlayer
+                local character = plr.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    pcall(function()
+                        rootPart.CFrame = CFrame_new(pos + Vector3_new(0, 2, 0))
+                    end)
+                end
+                task.wait(AutoStartConfig.TeleportDelay)
+                if IsCreatePartyUIVisible() then
+                    Library:Notify({
+                        Title = "自动开局",
+                        Content = "检测到创建派对UI，开始点击",
+                        Duration = 2,
+                        Icon = "check"
+                    })
+                    SimulateMouseClick(0.09, 0.416)
+                    SimulateMouseClick(0.5, 0.839)
+                    return
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+local function StopAutoStart()
+    if AutoStartLoop then
+        task.cancel(AutoStartLoop)
+        AutoStartLoop = nil
+    end
+end
+
+local autoStartToggle = Tabs.Auto:Toggle({
+    Title = "自动开局",
+    Default = getgenv().Aero.AutoStartEnabled,
+    Callback = function(state)
+        getgenv().Aero.AutoStartEnabled = state
+        AutoStartConfig.Enabled = state
+        if state then
+            StartAutoStart()
+        else
+            StopAutoStart()
+            Library:Notify({
+                Title = "自动开局",
+                Content = "功能已关闭",
+                Duration = 2,
+                Icon = "power-off"
+            })
+        end
+    end
+})
+_G.AeroControls["AutoStartEnabled"] = autoStartToggle
+
+if getgenv().Aero.AutoStartEnabled then
+    task.spawn(StartAutoStart)
+end
+
+Tabs.Auto:Section({ Title = "自动终止" })
+local stopFloorInput = Tabs.Auto:Input({
+    Title = "终止层数",
+    Value = tostring(StopFloor),
+    InputIcon = "number",
+    Type = "Input",
+    Placeholder = "输入终止层数...",
+    Callback = function(inputValue)
+        if string.match(inputValue, "^%d+$") then
+            StopFloor = tonumber(inputValue)
+            getgenv().Aero.StopFloor = inputValue
+        else
+            Tabs.Auto:Notify({
+                Title = "输入错误",
+                Content = "请输入有效数字",
+                Duration = 2
+            })
+        end
+    end
+})
+_G.AeroControls["StopFloor"] = stopFloorInput
+
+if not inLobby then
+    local autoStopToggle = Tabs.Auto:Toggle({
+        Title = "自动终止",
+        Default = getgenv().Aero.AutoStopEnabled,
+        Callback = function(state)
+            getgenv().Aero.AutoStopEnabled = state
+            AutoStopEnabled = state
+            if state then
+                if AutoStopConn then AutoStopConn:Disconnect() end
+                AutoStopConn = Services.RunService.Heartbeat:Connect(function()
+                    if AutoStopEnabled then
+                        pcall(CheckFloorAndRetreat)
+                    end
+                end)
+            else
+                if AutoStopConn then
+                    AutoStopConn:Disconnect()
+                    AutoStopConn = nil
+                end
+            end
+        end
+    })
+    _G.AeroControls["AutoStopEnabled"] = autoStopToggle
+end
+
+if not inLobby then
+    Tabs.Auto:Button({
+        Title = "远程按撤离",
+        Callback = function()
+            TEvent.FireRemote("SubmitVote", "retreat")
+        end
+    })
+end
+
+local hasFileSystem = pcall(function()
+    return isfolder and makefolder and writefile and readfile and listfiles and delfile
+end) and isfolder and makefolder and writefile and readfile and listfiles and delfile
+
+local ConfigFolder = "Aero/configs/"
+if hasFileSystem then
+    pcall(function()
+        if not isfolder("Aero") then makefolder("Aero") end
+        if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+    end)
+end
+
+local function GetAllConfigs()
+    if not hasFileSystem then return {} end
+    local files = {}
+    pcall(function()
+        for _, file in ipairs(listfiles(ConfigFolder)) do
+            if file:match("%.json$") then
+                local name = file:match("([^/\\]+)%.json$")
+                table.insert(files, name)
+            end
+        end
+    end)
+    table.sort(files)
+    return files
+end
+
+local function SaveConfig(name)
+    if not hasFileSystem then return false end
+    local path = ConfigFolder .. name .. ".json"
+    local data = Services.HttpService:JSONEncode(getgenv().Aero)
+    local success, err = pcall(writefile, path, data)
+    return success
+end
+
+local function LoadConfig(name)
+    if not hasFileSystem then return false end
+    local path = ConfigFolder .. name .. ".json"
+    if not isfile(path) then return false end
+    local data = readfile(path)
+    local success, decoded = pcall(function() return Services.HttpService:JSONDecode(data) end)
+    if success then
+        for k, v in pairs(decoded) do
+            getgenv().Aero[k] = v
+        end
+        for flag, control in pairs(_G.AeroControls) do
+            if control.Set and getgenv().Aero[flag] ~= nil then
+                pcall(function() control:Set(getgenv().Aero[flag]) end)
+            elseif control.Select and getgenv().Aero[flag] ~= nil then
+                pcall(function() control:Select(getgenv().Aero[flag]) end)
+            elseif control.SetValue and getgenv().Aero[flag] ~= nil then
+                pcall(function() control:SetValue(getgenv().Aero[flag]) end)
+            end
+        end
+        return true
+    end
+    return false
+end
+
+local function DeleteConfig(name)
+    if not hasFileSystem then return false end
+    local path = ConfigFolder .. name .. ".json"
+    if not isfile(path) then return false end
+    local success, err = pcall(delfile, path)
+    return success
+end
+
+local function SetLastConfig(name)
+    if not hasFileSystem then return end
+    pcall(function()
+        writefile(ConfigFolder .. "last_config.txt", name)
+    end)
+end
+
+local function GetLastConfig()
+    if not hasFileSystem then return nil end
+    local path = ConfigFolder .. "last_config.txt"
+    if not isfile(path) then return nil end
+    local name = readfile(path)
+    return name
+end
+
+local lastConfig = GetLastConfig()
+if lastConfig and lastConfig ~= "" then
+    LoadConfig(lastConfig)
+end
+
+local TabConfig = Tabs.Config
+local configSection = TabConfig:Section({ Title = "配置管理", Opened = true })
+
+local configList = GetAllConfigs()
+local configDropdown = configSection:Dropdown({
+    Title = "选择配置",
+    Values = configList,
+    Value = configList[1] or "",
+    Callback = function(v) end
+})
+
+local configInput = configSection:Input({
+    Title = "新配置名称",
+    Placeholder = "输入名称",
+    Callback = function(v) end
+})
+
+configSection:Button({
+    Title = "保存配置",
+    Icon = "save",
+    Callback = function()
+        if not hasFileSystem then
+            WindUI:Notify({ Title = "配置", Content = "当前执行器不支持文件操作", Duration = 2 })
+            return
+        end
+        local name = configInput.Value
+        if name and name ~= "" then
+            if SaveConfig(name) then
+                WindUI:Notify({ Title = "配置", Content = "已保存: " .. name, Duration = 2 })
+                local newList = GetAllConfigs()
+                configDropdown:Refresh(newList)
+                configDropdown:Select(name)
+                SetLastConfig(name)
+            else
+                WindUI:Notify({ Title = "配置", Content = "保存失败", Duration = 2 })
+            end
+        else
+            WindUI:Notify({ Title = "配置", Content = "请输入配置名称", Duration = 2 })
+        end
+    end
+})
+
+configSection:Button({
+    Title = "加载配置",
+    Icon = "folder",
+    Callback = function()
+        if not hasFileSystem then
+            WindUI:Notify({ Title = "配置", Content = "当前执行器不支持文件操作", Duration = 2 })
+            return
+        end
+        local name = configDropdown.Value
+        if name and name ~= "" then
+            if LoadConfig(name) then
+                WindUI:Notify({ Title = "配置", Content = "已加载: " .. name, Duration = 2 })
+                SetLastConfig(name)
+            else
+                WindUI:Notify({ Title = "配置", Content = "加载失败", Duration = 2 })
+            end
+        else
+            WindUI:Notify({ Title = "配置", Content = "请选择配置", Duration = 2 })
+        end
+    end
+})
+
+configSection:Button({
+    Title = "删除配置",
+    Icon = "trash",
+    Callback = function()
+        if not hasFileSystem then
+            WindUI:Notify({ Title = "配置", Content = "当前执行器不支持文件操作", Duration = 2 })
+            return
+        end
+        local name = configDropdown.Value
+        if name and name ~= "" then
+            if DeleteConfig(name) then
+                WindUI:Notify({ Title = "配置", Content = "已删除: " .. name, Duration = 2 })
+                local newList = GetAllConfigs()
+                configDropdown:Refresh(newList)
+                configDropdown:Select(newList[1] or "")
+                if name == GetLastConfig() then
+                    SetLastConfig("")
+                end
+            else
+                WindUI:Notify({ Title = "配置", Content = "删除失败", Duration = 2 })
+            end
+        else
+            WindUI:Notify({ Title = "配置", Content = "请选择配置", Duration = 2 })
+        end
+    end
+})
+
+WindUI:Notify({ Title = "Aero", Content = "加载成功", Duration = 3, Icon = "check" })
