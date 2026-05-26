@@ -1,0 +1,792 @@
+if getgenv().AeroScriptLoaded then return end
+getgenv().AeroScriptLoaded = true
+local Players = cloneref(game:GetService("Players"))
+local LocalPlayer = cloneref(Players.LocalPlayer)
+local UserInputService = cloneref(game:GetService("UserInputService"))
+local RunService = cloneref(game:GetService("RunService"))
+local speed = 1
+local sd = nil
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+local Data = {
+    TreeCuttingDistance = 50,
+    MiningDistance = 50,
+    KillAuraDistance = 50,
+    AutoTreeCutting = false,
+    AutoMining = false,
+    KillAura = false,
+    AutoCollectFruits = false,
+    InfiniteStamina = false,
+    NoHungerThirst = false
+}
+
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Camera = Workspace.CurrentCamera
+
+local activeHighlights = {}
+local heartbeatConnection = nil
+
+
+WindUI:AddTheme({
+    Name = "My Theme",
+    Accent = Color3.fromHex("#18181b"),
+    Background = Color3.fromHex("#101010"),
+    Outline = Color3.fromHex("#FFFFFF"),
+    Text = Color3.fromHex("#FFFFFF"),
+    Placeholder = Color3.fromHex("#7a7a7a"),
+    Button = Color3.fromHex("#52525b"),
+    Icon = Color3.fromHex("#a1a1aa"),
+})
+
+local COLOR_SCHEMES = {
+    ["彩虹颜色"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,    Color3.fromHex("FF0000")),
+        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromHex("00FF00")),
+        ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+        ColorSequenceKeypoint.new(1,    Color3.fromHex("EE82EE"))
+    }), "palette"},
+
+    ["绿黄渐变"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   Color3.fromHex("30FF6A")),
+        ColorSequenceKeypoint.new(0.5, Color3.fromHex("a8ff00")),
+        ColorSequenceKeypoint.new(1,   Color3.fromHex("e7ff2f"))
+    }), "waves"},
+}
+
+local borderAnimation
+local animationSpeed = 5
+
+local function createRainbowBorder(window, colorScheme)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+
+    local existingStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if existingStroke then existingStroke:Destroy() end
+
+    if not mainFrame:FindFirstChildOfClass("UICorner") then
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 16)
+        corner.Parent = mainFrame
+    end
+
+    local rainbowStroke = Instance.new("UIStroke")
+    rainbowStroke.Name = "RainbowStroke"
+    rainbowStroke.Thickness = 2
+    rainbowStroke.Color = Color3.new(1, 1, 1)
+    rainbowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rainbowStroke.LineJoinMode = Enum.LineJoinMode.Round
+    rainbowStroke.Parent = mainFrame
+
+    local glowEffect = Instance.new("UIGradient")
+    glowEffect.Name = "GlowEffect"
+    local schemeData = COLOR_SCHEMES[colorScheme or "彩虹颜色"]
+    glowEffect.Color = schemeData and schemeData[1] or COLOR_SCHEMES["彩虹颜色"][1]
+    glowEffect.Rotation = 0
+    glowEffect.Parent = rainbowStroke
+
+    return rainbowStroke
+end
+
+local function startBorderAnimation(window, speed)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+    local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if not rainbowStroke then return nil end
+    local glowEffect = rainbowStroke:FindFirstChild("GlowEffect")
+    if not glowEffect then return nil end
+
+    return game:GetService("RunService").Heartbeat:Connect(function()
+        if not rainbowStroke or rainbowStroke.Parent == nil then return end
+        glowEffect.Rotation = (tick() * speed * 10) % 360
+    end)
+end
+
+local rainbowStroke = createRainbowBorder(Window, "彩虹颜色")
+if rainbowStroke then
+    borderAnimation = startBorderAnimation(Window, animationSpeed)
+end
+
+local Lighting = game:GetService("Lighting")
+local TweenServiceBlur = game:GetService("TweenService")
+
+local blur = Lighting:FindFirstChildOfClass("BlurEffect")
+if not blur then
+    blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = Lighting
+end
+
+task.spawn(function()
+    local wasOpen = false
+    while true do
+        task.wait(0.1)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        local isOpen = mainFrame and mainFrame.Visible or false
+        
+        if isOpen ~= wasOpen then
+            wasOpen = isOpen
+            TweenServiceBlur:Create(blur, TweenInfo.new(0.3), {
+                Size = isOpen and 20 or 0
+            }):Play()
+        end
+    end
+end)
+
+TabSection = Window:Section({Title = "启示录", Opened = true})
+
+local Tab = TabSection:Tab({Title = "透视功能", Icon = "check"})
+local main = TabSection:Tab({Title = "主要功能", Icon = "check"})
+
+
+local Section = Tab:Section({Title = "物品透视"})
+
+Tab:Toggle({
+    Title = "透视宝箱",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "CommonLoot"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(255, 255, 0)
+                                newHighlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视蓝莓灌木",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "BlueberryBush"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(174, 55, 204)
+                                newHighlight.OutlineColor = Color3.fromRGB(174, 55, 204)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视石头",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "Stone"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+        
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(12, 98, 209)
+                                newHighlight.OutlineColor = Color3.fromRGB(12, 98, 209)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视铜矿石",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "CopperOre"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(224, 24, 24)
+                                newHighlight.OutlineColor = Color3.fromRGB(224, 24, 24)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视铁矿石",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "IronOre"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(0, 255, 136)
+                                newHighlight.OutlineColor = Color3.fromRGB(0, 255, 136)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视马铃薯植物",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "PotatoPlant"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(98, 0, 255)
+                                newHighlight.OutlineColor = Color3.fromRGB(98, 0, 255)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视稀有战利品",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "RareLoot"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(0, 183, 255)
+                                newHighlight.OutlineColor = Color3.fromRGB(0, 183, 255)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视砂岩",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "Sandstone"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(38, 0, 255)
+                                newHighlight.OutlineColor = Color3.fromRGB(38, 0, 255)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视煤",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "Coal"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(0, 204, 255)
+                                newHighlight.OutlineColor = Color3.fromRGB(0, 204, 255)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "透视草莓丛",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        local TARGET_NAME = "StrawberryBush"
+        local activeHighlights_Local = {}
+        local heartbeatConnection_Local = nil
+
+        if state then
+            local function UpdateHighlights()
+                for _, highlight in pairs(activeHighlights) do
+                    highlight:Destroy()
+                end
+                activeHighlights = {}
+
+                local spawnedFolder = Workspace:FindFirstChild("Spawned")
+                if spawnedFolder then
+                    for _, child in ipairs(spawnedFolder:GetChildren()) do
+                        if child.Name == TARGET_NAME then
+                            if child:IsA("Model") or child:IsA("BasePart") then
+                                local newHighlight = Instance.new("Highlight")
+                                newHighlight.FillColor = Color3.fromRGB(0, 205, 255)
+                                newHighlight.OutlineColor = Color3.fromRGB(0, 205, 255)
+                                newHighlight.Adornee = child
+                                newHighlight.Parent = Camera
+                                table.insert(activeHighlights, newHighlight)
+                            end
+                        end
+                    end
+                end
+            end
+
+            heartbeatConnection = RunService.Heartbeat:Connect(UpdateHighlights)
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+
+            for _, highlight in pairs(activeHighlights) do
+                highlight:Destroy()
+            end
+            activeHighlights = {}
+        end
+    end
+})
+
+local Section = main:Section({Title = "杀戮光环"})
+
+main:Slider({
+    Title = "杀戮光环范围调整",
+    Value = {Min = 16, Max = 200, Default = 50},
+    Callback = function(Value)
+        Data.KillAuraDistance = Value
+    end
+})
+
+main:Toggle({
+    Title = "杀戮光环",
+    Image = "check",
+    Value = false,
+    Callback = function(state)
+        Data.KillAura = state
+        spawn(function()
+            while Data.KillAura and wait() do
+                pcall(function()
+                    local closestEnemy, minDistance = nil, math.huge
+                    local currentDistance = Data.KillAuraDistance or 50
+                    for _,v in next,workspace.Enemies:GetChildren() do
+                        if v then
+                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - v:GetPivot().Position).Magnitude
+                            if distance <= currentDistance and distance < minDistance then
+                                closestEnemy = v
+                                minDistance = distance
+                            end
+                        end
+                    end
+                    
+                    if closestEnemy then
+                        game:GetService("ReplicatedStorage").Network.Items.ToolAction:FireServer("click", closestEnemy)
+                    end
+                end)
+            end
+        end)
+    end
+})
+
+local Section = main:Section({Title = "速度功能"})
+
+main:Slider({
+    Title = "速度调整",
+    Value = {Min = 1, Max = 500, Default = 16},
+    Callback = function(value)
+        speed = value
+    end
+})
+
+main:Toggle({
+    Title = "开启速度",
+    Value = false,
+    Callback = function(v)
+        if v then
+            sd = RunService.Heartbeat:Connect(function()
+                if Character and Humanoid then
+                    if Humanoid.MoveDirection.Magnitude > 0 then
+                        Character:TranslateBy(Humanoid.MoveDirection * speed / 20)
+                    end
+                end
+            end)
+        elseif sd then
+            sd:Disconnect()
+            sd = nil
+        end
+    end
+})
+
+local Section = main:Section({Title = "自动砍树"})
+
+main:Slider({
+    Title = "砍树范围",
+    Value = {Min = 16, Max = 200, Default = 50},
+    Callback = function(Value)
+        Data.TreeCuttingDistance = Value
+    end
+})
+
+main:Toggle({
+    Title = "自动砍树",
+    Image = "check",
+    Value = false,
+    Callback = function(state)
+        Data.AutoTreeCutting = state
+        spawn(function()
+            while Data.AutoTreeCutting and wait() do
+                pcall(function()
+                    local closestTree, minDistance = nil, math.huge
+                    local currentDistance = Data.TreeCuttingDistance or 50
+                    for _,v in next,workspace.Spawned:GetChildren() do
+                        if v and v.Name:find("Tree") then
+                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - v:GetPivot().Position).Magnitude
+                            if distance <= currentDistance and distance < minDistance then
+                                closestTree = v
+                                minDistance = distance
+                            end
+                        end
+                    end
+                    
+                    if closestTree then
+                        game:GetService("ReplicatedStorage").Network.Items.ToolAction:FireServer("click", closestTree, false)
+                    end
+                end)
+            end
+        end)
+    end
+})
+
+local Section = main:Section({Title = "自动挖矿"})
+
+main:Slider({
+    Title = "挖矿距离",
+    Value = {Min = 16, Max = 200, Default = 50},
+    Callback = function(Value)
+        Data.MiningDistance = Value
+    end
+})
+
+main:Toggle({
+    Title = "自动挖矿",
+    Image = "check",
+    Value = false,
+    Callback = function(state)
+        Data.AutoMining = state
+        spawn(function()
+            while Data.AutoMining and wait() do
+                pcall(function()
+                    local closestOre, minDistance = nil, math.huge
+                    local currentDistance = Data.MiningDistance or 50
+                    for _,v in next,workspace.Spawned:GetChildren() do
+                        if v and require(v.Config).handlerModule == "Ore" then
+                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - v:GetPivot().Position).Magnitude
+                            if distance <= currentDistance and distance < minDistance then
+                                closestOre = v
+                                minDistance = distance
+                            end
+                        end
+                    end
+                    
+                    if closestOre then
+                        game:GetService("ReplicatedStorage").Network.Items.ToolAction:FireServer("click", closestOre, false)
+                    end
+                end)
+            end
+        end)
+    end
+})
+
+local Section = main:Section({Title = "无限体力"})
+
+local sbxp = false
+main:Toggle({
+    Title = "无限体力",
+    Default = false,
+    Image = "check",
+    Callback = function(state)
+        sbxp = state
+    while sbxp and wait() do
+game:GetService("ReplicatedStorage").Network.Character.TakeStamina:FireServer(-math.huge)
+end
+    end
+})
+
