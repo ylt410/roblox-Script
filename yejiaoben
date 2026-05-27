@@ -1,2 +1,447 @@
+--// 启动警告保护层完整版
+--// 作用：
+--// 1. 检测是否在摧毁师 / BloxStrike
+--// 2. 可选检测自然灾害 / Natural Disaster Survival，用来测试弹窗
+--// 3. 命中目标游戏后暂停主脚本启动
+--// 4. 弹出白色玻璃风格警告 UI
+--// 5. 用户取消则停止
+--// 6. 用户继续后进行二级确认
+--// 7. 二级确认后才执行主脚本
+--
+--// 放在整个脚本最顶部。
+--// 不要放在 loadstring、HttpGet、UI库、主逻辑后面。
+--// 不然就是先跳楼再问要不要系安全绳，人类写脚本经典悲剧。
+
+--========================
+-- 配置区
+--========================
+
+local ENABLE_NATURAL_DISASTER_TEST = false
+-- 测试完请改成 false
+
+local TARGET_GAMES = {
+    -- 摧毁师 / BloxStrike
+    {
+        Name = "摧毁师 / BloxStrike",
+        PlaceId = 114234929420007,
+        UniverseId = 7633926880,
+        Enabled = true,
+    },
+
+    -- 自然灾害 / Natural Disaster Survival
+    -- 用来测试弹窗
+    {
+        Name = "自然灾害 / Natural Disaster Survival",
+        PlaceId = 189707,
+        UniverseId = 65241,
+        Enabled = ENABLE_NATURAL_DISASTER_TEST,
+    },
+}
+
+-- 如果你是远程加载主脚本，就填这里
+-- 不想用远程加载，就保持空字符串，然后把你的主脚本代码放到最下面
+local MAIN_SCRIPT_URL = ""
+
+--========================
+-- 工具函数
+--========================
+
+local function GetMatchedGame()
+    local currentPlaceId = game.PlaceId
+    local currentUniverseId = game.GameId
+
+    for _, info in ipairs(TARGET_GAMES) do
+        if info.Enabled then
+            if currentPlaceId == info.PlaceId or currentUniverseId == info.UniverseId then
+                return info
+            end
+        end
+    end
+
+    return nil
+end
+
+local function SafeDestroy(instance)
+    if instance and instance.Parent then
+        instance:Destroy()
+    end
+end
+
+local function CreateCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius)
+    corner.Parent = parent
+    return corner
+end
+
+local function CreateStroke(parent, color, thickness, transparency)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color
+    stroke.Thickness = thickness
+    stroke.Transparency = transparency or 0
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = parent
+    return stroke
+end
+
+local function CreateText(parent, name, text, position, size, color, textSize, font)
+    local label = Instance.new("TextLabel")
+    label.Name = name
+    label.Parent = parent
+    label.Position = position
+    label.Size = size
+    label.BackgroundTransparency = 1
+    label.BorderSizePixel = 0
+    label.Text = text
+    label.TextColor3 = color
+    label.TextSize = textSize
+    label.Font = font
+    label.TextWrapped = true
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    return label
+end
+
+local function CreateButton(parent, name, text, position, size, bgColor, textColor)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Parent = parent
+    button.Position = position
+    button.Size = size
+    button.BackgroundColor3 = bgColor
+    button.BackgroundTransparency = 0.06
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = true
+    button.Text = text
+    button.TextColor3 = textColor
+    button.TextSize = 15
+    button.Font = Enum.Font.GothamBold
+    button.TextWrapped = true
+
+    CreateCorner(button, 14)
+
+    return button
+end
+
+--========================
+-- 弹窗函数
+--========================
+
+local function ShowStartupWarning(matchedGame)
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local Lighting = game:GetService("Lighting")
+
+    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+    local PlayerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        or LocalPlayer:WaitForChild("PlayerGui", 10)
+
+    if not PlayerGui then
+        return false
+    end
+
+    SafeDestroy(PlayerGui:FindFirstChild("ScriptStartupWarningUI"))
+    SafeDestroy(Lighting:FindFirstChild("ScriptStartupWarningBlur"))
+
+    local blur = Instance.new("BlurEffect")
+    blur.Name = "ScriptStartupWarningBlur"
+    blur.Size = 0
+    blur.Parent = Lighting
+
+    TweenService:Create(
+        blur,
+        TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Size = 18 }
+    ):Play()
+
+    local resultEvent = Instance.new("BindableEvent")
+    local answered = false
+    local secondConfirm = false
+
+    local function Finish(result)
+        if answered then
+            return
+        end
+
+        answered = true
+        resultEvent:Fire(result)
+    end
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ScriptStartupWarningUI"
+    screenGui.Parent = PlayerGui
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.DisplayOrder = 999999
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local background = Instance.new("Frame")
+    background.Name = "Background"
+    background.Parent = screenGui
+    background.Position = UDim2.fromScale(0, 0)
+    background.Size = UDim2.fromScale(1, 1)
+    background.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    background.BackgroundTransparency = 0.45
+    background.BorderSizePixel = 0
+
+    local mainShadow = Instance.new("Frame")
+    mainShadow.Name = "SoftShadow"
+    mainShadow.Parent = background
+    mainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainShadow.Position = UDim2.fromScale(0.5, 0.5)
+    mainShadow.Size = UDim2.new(0.88, 18, 0, 300)
+    mainShadow.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    mainShadow.BackgroundTransparency = 0.72
+    mainShadow.BorderSizePixel = 0
+
+    local shadowLimit = Instance.new("UISizeConstraint")
+    shadowLimit.MaxSize = Vector2.new(520, 330)
+    shadowLimit.MinSize = Vector2.new(320, 270)
+    shadowLimit.Parent = mainShadow
+
+    CreateCorner(mainShadow, 32)
+    CreateStroke(mainShadow, Color3.fromRGB(255, 255, 255), 5, 0.32)
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Parent = background
+    main.AnchorPoint = Vector2.new(0.5, 0.5)
+    main.Position = UDim2.fromScale(0.5, 0.5)
+    main.Size = UDim2.new(0.88, 0, 0, 278)
+    main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    main.BackgroundTransparency = 0.1
+    main.BorderSizePixel = 0
+
+    local mainLimit = Instance.new("UISizeConstraint")
+    mainLimit.MaxSize = Vector2.new(490, 310)
+    mainLimit.MinSize = Vector2.new(305, 260)
+    mainLimit.Parent = main
+
+    CreateCorner(main, 26)
+    CreateStroke(main, Color3.fromRGB(255, 255, 255), 2, 0.08)
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(236, 240, 248)),
+    })
+    gradient.Rotation = 90
+    gradient.Parent = main
+
+    local topHighlight = Instance.new("Frame")
+    topHighlight.Name = "TopHighlight"
+    topHighlight.Parent = main
+    topHighlight.Position = UDim2.new(0, 22, 0, 11)
+    topHighlight.Size = UDim2.new(1, -44, 0, 2)
+    topHighlight.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    topHighlight.BackgroundTransparency = 0.06
+    topHighlight.BorderSizePixel = 0
+    CreateCorner(topHighlight, 999)
+
+    local leftGlow = Instance.new("Frame")
+    leftGlow.Name = "LeftGlow"
+    leftGlow.Parent = main
+    leftGlow.Position = UDim2.new(0, 0, 0, 28)
+    leftGlow.Size = UDim2.new(0, 2, 1, -56)
+    leftGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    leftGlow.BackgroundTransparency = 0.16
+    leftGlow.BorderSizePixel = 0
+    CreateCorner(leftGlow, 999)
+
+    local red = Color3.fromRGB(220, 38, 38)
+    local black = Color3.fromRGB(18, 18, 22)
+    local gray = Color3.fromRGB(90, 90, 98)
+
+    local smallTitle = CreateText(
+        main,
+        "SmallTitle",
+        "启动保护",
+        UDim2.new(0, 28, 0, 22),
+        UDim2.new(1, -56, 0, 24),
+        gray,
+        13,
+        Enum.Font.GothamMedium
+    )
+
+    local idText = CreateText(
+        main,
+        "IdText",
+        "检测到你的游戏id为 " .. tostring(game.PlaceId),
+        UDim2.new(0, 28, 0, 55),
+        UDim2.new(1, -56, 0, 42),
+        red,
+        19,
+        Enum.Font.GothamBold
+    )
+
+    local pauseText = CreateText(
+        main,
+        "PauseText",
+        "脚本已暂停启动，请你选择是否继续",
+        UDim2.new(0, 28, 0, 105),
+        UDim2.new(1, -56, 0, 40),
+        black,
+        17,
+        Enum.Font.GothamMedium
+    )
+
+    local dangerText = CreateText(
+        main,
+        "DangerText",
+        "如果你选择继续使用脚本账号百分之99会被封禁，请谨慎选择",
+        UDim2.new(0, 28, 0, 153),
+        UDim2.new(1, -56, 0, 58),
+        red,
+        16,
+        Enum.Font.GothamBold
+    )
+
+    dangerText.TextYAlignment = Enum.TextYAlignment.Top
+
+    local matchedText = CreateText(
+        main,
+        "MatchedText",
+        "当前匹配：" .. tostring(matchedGame.Name),
+        UDim2.new(0, 28, 0, 205),
+        UDim2.new(1, -56, 0, 20),
+        gray,
+        12,
+        Enum.Font.Gotham
+    )
+
+    local cancelButton = CreateButton(
+        main,
+        "CancelButton",
+        "取消启动",
+        UDim2.new(0, 28, 1, -58),
+        UDim2.new(0.5, -36, 0, 42),
+        Color3.fromRGB(245, 245, 247),
+        black
+    )
+
+    CreateStroke(cancelButton, Color3.fromRGB(210, 210, 218), 1.5, 0.15)
+
+    local continueButton = CreateButton(
+        main,
+        "ContinueButton",
+        "继续启动",
+        UDim2.new(0.5, 8, 1, -58),
+        UDim2.new(0.5, -36, 0, 42),
+        red,
+        Color3.fromRGB(255, 255, 255)
+    )
+
+    CreateStroke(continueButton, Color3.fromRGB(255, 255, 255), 1.5, 0.35)
+
+    main.Size = UDim2.new(0.88, 0, 0, 250)
+    mainShadow.Size = UDim2.new(0.88, 18, 0, 272)
+    main.BackgroundTransparency = 1
+    mainShadow.BackgroundTransparency = 1
+
+    TweenService:Create(
+        main,
+        TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0.88, 0, 0, 278),
+            BackgroundTransparency = 0.1,
+        }
+    ):Play()
+
+    TweenService:Create(
+        mainShadow,
+        TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0.88, 18, 0, 300),
+            BackgroundTransparency = 0.72,
+        }
+    ):Play()
+
+    local function Cleanup()
+        if screenGui and screenGui.Parent then
+            screenGui:Destroy()
+        end
+
+        if blur and blur.Parent then
+            local blurTween = TweenService:Create(
+                blur,
+                TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                { Size = 0 }
+            )
+
+            blurTween:Play()
+
+            task.delay(0.22, function()
+                if blur and blur.Parent then
+                    blur:Destroy()
+                end
+            end)
+        end
+    end
+
+    cancelButton.MouseButton1Click:Connect(function()
+        Finish(false)
+    end)
+
+    continueButton.MouseButton1Click:Connect(function()
+        if not secondConfirm then
+            secondConfirm = true
+
+            smallTitle.Text = "二级确认"
+            idText.Text = "你确定要继续启动吗？"
+            pauseText.Text = "脚本仍然处于暂停状态"
+            dangerText.Text = "再次点击确认继续后，脚本才会真正启动。账号风险由你自己承担。"
+            matchedText.Text = "当前游戏 ID：" .. tostring(game.PlaceId)
+
+            continueButton.Text = "确认继续"
+            continueButton.BackgroundColor3 = Color3.fromRGB(185, 28, 28)
+
+            cancelButton.Text = "取消"
+            return
+        end
+
+        Finish(true)
+    end)
+
+    local shouldContinue = resultEvent.Event:Wait()
+
+    Cleanup()
+    resultEvent:Destroy()
+
+    return shouldContinue == true
+end
+
+--========================
+-- 启动门
+--========================
+
+local function StartupGate()
+    local matchedGame = GetMatchedGame()
+
+    if not matchedGame then
+        return true
+    end
+
+    return ShowStartupWarning(matchedGame)
+end
+
+if not StartupGate() then
+    return
+end
+
+--========================
+-- 主脚本启动区
+--========================
+-- 走到这里，说明：
+-- 1. 当前不是目标游戏
+-- 或者
+-- 2. 用户已经点了继续，并且通过二级确认
+
+if MAIN_SCRIPT_URL ~= nil and MAIN_SCRIPT_URL ~= "" then
+    loadstring(game:HttpGet(MAIN_SCRIPT_URL))()
+end
+
+-- 如果你不用 MAIN_SCRIPT_URL，就把你的主脚本代码放在这里下面。
+-- 例如：
+-- print("主脚本开始运行")
 getgenv().SCRIPT_KEY = ""
 loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/697567f6437d72f0fde0e831b933710537234f9ad09198cfe754470b83078b8b/download"))()
