@@ -1,0 +1,733 @@
+local function createAdaptiveWatermark()
+    if game.CoreGui:FindFirstChild("ColdJJK_Watermark") then
+        game.CoreGui.ColdJJK_Watermark:Destroy()
+    end
+
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local watermarkGui = Instance.new("ScreenGui")
+    watermarkGui.Name = "ColdJJK_Watermark"
+    watermarkGui.Parent = game.CoreGui
+    watermarkGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    watermarkGui.ResetOnSpawn = false
+
+    local watermarkText = Instance.new("TextLabel")
+    watermarkText.Name = "WatermarkText"
+    watermarkText.Parent = watermarkGui
+    watermarkText.Text = "WYT脚本 柔术分支" 
+    watermarkText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    watermarkText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    watermarkText.TextStrokeTransparency = 0.3 
+    watermarkText.Font = Enum.Font.GothamBold 
+    watermarkText.TextSize = math.floor(screenSize.Y * 0.02)
+    watermarkText.BackgroundTransparency = 1 
+    watermarkText.AnchorPoint = Vector2.new(1, 0) 
+    watermarkText.Position = UDim2.new(1, -10, 0, 10) 
+    watermarkText.TextXAlignment = Enum.TextXAlignment.Right 
+    watermarkText.Size = UDim2.new(0, watermarkText.TextBounds.X + 20, 0, watermarkText.TextBounds.Y + 10)
+
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+        screenSize = workspace.CurrentCamera.ViewportSize
+        watermarkText.TextSize = math.floor(screenSize.Y * 0.02)
+        watermarkText.Size = UDim2.new(0, watermarkText.TextBounds.X + 20, 0, watermarkText.TextBounds.Y + 10)
+    end)
+end
+
+createAdaptiveWatermark()
+
+local TimeGui = Instance.new("ScreenGui")
+local TimeLabel = Instance.new("TextLabel")
+
+TimeGui.Name = "ColdJJK_Time"
+TimeGui.Parent = game.CoreGui
+TimeGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+TimeGui.Enabled = true
+
+TimeLabel.Name = "TimeLabel"
+TimeLabel.Parent = TimeGui
+TimeLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Position = UDim2.new(0.75, 0, 0.010, 0)
+TimeLabel.Size = UDim2.new(0, 133, 0, 30)
+TimeLabel.Font = Enum.Font.GothamSemibold
+TimeLabel.Text = "加载中..."
+TimeLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+TimeLabel.TextScaled = true
+TimeLabel.TextSize = 14
+TimeLabel.TextWrapped = true
+TimeLabel.Visible = true
+
+spawn(function()
+    while true do
+        TimeLabel.Text = ("时间: "..os.date("%H")..":"..os.date("%M")..":"..os.date("%S"))
+        wait(1)
+    end
+end)
+
+local Tabs = {
+    JJKInfinite = Window:Tab({ Title = "战斗", Icon = "infinity", Locked = false }),
+    JJKLegacy = Window:Tab({ Title = "金钱", Icon = "history", Locked = false }),
+    JJKArtifacts = Window:Tab({ Title = "牛逼功能", Icon = "gem", Locked = false })
+}
+
+local runningStates = {}
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:红色逆转",
+    Icon = "zap",
+    Callback = function()
+        if runningStates["红色逆转"] then
+            runningStates["红色逆转"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:红色逆转 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["红色逆转"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:红色逆转 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["红色逆转"] do
+                local args = { [1] = "Infinity: Reversal Red" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "自动腿击",
+    Icon = "footprints",
+    Callback = function()
+        if runningStates["自动腿击"] then
+            runningStates["自动腿击"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "自动腿击 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["自动腿击"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "自动腿击 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["自动腿击"] do
+                local target = workspace.Objects.Mobs:FindFirstChild("King Of Curses")
+                if target and target.Humanoid then
+                    local args = {
+                        [1] = 1,
+                        [2] = { [1] = target.Humanoid },
+                        [3] = 16
+                    }
+                    game:GetService("ReplicatedStorage").Remotes.Server.Combat.M1:FireServer(unpack(args))
+                end
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:蓝色失效",
+    Icon = "droplets",
+    Callback = function()
+        if runningStates["蓝色失效"] then
+            runningStates["蓝色失效"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:蓝色失效 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["蓝色失效"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:蓝色失效 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["蓝色失效"] do
+                local args = { [1] = "Infinity: Lapse Blue" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:空间打击",
+    Icon = "target",
+    Callback = function()
+        if runningStates["空间打击"] then
+            runningStates["空间打击"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:空间打击 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["空间打击"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:空间打击 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["空间打击"] do
+                local args = { [1] = "Infinity: Spatial Pummel" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:穆根",
+    Icon = "brain",
+    Callback = function()
+        if runningStates["穆根"] then
+            runningStates["穆根"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:穆根 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["穆根"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:穆根 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["穆根"] do
+                local args = { [1] = "Infinity: Mugen" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:红色传说",
+    Icon = "radio",
+    Callback = function()
+        if runningStates["红色传说"] then
+            runningStates["红色传说"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:红色传说 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["红色传说"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:红色传说 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["红色传说"] do
+                local args = { [1] = "Infinity: Red Transmission" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:空间紫色",
+    Icon = "sparkles",
+    Callback = function()
+        if runningStates["空间紫色"] then
+            runningStates["空间紫色"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:空间紫色 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["空间紫色"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:空间紫色 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["空间紫色"] do
+                local args = { [1] = "Infinity: Hollow Purple" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "空间:域扩展",
+    Icon = "expand",
+    Callback = function()
+        if runningStates["域扩展"] then
+            runningStates["域扩展"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "空间:域扩展 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["域扩展"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "空间:域扩展 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["域扩展"] do
+                local args = { [1] = "Domain Expansion: Unlimited Void" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "无限:重拳",
+    Icon = "fist",
+    Callback = function()
+        if runningStates["重拳"] then
+            runningStates["重拳"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限:重拳 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["重拳"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限:重拳 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["重拳"] do
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.M2:FireServer()
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "烛光甘蓝",
+    Icon = "flame",
+    Callback = function()
+        if runningStates["烛光甘蓝"] then
+            runningStates["烛光甘蓝"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "烛光甘蓝 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["烛光甘蓝"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "烛光甘蓝 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["烛光甘蓝"] do
+                local args = {
+                    [1] = "CanDomain",
+                    [2] = true
+                }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.ReplicateClientInfo:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKInfinite:Button({
+    Title = "最大:六只眼睛",
+    Icon = "eye",
+    Callback = function()
+        if runningStates["六只眼睛"] then
+            runningStates["六只眼睛"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "最大:六只眼睛 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["六只眼睛"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "最大:六只眼睛 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["六只眼睛"] do
+                local args = { [1] = "Maximum: Six Eyes" }
+                game:GetService("ReplicatedStorage").Remotes.Server.Combat.Skill:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKLegacy:Button({
+    Title = "远程接受任务",
+    Icon = "inbox",
+    Callback = function()
+        if game.Players.LocalPlayer.PlayerGui.QuestGui.Frame.K then
+            game.Players.LocalPlayer.PlayerGui.QuestGui.Frame.K:FireServer()
+            WindUI:Notify({
+                Title = "成功",
+                Content = "已远程接受任务",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "错误",
+                Content = "未找到任务界面",
+                Duration = 3
+            })
+        end
+    end
+})
+
+Tabs.JJKLegacy:Button({
+    Title = "自动开大",
+    Icon = "zap",
+    Callback = function()
+        if runningStates["自动开大"] then
+            runningStates["自动开大"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "自动开大 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["自动开大"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "自动开大 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["自动开大"] do
+                local args = {
+                    [1] = "Combat",
+                    [2] = "UseZ"
+                }
+                game:GetService("ReplicatedStorage").RemoteEvent.information:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKLegacy:Button({
+    Title = "自动攻击",
+    Icon = "swords",
+    Callback = function()
+        if runningStates["自动攻击"] then
+            runningStates["自动攻击"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "自动攻击 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["自动攻击"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "自动攻击 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["自动攻击"] do
+                local args = {
+                    [1] = "Combat",
+                    [2] = "Combo"
+                }
+                game:GetService("Players").LocalPlayer.Character.Combat.RemoteEvent:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKLegacy:Label({
+    Title = "注意",
+    Content = "以上功能可能有bug，请谨慎使用"
+})
+
+Tabs.JJKLegacy:Button({
+    Title = "传送到任务点",
+    Icon = "map-pin",
+    Callback = function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-4046.29931640625, 1190.1025390625, -4340.392578125)
+        WindUI:Notify({
+            Title = "传送成功",
+            Content = "已传送到任务接收点",
+            Duration = 3
+        })
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "无限快速冲刺",
+    Icon = "wind",
+    Callback = function()
+        if runningStates["快速冲刺"] then
+            runningStates["快速冲刺"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限快速冲刺 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["快速冲刺"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限快速冲刺 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["快速冲刺"] do
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.GojoService.RE.Chase:FireServer()
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "无限逆转红色",
+    Icon = "rotate-ccw",
+    Callback = function()
+        if runningStates["逆转红色"] then
+            runningStates["逆转红色"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限逆转红色 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["逆转红色"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限逆转红色 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["逆转红色"] do
+                local args = { [1] = false }
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.ReversalRedService.RE.Activated:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "无限双倍踢球",
+    Icon = "footprints",
+    Callback = function()
+        if runningStates["双倍踢球"] then
+            runningStates["双倍踢球"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限双倍踢球 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["双倍踢球"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限双倍踢球 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["双倍踢球"] do
+                local args = { [1] = false }
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.TwofoldKickService.RE.Activated:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "无限自动攻击",
+    Icon = "swords",
+    Callback = function()
+        if runningStates["神器自动攻击"] then
+            runningStates["神器自动攻击"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限自动攻击 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["神器自动攻击"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限自动攻击 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["神器自动攻击"] do
+                local args = { [1] = false }
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.GojoService.RE.Activated:FireServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "自动防御",
+    Icon = "shield",
+    Callback = function()
+        if runningStates["自动防御"] then
+            runningStates["自动防御"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "自动防御 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["自动防御"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "自动防御 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["自动防御"] do
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.BlockService.RE.Deactivated:FireServer()
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "无限拉普斯蓝色",
+    Icon = "droplets",
+    Callback = function()
+        if runningStates["拉普斯蓝色"] then
+            runningStates["拉普斯蓝色"] = false
+            WindUI:Notify({
+                Title = "已停止",
+                Content = "无限拉普斯蓝色 已停止",
+                Duration = 2
+            })
+            return
+        end
+        
+        runningStates["拉普斯蓝色"] = true
+        WindUI:Notify({
+            Title = "已启动",
+            Content = "无限拉普斯蓝色 已启动",
+            Duration = 2
+        })
+        
+        spawn(function()
+            while runningStates["拉普斯蓝色"] do
+                game:GetService("ReplicatedStorage").Knit.Knit.Services.LapseBlueService.RE.Activated:FireServer()
+                wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.JJKArtifacts:Button({
+    Title = "停止所有功能",
+    Icon = "stop-circle",
+    Callback = function()
+        for key, _ in pairs(runningStates) do
+            runningStates[key] = false
+        end
+        WindUI:Notify({
+            Title = "已停止",
+            Content = "所有正在运行的功能已停止",
+            Duration = 3
+        })
+    end
+})
+
+WindUI:Notify({
+    Title = "脚本加载完成",
+    Content = "已加载3个分类，共20+个功能",
+    Duration = 5
+})
