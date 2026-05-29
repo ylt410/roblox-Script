@@ -1,4 +1,31 @@
-   local MovementTab = Window:Tab({Title = "人物", Icon = "running"})
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Confirmed = false
+
+WindUI:Popup({
+    Title = "doors by 大司马",
+    IconThemed = true,
+    Content = "尊贵的用户" .. game.Players.LocalPlayer.Name .. "使用大司马脚本",
+    Buttons = {
+        {
+            Title = "取消",
+            Callback = function() end,
+            Variant = "Secondary",
+        },
+        {
+            Title = "执行",
+            Icon = "arrow-right",
+            Callback = function() 
+                Confirmed = true
+                createUI()
+            end,
+            Variant = "Primary",
+        }
+    }
+})
+
+function createUI()
+   
+    local MovementTab = Window:Tab({Title = "人物", Icon = "running"})
     MovementTab:Button({
         Title = "禁用反作弊",
         Tooltip = "在电梯中使用，可能会有bug但通常有效",
