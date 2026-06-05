@@ -1,16 +1,3 @@
---// 启动警告保护层完整版
---// 作用：
---// 1. 检测是否在摧毁师 / BloxStrike
---// 2. 可选检测自然灾害 / Natural Disaster Survival，用来测试弹窗
---// 3. 命中目标游戏后暂停主脚本启动
---// 4. 弹出白色玻璃风格警告 UI
---// 5. 用户取消则停止
---// 6. 用户继续后进行二级确认
---// 7. 二级确认后才执行主脚本
---
---// 放在整个脚本最顶部。
---// 不要放在 loadstring、HttpGet、UI库、主逻辑后面。
---// 不然就是先跳楼再问要不要系安全绳，人类写脚本经典悲剧。
 
 --========================
 -- 配置区
@@ -41,6 +28,10 @@ local TARGET_GAMES = {
 -- 如果你是远程加载主脚本，就填这里
 -- 不想用远程加载，就保持空字符串，然后把你的主脚本代码放到最下面
 local MAIN_SCRIPT_URL = ""
+
+-- 新增：加载其他脚本按钮用这里
+-- 你自己把要加载的脚本链接填进去
+local OTHER_SCRIPT_URL = "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/子追"
 
 --========================
 -- 工具函数
@@ -114,13 +105,40 @@ local function CreateButton(parent, name, text, position, size, bgColor, textCol
     button.AutoButtonColor = true
     button.Text = text
     button.TextColor3 = textColor
-    button.TextSize = 15
+    button.TextSize = 14
     button.Font = Enum.Font.GothamBold
     button.TextWrapped = true
 
     CreateCorner(button, 14)
 
     return button
+end
+
+local function RunRemoteScript(url)
+    if url == nil or url == "" then
+        warn("[启动保护] 脚本 URL 为空，未加载。")
+        return
+    end
+
+    local loadOk, loadedFunctionOrError = pcall(function()
+        return loadstring(game:HttpGet(url))
+    end)
+
+    if not loadOk then
+        warn("[启动保护] 加载脚本失败：", loadedFunctionOrError)
+        return
+    end
+
+    if type(loadedFunctionOrError) ~= "function" then
+        warn("[启动保护] loadstring 没有返回可执行函数。")
+        return
+    end
+
+    local runOk, runError = pcall(loadedFunctionOrError)
+
+    if not runOk then
+        warn("[启动保护] 执行脚本失败：", runError)
+    end
 end
 
 --========================
@@ -156,7 +174,7 @@ local function ShowStartupWarning(matchedGame)
 
     local resultEvent = Instance.new("BindableEvent")
     local answered = false
-    local secondConfirm = false
+    local pendingAction = nil
 
     local function Finish(result)
         if answered then
@@ -189,14 +207,14 @@ local function ShowStartupWarning(matchedGame)
     mainShadow.Parent = background
     mainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
     mainShadow.Position = UDim2.fromScale(0.5, 0.5)
-    mainShadow.Size = UDim2.new(0.88, 18, 0, 300)
+    mainShadow.Size = UDim2.new(0.88, 18, 0, 330)
     mainShadow.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     mainShadow.BackgroundTransparency = 0.72
     mainShadow.BorderSizePixel = 0
 
     local shadowLimit = Instance.new("UISizeConstraint")
-    shadowLimit.MaxSize = Vector2.new(520, 330)
-    shadowLimit.MinSize = Vector2.new(320, 270)
+    shadowLimit.MaxSize = Vector2.new(520, 355)
+    shadowLimit.MinSize = Vector2.new(320, 300)
     shadowLimit.Parent = mainShadow
 
     CreateCorner(mainShadow, 32)
@@ -207,14 +225,14 @@ local function ShowStartupWarning(matchedGame)
     main.Parent = background
     main.AnchorPoint = Vector2.new(0.5, 0.5)
     main.Position = UDim2.fromScale(0.5, 0.5)
-    main.Size = UDim2.new(0.88, 0, 0, 278)
+    main.Size = UDim2.new(0.88, 0, 0, 308)
     main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     main.BackgroundTransparency = 0.1
     main.BorderSizePixel = 0
 
     local mainLimit = Instance.new("UISizeConstraint")
-    mainLimit.MaxSize = Vector2.new(490, 310)
-    mainLimit.MinSize = Vector2.new(305, 260)
+    mainLimit.MaxSize = Vector2.new(490, 335)
+    mainLimit.MinSize = Vector2.new(305, 290)
     mainLimit.Parent = main
 
     CreateCorner(main, 26)
@@ -249,6 +267,9 @@ local function ShowStartupWarning(matchedGame)
     CreateCorner(leftGlow, 999)
 
     local red = Color3.fromRGB(220, 38, 38)
+    local darkRed = Color3.fromRGB(185, 28, 28)
+    local blue = Color3.fromRGB(37, 99, 235)
+    local darkBlue = Color3.fromRGB(29, 78, 216)
     local black = Color3.fromRGB(18, 18, 22)
     local gray = Color3.fromRGB(90, 90, 98)
 
@@ -288,7 +309,7 @@ local function ShowStartupWarning(matchedGame)
     local dangerText = CreateText(
         main,
         "DangerText",
-        "如果你选择继续使用脚本账号百分之99会被封禁，请谨慎选择",
+        "如果你选择继续使用夜脚本账号百分之99会被封禁，请谨慎选择\n不过，我为你准备了子弹追踪，他不会被检测，点击加载其他脚本来使用",
         UDim2.new(0, 28, 0, 153),
         UDim2.new(1, -56, 0, 58),
         red,
@@ -302,8 +323,8 @@ local function ShowStartupWarning(matchedGame)
         main,
         "MatchedText",
         "当前匹配：" .. tostring(matchedGame.Name),
-        UDim2.new(0, 28, 0, 205),
-        UDim2.new(1, -56, 0, 20),
+        UDim2.new(0, 28, 0, 212),
+        UDim2.new(1, -56, 0, 22),
         gray,
         12,
         Enum.Font.Gotham
@@ -313,28 +334,40 @@ local function ShowStartupWarning(matchedGame)
         main,
         "CancelButton",
         "取消启动",
-        UDim2.new(0, 28, 1, -58),
-        UDim2.new(0.5, -36, 0, 42),
+        UDim2.new(0, 28, 1, -60),
+        UDim2.new(1 / 3, -25, 0, 42),
         Color3.fromRGB(245, 245, 247),
         black
     )
 
     CreateStroke(cancelButton, Color3.fromRGB(210, 210, 218), 1.5, 0.15)
 
+    local otherButton = CreateButton(
+        main,
+        "OtherScriptButton",
+        "加载其他脚本",
+        UDim2.new(1 / 3, 14, 1, -60),
+        UDim2.new(1 / 3, -25, 0, 42),
+        blue,
+        Color3.fromRGB(255, 255, 255)
+    )
+
+    CreateStroke(otherButton, Color3.fromRGB(255, 255, 255), 1.5, 0.35)
+
     local continueButton = CreateButton(
         main,
         "ContinueButton",
         "继续启动",
-        UDim2.new(0.5, 8, 1, -58),
-        UDim2.new(0.5, -36, 0, 42),
+        UDim2.new(2 / 3, 0, 1, -60),
+        UDim2.new(1 / 3, -28, 0, 42),
         red,
         Color3.fromRGB(255, 255, 255)
     )
 
     CreateStroke(continueButton, Color3.fromRGB(255, 255, 255), 1.5, 0.35)
 
-    main.Size = UDim2.new(0.88, 0, 0, 250)
-    mainShadow.Size = UDim2.new(0.88, 18, 0, 272)
+    main.Size = UDim2.new(0.88, 0, 0, 280)
+    mainShadow.Size = UDim2.new(0.88, 18, 0, 302)
     main.BackgroundTransparency = 1
     mainShadow.BackgroundTransparency = 1
 
@@ -342,7 +375,7 @@ local function ShowStartupWarning(matchedGame)
         main,
         TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
         {
-            Size = UDim2.new(0.88, 0, 0, 278),
+            Size = UDim2.new(0.88, 0, 0, 308),
             BackgroundTransparency = 0.1,
         }
     ):Play()
@@ -351,7 +384,7 @@ local function ShowStartupWarning(matchedGame)
         mainShadow,
         TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
         {
-            Size = UDim2.new(0.88, 18, 0, 300),
+            Size = UDim2.new(0.88, 18, 0, 330),
             BackgroundTransparency = 0.72,
         }
     ):Play()
@@ -378,36 +411,70 @@ local function ShowStartupWarning(matchedGame)
         end
     end
 
+    local function SetMainConfirmState()
+        pendingAction = "main"
+
+        smallTitle.Text = "二级确认"
+        idText.Text = "你确定要继续启动吗？"
+        pauseText.Text = "脚本仍然处于暂停状态"
+        dangerText.Text = "再次点击确认继续后，脚本才会真正启动。账号风险由你自己承担。"
+        matchedText.Text = "当前游戏 ID：" .. tostring(game.PlaceId)
+
+        continueButton.Text = "确认继续"
+        continueButton.BackgroundColor3 = darkRed
+
+        otherButton.Text = "加载其他脚本"
+        otherButton.BackgroundColor3 = blue
+
+        cancelButton.Text = "取消"
+    end
+
+    local function SetOtherConfirmState()
+        pendingAction = "other"
+
+        smallTitle.Text = "加载其他脚本"
+        idText.Text = "你确定要加载子追脚本吗？"
+        pauseText.Text = "原主脚本不会启动"
+        dangerText.Text = "再次点击确认加载后，将执行 子追\n注意：如果被人工审核或挂dc一样会封只是不会被自动封禁"
+        matchedText.Text = "当前游戏 ID：" .. tostring(game.PlaceId)
+
+        otherButton.Text = "确认加载"
+        otherButton.BackgroundColor3 = darkBlue
+
+        continueButton.Text = "继续启动"
+        continueButton.BackgroundColor3 = red
+
+        cancelButton.Text = "取消"
+    end
+
     cancelButton.MouseButton1Click:Connect(function()
         Finish(false)
     end)
 
     continueButton.MouseButton1Click:Connect(function()
-        if not secondConfirm then
-            secondConfirm = true
-
-            smallTitle.Text = "二级确认"
-            idText.Text = "你确定要继续启动吗？"
-            pauseText.Text = "脚本仍然处于暂停状态"
-            dangerText.Text = "再次点击确认继续后，脚本才会真正启动。账号风险由你自己承担。"
-            matchedText.Text = "当前游戏 ID：" .. tostring(game.PlaceId)
-
-            continueButton.Text = "确认继续"
-            continueButton.BackgroundColor3 = Color3.fromRGB(185, 28, 28)
-
-            cancelButton.Text = "取消"
+        if pendingAction ~= "main" then
+            SetMainConfirmState()
             return
         end
 
-        Finish(true)
+        Finish("main")
     end)
 
-    local shouldContinue = resultEvent.Event:Wait()
+    otherButton.MouseButton1Click:Connect(function()
+        if pendingAction ~= "other" then
+            SetOtherConfirmState()
+            return
+        end
+
+        Finish("other")
+    end)
+
+    local result = resultEvent.Event:Wait()
 
     Cleanup()
     resultEvent:Destroy()
 
-    return shouldContinue == true
+    return result
 end
 
 --========================
@@ -418,13 +485,26 @@ local function StartupGate()
     local matchedGame = GetMatchedGame()
 
     if not matchedGame then
-        return true
+        return "main"
     end
 
     return ShowStartupWarning(matchedGame)
 end
 
-if not StartupGate() then
+local startupMode = StartupGate()
+
+if startupMode == false then
+    return
+end
+
+--========================
+-- 加载其他脚本区
+--========================
+-- 如果用户点的是“加载其他脚本”，只执行 OTHER_SCRIPT_URL
+-- 不会继续执行下面的主脚本
+
+if startupMode == "other" then
+    RunRemoteScript(OTHER_SCRIPT_URL)
     return
 end
 
@@ -437,11 +517,13 @@ end
 -- 2. 用户已经点了继续，并且通过二级确认
 
 if MAIN_SCRIPT_URL ~= nil and MAIN_SCRIPT_URL ~= "" then
-    loadstring(game:HttpGet(MAIN_SCRIPT_URL))()
+    RunRemoteScript(MAIN_SCRIPT_URL)
 end
 
 -- 如果你不用 MAIN_SCRIPT_URL，就把你的主脚本代码放在这里下面。
 -- 例如：
 -- print("主脚本开始运行")
+
 getgenv().SCRIPT_KEY = ""
-loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/697567f6437d72f0fde0e831b933710537234f9ad09198cfe754470b83078b8b/download"))()
+
+RunRemoteScript("https://api.jnkie.com/api/v1/luascripts/public/697567f6437d72f0fde0e831b933710537234f9ad09198cfe754470b83078b8b/download")
