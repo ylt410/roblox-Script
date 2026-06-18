@@ -1,0 +1,661 @@
+local ZTab = Window:Tab({
+        Title = "主要功能",
+        Icon = "megaphone",
+        Locked = false,
+    })
+
+local cloneref = cloneref or function(obj) return obj end
+
+local Players = cloneref(game:GetService("Players"))
+local RunService = cloneref(game:GetService("RunService"))
+local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+local CollectionService = cloneref(game:GetService("CollectionService"))
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+-- 将默认值调整为 false，交由下方的 UI 开关实时控制
+local Config = {
+	Enabled = false,          -- 自动瞄准总开关
+	VisibleCheck = false,      -- 可见性检查开关
+	Aimpart = "Head",
+	FireRateMultiplier = false, -- 射速提升开关（开启时为 1.5）
+	InfiniteMagAmmo = false,    -- 无限弹药开关
+	FullAuto = false,           -- 全自动开关
+	ShowTracers = false,        -- 显示弹道开关
+	ShowHitModels = false,      -- 显示击中残影开关
+}
+
+local HitmarkerConfig = {
+	Enabled = false,            -- 击中提示反馈开关
+	Scale = 2.0,
+	NormalSize = 16,
+	HeadshotSize = 26,
+	NormalColor = Color3.fromRGB(255, 255, 255),
+	HeadshotColor = Color3.fromRGB(255, 60, 60),
+	Duration = 0.28,
+}
+
+local activeHitmarkers = {}
+local hitmarkerConnection = nil
+
+local function createHitmarker(worldPosition, isHeadshot)
+	if not HitmarkerConfig.Enabled then return end
+	
+	local hud = playerGui:FindFirstChild("HUD")
+	if not hud then
+		hud = Instance.new("ScreenGui")
+		hud.Name = "HUD"
+		hud.ResetOnSpawn = false
+		hud.Parent = playerGui
+	end
+	
+	if not camera then return end
+	
+	local screenPos, onScreen = camera:WorldToViewportPoint(worldPosition)
+	if not onScreen or screenPos.Z <= 0 then return end
+	
+	local baseSize = isHeadshot and HitmarkerConfig.HeadshotSize or HitmarkerConfig.NormalSize
+	local finalSize = baseSize * HitmarkerConfig.Scale
+	
+	local frame = Instance.new("Frame")
+	frame.Name = isHeadshot and "HitmarkerHeadshot" or "Hitmarker"
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Size = UDim2.fromOffset(finalSize, finalSize)
+	frame.Position = UDim2.fromOffset(screenPos.X, screenPos.Y)
+	frame.Visible = true
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = frame
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.LineJoinMode = Enum.LineJoinMode.Round
+	stroke.Color = isHeadshot and HitmarkerConfig.HeadshotColor or HitmarkerConfig.NormalColor
+	stroke.Thickness = (isHeadshot and 2.25 or 1.5) * HitmarkerConfig.Scale
+	stroke.Transparency = 0
+	stroke.Parent = frame
+	
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.1
+	scale.Parent = frame
+	
+	frame.Parent = hud
+	
+	local hitmarkerData = {
+		ring = frame,
+		stroke = stroke,
+		scale = scale,
+		worldPos = worldPosition,
+		bornAt = os.clock()
+	}
+	
+	table.insert(activeHitmarkers, hitmarkerData)
+	
+	if not hitmarkerConnection then
+		hitmarkerConnection = RunService.RenderStepped:Connect(function()
+			local currentTime = os.clock()
+			local cam = workspace.CurrentCamera
+			
+			for i = #activeHitmarkers, 1, -1 do
+				local marker = activeHitmarkers[i]
+				
+				if not marker.ring.Parent then
+					table.remove(activeHitmarkers, i)
+				else
+					local elapsed = currentTime - marker.bornAt
+					local progress = elapsed / HitmarkerConfig.Duration
+					
+					local easeOut = 1 - progress
+					local easeCubic = 1 - easeOut * easeOut * easeOut
+					marker.scale.Scale = easeCubic * 1.9 + 0.1
+					
+					if elapsed >= HitmarkerConfig.Duration then
+						marker.ring:Destroy()
+						table.remove(activeHitmarkers, i)
+					else
+						if elapsed >= 0.08 then
+							local fadeProgress = (elapsed - 0.08) / 0.2
+							marker.stroke.Transparency = math.clamp(fadeProgress, 0, 1)
+						end
+						
+						if cam then
+							local sp, os = cam:WorldToViewportPoint(marker.worldPos)
+							if os and sp.Z > 0 then
+								marker.ring.Position = UDim2.fromOffset(sp.X, sp.Y)
+								marker.ring.Visible = true
+							else
+								marker.ring.Visible = false
+							end
+						end
+					end
+				end
+			end
+			
+			if #activeHitmarkers == 0 and hitmarkerConnection then
+				hitmarkerConnection:Disconnect()
+				hitmarkerConnection = nil
+			end
+		end)
+	end
+end
+
+local tracerColor = Color3.fromRGB(215, 127, 156)
+local tracerTransparency = 0
+local tracerLifetime = 5
+
+local beamTemplate = {
+	Texture = "rbxassetid://446111271",
+	TextureMode = Enum.TextureMode.Wrap,
+	TextureLength = 10,
+	LightEmission = 1,
+	LightInfluence = 1,
+	FaceCamera = true,
+	ZOffset = -1,
+	Enabled = true
+}
+
+local beamFolder = Instance.new("Folder")
+beamFolder.Name = "BulletTracers"
+beamFolder.Parent = workspace
+
+local hitModelFolder = Instance.new("Folder")
+hitModelFolder.Name = "HitModels"
+hitModelFolder.Parent = workspace
+
+local hitModelsByPlayer = {}
+
+local function createBeamTracer(startPos, endPos)
+	if not Config.ShowTracers then return end
+	
+	local beam = Instance.new("Beam")
+	for k, v in pairs(beamTemplate) do
+		beam[k] = v
+	end
+	beam.Color = ColorSequence.new(tracerColor)
+	beam.Transparency = NumberSequence.new(tracerTransparency)
+	beam.Width0 = 3.0
+	beam.Width1 = 3.0
+	
+	local att0 = Instance.new("Attachment")
+	att0.CFrame = CFrame.new(startPos)
+	att0.Parent = workspace.Terrain
+	
+	local att1 = Instance.new("Attachment")
+	att1.CFrame = CFrame.new(endPos)
+	att1.Parent = workspace.Terrain
+	
+	beam.Attachment0 = att0
+	beam.Attachment1 = att1
+	beam.Parent = beamFolder
+	
+	task.delay(tracerLifetime, function()
+		local fadeElapsed = 0
+		local fadeConn
+		fadeConn = RunService.Heartbeat:Connect(function(dt)
+			fadeElapsed = fadeElapsed + dt
+			local alpha = math.clamp(fadeElapsed / 0.2, 0, 1)
+			beam.Transparency = NumberSequence.new(tracerTransparency + (1 - tracerTransparency) * alpha)
+			if fadeElapsed >= 0.2 then
+				fadeConn:Disconnect()
+				att0:Destroy()
+				att1:Destroy()
+				beam:Destroy()
+			end
+		end)
+	end)
+end
+
+local function createLayeredGlow(part, mainColor, glowColor, transparency)
+	local isHead = part.Name == "Head"
+	
+	local baseColor = Color3.new(glowColor.R * 5, glowColor.G * 5, glowColor.B * 5)
+	
+	local glowAdornment
+	if isHead then
+		glowAdornment = Instance.new("CylinderHandleAdornment")
+		glowAdornment.Height = part.Size.Y + 0.03
+		glowAdornment.Radius = (part.Size.X * 0.5) + 0.03
+		glowAdornment.CFrame = CFrame.new(Vector3.new(0, 0, 0), Vector3.new(0, 1, 0))
+	else
+		glowAdornment = Instance.new("BoxHandleAdornment")
+		glowAdornment.Size = part.Size + Vector3.new(0.03, 0.03, 0.03)
+	end
+	
+	glowAdornment.Name = "Chams"
+	glowAdornment.AlwaysOnTop = true
+	glowAdornment.ZIndex = isHead and 10 or 9
+	glowAdornment.Adornee = part
+	glowAdornment.Color3 = baseColor
+	glowAdornment.Transparency = math.clamp(-1 + transparency, -1, 1)
+	glowAdornment.Shading = Enum.AdornShading.XRayShaded
+	glowAdornment.Parent = part
+	
+	local mainAdornment
+	if isHead then
+		mainAdornment = Instance.new("CylinderHandleAdornment")
+		mainAdornment.Height = part.Size.Y + 0.02
+		mainAdornment.Radius = (part.Size.X * 0.5) + 0.02
+		mainAdornment.CFrame = CFrame.new(Vector3.new(0, 0, 0), Vector3.new(0, 1, 0))
+	else
+		mainAdornment = Instance.new("BoxHandleAdornment")
+		mainAdornment.Size = part.Size + Vector3.new(0.02, 0.02, 0.02)
+	end
+	
+	mainAdornment.Name = "Chams"
+	mainAdornment.AlwaysOnTop = true
+	mainAdornment.ZIndex = 10
+	mainAdornment.Adornee = part
+	mainAdornment.Color3 = mainColor
+	mainAdornment.Transparency = math.clamp(0.3 + transparency, 0, 1)
+	mainAdornment.Parent = part
+	
+	return glowAdornment, mainAdornment
+end
+
+local function createHitModel(targetChar, hitPos, targetUserId)
+	if not Config.ShowHitModels then return end
+	if not targetChar then return end
+	
+	local clonedModel = targetChar:Clone()
+	clonedModel.Name = "HitClone"
+	clonedModel.Parent = hitModelFolder
+	
+	if not hitModelsByPlayer[targetUserId] then
+		hitModelsByPlayer[targetUserId] = {}
+	end
+	
+	local mainColor = Color3.new(0, 0, 0)
+	local glowColor = Color3.new(1, 1, 1)
+	
+	for _, part in ipairs(clonedModel:GetDescendants()) do
+		if part:IsA("BasePart") then
+			createLayeredGlow(part, mainColor, glowColor, 0.3)
+		end
+		
+		if part:IsA("Script") or part:IsA("LocalScript") or part:IsA("ModuleScript") then
+			part:Destroy()
+		end
+		
+		if part:IsA("Humanoid") then
+			part:Destroy()
+		end
+	end
+	
+	if clonedModel.PrimaryPart then
+		clonedModel:SetPrimaryPartCFrame(CFrame.new(hitPos))
+	elseif clonedModel:FindFirstChild("HumanoidRootPart") then
+		clonedModel.HumanoidRootPart.CFrame = CFrame.new(hitPos)
+	end
+	
+	table.insert(hitModelsByPlayer[targetUserId], 1, clonedModel)
+	
+	for i, oldModel in ipairs(hitModelsByPlayer[targetUserId]) do
+		local baseTransparency = 0.3
+		local transparencyAdd = (i - 1) * 0.5
+		local finalTransparency = baseTransparency + transparencyAdd
+		
+		for _, part in ipairs(oldModel:GetDescendants()) do
+			if part:IsA("BasePart") then
+				for _, adornment in ipairs(part:GetChildren()) do
+					if adornment.Name == "Chams" then
+						if adornment:IsA("BoxHandleAdornment") or adornment:IsA("CylinderHandleAdornment") then
+							if adornment.ZIndex < 10 then
+								adornment.Transparency = math.clamp(-1 + finalTransparency, -1, 1)
+							else
+								adornment.Transparency = math.clamp(finalTransparency, 0, 1)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	task.delay(5, function()
+		clonedModel:Destroy()
+		if hitModelsByPlayer[targetUserId] then
+			for i, model in ipairs(hitModelsByPlayer[targetUserId]) do
+				if model == clonedModel then
+					table.remove(hitModelsByPlayer[targetUserId], i)
+					break
+				end
+			end
+		end
+	end)
+end
+
+local WeaponsRegistry
+pcall(function()
+	WeaponsRegistry = require(ReplicatedStorage.Registries.Weapons)
+end)
+
+local function IsAlive(plr)
+	local character = plr.Character
+	if not character then return false end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return false end
+	
+	return true
+end
+
+local function IsDead(part)
+	local check = part
+	while check and check ~= workspace do
+		if check:GetAttribute("Dead") == true then
+			return true
+		end
+		check = check.Parent
+	end
+	return false
+end
+
+local function IsVisible(targetPart)
+	if not Config.VisibleCheck then return true end
+	
+	local character = player.Character
+	if not character then return false end
+	
+	local origin = camera.CFrame.Position
+	local direction = (targetPart.Position - origin)
+	
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = {character, camera}
+	
+	local result = workspace:Raycast(origin, direction, raycastParams)
+	
+	if not result then return true end
+	
+	if result.Instance:IsDescendantOf(targetPart.Parent) then
+		return true
+	end
+	
+	return false
+end
+
+local function GetClosestPlayer()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	
+	for _, tagged in ipairs(CollectionService:GetTagged("MercBodyPart")) do
+		if tagged:IsA("BasePart") and tagged.Parent then
+			if IsDead(tagged) then continue end
+			
+			local bodyPartName = tagged:GetAttribute("MercBodyPart")
+			if bodyPartName ~= Config.Aimpart then continue end
+			
+			local ownerId = tagged:GetAttribute("OwnerUserId")
+			if not ownerId or ownerId == player.UserId then continue end
+			
+			local targetPlayer = Players:GetPlayerByUserId(ownerId)
+			if not targetPlayer then continue end
+			
+			if not IsAlive(targetPlayer) then continue end
+			
+			if not IsVisible(tagged) then continue end
+			
+			local distance = (tagged.Position - camera.CFrame.Position).Magnitude
+			
+			if distance < shortestDistance then
+				shortestDistance = distance
+				closestPlayer = {
+					Player = targetPlayer,
+					Part = tagged,
+					Position = tagged.Position
+				}
+			end
+		end
+	end
+	
+	return closestPlayer
+end
+
+local function ApplyWeaponMods()
+	if not WeaponsRegistry then return end
+	
+	for weaponName, weaponData in pairs(WeaponsRegistry) do
+		if type(weaponData) == "table" then
+			if Config.FullAuto and weaponData.FireMode then
+				pcall(function() weaponData.FireMode = "Auto" end)
+				if weaponData.FireModes then
+					pcall(function() weaponData.FireModes = {"Auto", "Semi"} end)
+				end
+			end
+			
+			if Config.FireRateMultiplier and weaponData.FireRate then
+				local originalRate = weaponData.FireRate
+				pcall(function() weaponData.FireRate = originalRate / Config.FireRateMultiplier end)
+			end
+		end
+	end
+end
+
+ApplyWeaponMods()
+
+local GunController
+pcall(function()
+	GunController = require(ReplicatedStorage.Modules.Client.Controllers.GunController)
+end)
+
+local function ApplyGunControllerMods()
+	if not GunController then return end
+
+	if GunController.Weapon then
+		local weapon = GunController.Weapon
+		if weapon then
+			if Config.FullAuto then
+				weapon.FireMode = "auto"
+			end
+			
+			if Config.FireRateMultiplier and weapon.FireRate then
+				local weaponName = weapon.Name
+				if weaponName and WeaponsRegistry and WeaponsRegistry[weaponName] then
+					local weaponData = WeaponsRegistry[weaponName]
+					if weaponData and weaponData.FireRate then
+						weapon.FireRate = weaponData.FireRate / Config.FireRateMultiplier
+					end
+				end
+			end
+
+			if Config.InfiniteMagAmmo and weapon.MagAmmo ~= nil then
+				local maxAmmo = weapon.MaxMagSize or 30
+				weapon.MagAmmo = maxAmmo
+			end
+		end
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	ApplyGunControllerMods()
+	
+	if Config.InfiniteMagAmmo then
+		pcall(function()
+			local GC = require(ReplicatedStorage.Modules.Client.Controllers.GunController)
+			if GC and GC.Weapon then
+				local weapon = GC.Weapon
+				if weapon and weapon.MagAmmo ~= nil then
+					local maxAmmo = weapon.MaxMagSize or 30
+					weapon.MagAmmo = maxAmmo
+				end
+			end
+		end)
+	end
+	
+	if Config.Enabled and GunController and GunController.FireWeapon then
+		local target = GetClosestPlayer()
+		if target then
+			if GunController.Weapon and GunController.Weapon.FireMode ~= "auto" then
+				GunController.Weapon.FireMode = "auto"
+			end
+			
+			local didFire = GunController:FireWeapon()
+			
+			if didFire and target then
+				local character = player.Character
+				if character then
+					local root = character:FindFirstChild("HumanoidRootPart")
+					if root then
+						createBeamTracer(root.Position, target.Position)
+					end
+				end
+				
+				local isHeadshot = (target.Part.Name == "Head")
+				createHitmarker(target.Position, isHeadshot)
+				
+				local targetChar = target.Player.Character
+				if targetChar then
+					local ownerId = target.Part:GetAttribute("OwnerUserId")
+					createHitModel(targetChar, target.Position, ownerId)
+				end
+			end
+		end
+	end
+end)
+
+local BulletController
+pcall(function()
+	BulletController = require(ReplicatedStorage.Modules.Client.Controllers.BulletController)
+end)
+
+if BulletController and BulletController.Discharge then
+	local originalDischarge = BulletController.Discharge
+	
+	BulletController.Discharge = function(self, weaponName, eyePosition, fireDirection, muzzleWorldPosition, ...)
+		if Config.Enabled then
+			local target = GetClosestPlayer()
+			
+			if target then
+				local targetPosition = target.Position
+				local newDirection = (targetPosition - eyePosition).Unit
+				fireDirection = newDirection
+			end
+		end
+		
+		return originalDischarge(self, weaponName, eyePosition, fireDirection, muzzleWorldPosition, ...)
+	end
+end
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0, 200, 0, 25)
+statusLabel.Position = UDim2.new(0, 10, 0, 10)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0) -- 默认未开启时显示红色
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 16
+statusLabel.Text = "[Clean Silent Aim] OFF" -- 默认显示关闭
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextStrokeTransparency = 0.5
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CleanSilentAimStatus"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+statusLabel.Parent = screenGui
+
+
+-- =========================================================================
+--  在脚本最底部无缝添加所有功能的 UI 开关控制组
+-- =========================================================================
+
+-- 开关 1：自动瞄准 (Silent Aim)
+TabOther:Toggle({
+    Title = "自动瞄准 (Silent Aim)",
+    Default = false,
+    Callback = function(v)
+        Config.Enabled = v
+        if v then
+            statusLabel.Text = "[Clean Silent Aim] ON"
+            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            Notify("自动瞄准", "已开启", 2, "success")
+        else
+            statusLabel.Text = "[Clean Silent Aim] OFF"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+            Notify("自动瞄准", "已关闭", 2, "info")
+        end
+    end
+})
+
+-- 开关 2：可见性检查 (墙穿验证)
+TabOther:Toggle({
+    Title = "可见性检查 (Visible Check)",
+    Default = false,
+    Callback = function(v)
+        Config.VisibleCheck = v
+        if v then
+            Notify("可见性检查", "已开启 (不锁墙后目标)", 2, "success")
+        else
+            Notify("可见性检查", "已关闭 (允许锁定墙后目标)", 2, "info")
+        end
+    end
+})
+
+-- 开关 3：全自动模式 (Full Auto)
+TabOther:Toggle({
+    Title = "全自动模式 (Full Auto)",
+    Default = false,
+    Callback = function(v)
+        Config.FullAuto = v
+        -- 触发一次注册表重刷
+        if v and ApplyWeaponMods then ApplyWeaponMods() end
+        Notify("全自动模式", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
+
+-- 开关 4：射速提升 (Fire Rate Multiplier)
+TabOther:Toggle({
+    Title = "射速提升 (Fire Rate 1.5x)",
+    Default = false,
+    Callback = function(v)
+        Config.FireRateMultiplier = v and 1.5 or false
+        -- 触发一次注册表重刷
+        if v and ApplyWeaponMods then ApplyWeaponMods() end
+        Notify("射速提升", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
+
+-- 开关 5：无限弹药 (Infinite Ammo)
+TabOther:Toggle({
+    Title = "无限弹药 (Infinite Ammo)",
+    Default = false,
+    Callback = function(v)
+        Config.InfiniteMagAmmo = v
+        Notify("无限弹药", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
+
+-- 开关 6：显示弹道轨迹 (Show Tracers)
+TabOther:Toggle({
+    Title = "显示弹道轨迹 (Tracers)",
+    Default = false,
+    Callback = function(v)
+        Config.ShowTracers = v
+        Notify("弹道显示", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
+
+-- 开关 7：显示击中透视残影 (Show Hit Models)
+TabOther:Toggle({
+    Title = "显示击中残影 (Hit Models)",
+    Default = false,
+    Callback = function(v)
+        Config.ShowHitModels = v
+        Notify("击中残影", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
+
+-- 开关 8：准星击中反馈 (Hitmarkers)
+TabOther:Toggle({
+    Title = "击中提示反馈 (Hitmarkers)",
+    Default = false,
+    Callback = function(v)
+        HitmarkerConfig.Enabled = v
+        Notify("击中提示", v and "已开启" or "已关闭", 2, v and "success" or "info")
+    end
+})
