@@ -416,6 +416,9 @@ local function GetClosestPlayer()
 	return closestPlayer
 end
 
+-- 【新增修复】用于永固备份游戏武器最原始的初始射速数值
+local OriginalFireRates = {}
+
 local function ApplyWeaponMods()
 	if not WeaponsRegistry then return end
 	
@@ -428,9 +431,18 @@ local function ApplyWeaponMods()
 				end
 			end
 			
-			if Config.FireRateMultiplier and weaponData.FireRate then
-				local originalRate = weaponData.FireRate
-				pcall(function() weaponData.FireRate = originalRate / Config.FireRateMultiplier end)
+			-- 核心修复：永远基于最初的原始数值进行计算或还原
+			if weaponData.FireRate then
+				if not OriginalFireRates[weaponName] then
+					OriginalFireRates[weaponName] = weaponData.FireRate
+				end
+				
+				local baseRate = OriginalFireRates[weaponName]
+				if Config.FireRateMultiplier then
+					pcall(function() weaponData.FireRate = baseRate / Config.FireRateMultiplier end)
+				else
+					pcall(function() weaponData.FireRate = baseRate end) -- 关闭时完美还原
+				end
 			end
 		end
 	end
@@ -453,13 +465,14 @@ local function ApplyGunControllerMods()
 				weapon.FireMode = "auto"
 			end
 			
-			if Config.FireRateMultiplier and weapon.FireRate then
-				local weaponName = weapon.Name
-				if weaponName and WeaponsRegistry and WeaponsRegistry[weaponName] then
-					local weaponData = WeaponsRegistry[weaponName]
-					if weaponData and weaponData.FireRate then
-						weapon.FireRate = weaponData.FireRate / Config.FireRateMultiplier
-					end
+			-- 核心修复：实时控制层的动态射速重刷与还原
+			local weaponName = weapon.Name
+			if weaponName and OriginalFireRates[weaponName] then
+				local baseRate = OriginalFireRates[weaponName]
+				if Config.FireRateMultiplier then
+					weapon.FireRate = baseRate / Config.FireRateMultiplier
+				else
+					weapon.FireRate = baseRate -- 关闭时完美还原
 				end
 			end
 
@@ -570,7 +583,7 @@ local FireRateValue = 1.5
 
 local function updateFireRateMultiplier()
     Config.FireRateMultiplier = FireRateToggle and FireRateValue or false
-    if Config.FireRateMultiplier and ApplyWeaponMods then
+    if ApplyWeaponMods then
         ApplyWeaponMods()
     end
 end
@@ -630,7 +643,7 @@ Tabttk:Toggle({
     end
 })
 
--- 【新增组件】遵循 WindUI 规范的 Input 组件，用于自由配置具体倍率
+-- 【遵循 WindUI 规范】Input 组件，用于自由配置具体倍率
 Tabttk:Input({
     Title = "自定义射速倍率",
     Placeholder = "当前倍率: 1.5",
