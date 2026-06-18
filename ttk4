@@ -1,3 +1,9 @@
+local Tabttk = Window:Tab({
+        Title = "主要功能",
+        Icon = "megaphone",
+        Locked = false,
+    })
+
 local cloneref = cloneref or function(obj) return obj end
 
 local Players = cloneref(game:GetService("Players"))
@@ -555,10 +561,10 @@ statusLabel.Parent = screenGui
 
 
 -- =========================================================================
---  在脚本最底部无缝添加 WindUI 规范控制组件（含射速倍率输入框）
+--  在脚本最底部无缝添加所有功能的 UI 开关控制组 (集成 WindUI 输入框)
 -- =========================================================================
 
--- 用于驱动 Config.FireRateMultiplier 的内部状态存储
+-- 用于驱动 Config.FireRateMultiplier 的内部状态变量
 local FireRateToggle = false
 local FireRateValue = 1.5
 
@@ -570,7 +576,7 @@ local function updateFireRateMultiplier()
 end
 
 -- 开关 1：自动瞄准 (Silent Aim)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "自动瞄准 (Silent Aim)",
     Default = false,
     Callback = function(v)
@@ -588,7 +594,7 @@ TabOther:Toggle({
 })
 
 -- 开关 2：可见性检查 (墙穿验证)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "可见性检查 (Visible Check)",
     Default = false,
     Callback = function(v)
@@ -602,18 +608,19 @@ TabOther:Toggle({
 })
 
 -- 开关 3：全自动模式 (Full Auto)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "全自动模式 (Full Auto)",
     Default = false,
     Callback = function(v)
         Config.FullAuto = v
+        -- 触发一次注册表重刷
         if v and ApplyWeaponMods then ApplyWeaponMods() end
         Notify("全自动模式", v and "已开启" or "已关闭", 2, v and "success" or "info")
     end
 })
 
--- 开关 4：射速提升状态控制 (Fire Rate Multiplier Switch)
-TabOther:Toggle({
+-- 开关 4：射速提升状态控制 (配合下方输入框联动的开关)
+Tabttk:Toggle({
     Title = "射速提升 (Fire Rate Modifier)",
     Default = false,
     Callback = function(v)
@@ -623,8 +630,8 @@ TabOther:Toggle({
     end
 })
 
--- 【新增组件】使用 WindUI 规范的 Input 输入框调节具体倍率值
-TabOther:Input({
+-- 【新增组件】遵循 WindUI 规范的 Input 组件，用于自由配置具体倍率
+Tabttk:Input({
     Title = "自定义射速倍率",
     Placeholder = "当前倍率: 1.5",
     Callback = function(text)
@@ -640,7 +647,7 @@ TabOther:Input({
 })
 
 -- 开关 5：无限弹药 (Infinite Ammo)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "无限弹药 (Infinite Ammo)",
     Default = false,
     Callback = function(v)
@@ -650,7 +657,7 @@ TabOther:Toggle({
 })
 
 -- 开关 6：显示弹道轨迹 (Show Tracers)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "显示弹道轨迹 (Tracers)",
     Default = false,
     Callback = function(v)
@@ -660,7 +667,7 @@ TabOther:Toggle({
 })
 
 -- 开关 7：显示击中透视残影 (Show Hit Models)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "显示击中残影 (Hit Models)",
     Default = false,
     Callback = function(v)
@@ -670,7 +677,7 @@ TabOther:Toggle({
 })
 
 -- 开关 8：准星击中反馈 (Hitmarkers)
-TabOther:Toggle({
+Tabttk:Toggle({
     Title = "击中提示反馈 (Hitmarkers)",
     Default = false,
     Callback = function(v)
