@@ -309,7 +309,7 @@ local function ShowStartupWarning(matchedGame)
     local dangerText = CreateText(
         main,
         "DangerText",
-        "如果你选择继续使用夜脚本账号百分之99会被封禁，请谨慎选择\n不过，我为你准备了子弹追踪，他不会被检测，点击加载其他脚本来使用",
+        "如果你选择继续使用夜脚本账号百分之99会被封禁，请谨慎选择\n不过，我为你准备了摧毁师专用脚本by微醺，他不会被检测，点击加载其他脚本来使用",
         UDim2.new(0, 28, 0, 153),
         UDim2.new(1, -56, 0, 58),
         red,
