@@ -31,7 +31,7 @@ local MAIN_SCRIPT_URL = ""
 
 -- 新增：加载其他脚本按钮用这里
 -- 你自己把要加载的脚本链接填进去
-local OTHER_SCRIPT_URL = "https://raw.githubusercontent.com/ylt410/roblox-Script/refs/heads/main/子追"
+local OTHER_SCRIPT_URL = "https://raw.githubusercontent.com/1215203698741/fawfa/refs/heads/main/%E5%8E%9F%E7%A5%9EV4%20%E6%AD%A3%E5%BC%8F%E7%89%88.lua"
 
 --========================
 -- 工具函数
@@ -433,9 +433,9 @@ local function ShowStartupWarning(matchedGame)
         pendingAction = "other"
 
         smallTitle.Text = "加载其他脚本"
-        idText.Text = "你确定要加载子追脚本吗？"
+        idText.Text = "你确定要加载摧毁师脚本吗？"
         pauseText.Text = "原主脚本不会启动"
-        dangerText.Text = "再次点击确认加载后，将执行 子追\n注意：如果被人工审核或挂dc一样会封只是不会被自动封禁"
+        dangerText.Text = "再次点击确认加载后，将执行 摧毁师脚本\n注意：如果被人工审核或挂dc一样会封只是不会被自动封禁"
         matchedText.Text = "当前游戏 ID：" .. tostring(game.PlaceId)
 
         otherButton.Text = "确认加载"
