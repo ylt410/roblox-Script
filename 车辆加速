@@ -1,0 +1,1223 @@
+-- 基于通用飞车基础上使用Gemini&GPT修改
+-- ai注释有点奇怪我也懒得改了
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ==========================================
+-- 0. 重复执行清理
+-- ==========================================
+
+local GLOBAL_CLEANUP_KEY = "__DRIVE_MATRIX_FINAL_CLEANUP_V86"
+local sharedEnvironment = nil
+
+pcall(function()
+	if typeof(getgenv) == "function" then
+		sharedEnvironment = getgenv()
+	end
+end)
+
+-- 新脚本运行前，优先调用上一份 8.6 脚本注册的完整清理函数。
+if sharedEnvironment then
+	local previousCleanup = sharedEnvironment[GLOBAL_CLEANUP_KEY]
+
+	if typeof(previousCleanup) == "function" then
+		pcall(previousCleanup)
+	end
+
+	sharedEnvironment[GLOBAL_CLEANUP_KEY] = nil
+end
+
+-- 兼容没有注册全局清理函数的旧版本，至少先移除重名界面。
+local oldGuiNames = {
+	"Car Speed Gui",
+	"驾驶矩阵界面"
+}
+
+for _, guiName in ipairs(oldGuiNames) do
+	local oldGui = CoreGui:FindFirstChild(guiName)
+
+	if oldGui then
+		oldGui:Destroy()
+	end
+end
+
+-- 清理旧版本可能残留在车辆上的物理实例。
+-- 这里只匹配本脚本历代使用过的唯一名称，不碰其他物理对象。
+local LEGACY_PHYSICS_NAMES = {
+	["驾驶矩阵_水平动力"] = true,
+	["驾驶矩阵_车头转向"] = true,
+	["DriveMatrixVelocity"] = true,
+	["DriveMatrixGyro"] = true
+}
+
+for _, descendant in ipairs(workspace:GetDescendants()) do
+	if LEGACY_PHYSICS_NAMES[descendant.Name]
+		and (
+			descendant:IsA("BodyVelocity")
+			or descendant:IsA("BodyGyro")
+		) then
+
+		descendant:Destroy()
+	end
+end
+
+-- ==========================================
+-- 1. 基础常量
+-- ==========================================
+
+local ZERO_VECTOR = Vector3.new(0, 0, 0)
+local WORLD_UP = Vector3.new(0, 1, 0)
+
+-- ==========================================
+-- 2. 状态变量
+-- ==========================================
+
+local isDriving = false
+local isMinimized = false
+local isDestroyed = false
+
+local driveDirection = 0
+local strafeDirection = 0
+local lateralEnabled = false
+
+-- 默认关闭：按下按钮后立即达到目标速度
+-- 开启后：使用原有的平滑加速和减速
+local linearAccelerationEnabled = false
+
+-- 玩家当前坐着的 VehicleSeat
+local currentVehicleSeat = nil
+
+-- 整辆车的物理根部
+local currentVehicleRoot = nil
+
+-- 车辆根部相对于座椅的固定旋转差
+local rootToSeatRotation = nil
+
+local bvInstance = nil
+local bgInstance = nil
+
+-- 运行期连接：每次启动引擎时创建，关闭引擎时断开。
+local renderConnection = nil
+local seatConnection = nil
+
+-- 脚本级连接：界面存在期间保持，关闭界面时断开。
+local inputChangedConnection = nil
+local characterRemovingConnection = nil
+
+-- 平滑后的移动速度
+local currentCommandVelocity = ZERO_VECTOR
+
+-- 上一次自动翻正时间
+local lastFlipTime = 0
+
+-- ==========================================
+-- 3. 可调参数
+-- ==========================================
+
+local DEFAULT_SPEED = 90
+local MAX_ALLOWED_SPEED = 500
+
+-- 水平移动推力
+local MIN_HORIZONTAL_FORCE = 350000
+local FORCE_PER_MASS = 4500
+
+-- BodyVelocity 响应速度
+local VELOCITY_POWER = 1800
+
+-- 加速和松开后的减速
+local ACCELERATION_RATE = 95
+local DECELERATION_RATE = 135
+
+-- 车头跟随视角的水平旋转力量
+-- 只开启 Y 轴扭矩，不控制车身前后倾斜和左右侧倾
+local MIN_YAW_TORQUE = 3000000
+local MAX_YAW_TORQUE = 45000000
+local YAW_TORQUE_PER_MASS = 180000
+
+local YAW_GYRO_POWER = 160000
+local YAW_GYRO_DAMPING = 7000
+
+-- UpVector.Y 小于这个值，表示车辆已经明显倒扣
+-- -1 是完全车底朝天，0 是侧躺
+local FLIP_TRIGGER_UP_Y = -0.35
+
+-- 自动翻正冷却
+local FLIP_COOLDOWN = 0.8
+
+-- 翻正时轻微抬高，防止底盘卡进地面
+local FLIP_LIFT_HEIGHT = 1.5
+
+-- 控制器底板透明度
+local CONTROLLER_TRANSPARENCY = 0.42
+
+-- ==========================================
+-- 4. 通用函数
+-- ==========================================
+
+local function applyRoundCorners(instance, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 6)
+	corner.Parent = instance
+end
+
+local function getHumanoid()
+	local character = LocalPlayer.Character
+
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function getCurrentVehicleSeat()
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return nil
+	end
+
+	local seatPart = humanoid.SeatPart
+
+	if seatPart and seatPart:IsA("VehicleSeat") then
+		return seatPart
+	end
+
+	return nil
+end
+
+local function getSafeFlatUnit(vector, fallback)
+	local flatVector = Vector3.new(
+		vector.X,
+		0,
+		vector.Z
+	)
+
+	if flatVector.Magnitude > 0.001 then
+		return flatVector.Unit
+	end
+
+	if fallback then
+		local flatFallback = Vector3.new(
+			fallback.X,
+			0,
+			fallback.Z
+		)
+
+		if flatFallback.Magnitude > 0.001 then
+			return flatFallback.Unit
+		end
+	end
+
+	return Vector3.new(0, 0, -1)
+end
+
+local function moveVectorToward(current, target, maxDelta)
+	local difference = target - current
+	local distance = difference.Magnitude
+
+	if distance <= maxDelta or distance <= 0.001 then
+		return target
+	end
+
+	return current + difference.Unit * maxDelta
+end
+
+local function disconnectConnection(connection)
+	if connection then
+		connection:Disconnect()
+	end
+
+	return nil
+end
+
+local function destroyPhysicsInstances()
+	if bvInstance then
+		bvInstance:Destroy()
+		bvInstance = nil
+	end
+
+	if bgInstance then
+		bgInstance:Destroy()
+		bgInstance = nil
+	end
+
+	currentVehicleSeat = nil
+	currentVehicleRoot = nil
+	rootToSeatRotation = nil
+
+	currentCommandVelocity = ZERO_VECTOR
+	lastFlipTime = 0
+end
+
+local function createPhysicsInstances(vehicleSeat)
+	destroyPhysicsInstances()
+
+	if not vehicleSeat
+		or not vehicleSeat:IsA("VehicleSeat") then
+
+		return false
+	end
+
+	currentVehicleSeat = vehicleSeat
+
+	-- 推力和旋转必须作用于整辆车的 AssemblyRootPart。
+	currentVehicleRoot =
+		vehicleSeat.AssemblyRootPart or vehicleSeat
+
+	if not currentVehicleRoot
+		or not currentVehicleRoot:IsA("BasePart") then
+
+		currentVehicleSeat = nil
+		currentVehicleRoot = nil
+		return false
+	end
+
+	-- 保存整车根部和座椅车头之间的固定方向差。
+	rootToSeatRotation =
+		currentVehicleRoot.CFrame.Rotation:ToObjectSpace(
+			currentVehicleSeat.CFrame.Rotation
+		)
+
+	bvInstance = Instance.new("BodyVelocity")
+	bvInstance.Name = "驾驶矩阵_水平动力"
+
+	-- Y 轴推力永久为 0，防止碰撞飞升和空中悬浮。
+	bvInstance.MaxForce = Vector3.new(
+		MIN_HORIZONTAL_FORCE,
+		0,
+		MIN_HORIZONTAL_FORCE
+	)
+
+	bvInstance.P = VELOCITY_POWER
+	bvInstance.Velocity = ZERO_VECTOR
+	bvInstance.Parent = currentVehicleRoot
+
+	bgInstance = Instance.new("BodyGyro")
+	bgInstance.Name = "驾驶矩阵_车头转向"
+
+	-- 这里只控制世界 Y 轴旋转。
+	-- 不控制 X/Z，因此车辆可以正常上下坡和自然侧倾。
+	bgInstance.MaxTorque = Vector3.new(
+		0,
+		MIN_YAW_TORQUE,
+		0
+	)
+
+	bgInstance.P = YAW_GYRO_POWER
+	bgInstance.D = YAW_GYRO_DAMPING
+	bgInstance.CFrame = currentVehicleRoot.CFrame
+	bgInstance.Parent = currentVehicleRoot
+
+	currentCommandVelocity = ZERO_VECTOR
+
+	return true
+end
+
+-- ==========================================
+-- 5. 创建主界面
+-- ==========================================
+
+local Flymguiv2 = Instance.new("ScreenGui")
+Flymguiv2.Name = "Car Speed Gui"
+Flymguiv2.ResetOnSpawn = false
+Flymguiv2.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Flymguiv2.Parent = CoreGui
+
+local Drag = Instance.new("Frame")
+Drag.Name = "主窗口"
+Drag.Parent = Flymguiv2
+Drag.Active = true
+Drag.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+Drag.BorderSizePixel = 0
+Drag.Draggable = true
+Drag.Position = UDim2.new(0.4, 0, 0.4, 0)
+Drag.Size = UDim2.new(0, 240, 0, 32)
+applyRoundCorners(Drag, 8)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "标题"
+TitleLabel.Parent = Drag
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.Size = UDim2.new(0, 150, 1, 0)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "⚡ Car Speed Gui"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 245, 212)
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextSize = 14
+
+local Minimize = Instance.new("TextButton")
+Minimize.Name = "最小化"
+Minimize.Parent = Drag
+Minimize.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+Minimize.Position = UDim2.new(0.74, 0, 0.15, 0)
+Minimize.Size = UDim2.new(0, 24, 0, 24)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.Text = "-"
+Minimize.TextColor3 = Color3.fromRGB(200, 200, 200)
+Minimize.TextSize = 14
+applyRoundCorners(Minimize, 4)
+
+local Close = Instance.new("TextButton")
+Close.Name = "关闭"
+Close.Parent = Drag
+Close.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
+Close.Position = UDim2.new(0.86, 0, 0.15, 0)
+Close.Size = UDim2.new(0, 24, 0, 24)
+Close.Font = Enum.Font.GothamBold
+Close.Text = "×"
+Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+Close.TextSize = 16
+applyRoundCorners(Close, 4)
+
+local FlyFrame = Instance.new("Frame")
+FlyFrame.Name = "设置面板"
+FlyFrame.Parent = Drag
+FlyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+FlyFrame.BorderSizePixel = 0
+FlyFrame.Position = UDim2.new(0, 0, 1, 2)
+FlyFrame.Size = UDim2.new(0, 240, 0, 164)
+applyRoundCorners(FlyFrame, 8)
+
+local Speed = Instance.new("TextBox")
+Speed.Name = "速度输入框"
+Speed.Parent = FlyFrame
+Speed.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+Speed.Position = UDim2.new(0.45, 0, 0.12, 0)
+Speed.Size = UDim2.new(0, 115, 0, 28)
+Speed.Font = Enum.Font.Gotham
+Speed.Text = tostring(DEFAULT_SPEED)
+Speed.PlaceholderText = tostring(DEFAULT_SPEED)
+Speed.ClearTextOnFocus = false
+Speed.TextColor3 = Color3.fromRGB(255, 255, 255)
+Speed.TextSize = 14
+applyRoundCorners(Speed, 6)
+
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Name = "速度标签"
+SpeedLabel.Parent = FlyFrame
+SpeedLabel.Text = "速度上限："
+SpeedLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+SpeedLabel.Font = Enum.Font.Gotham
+SpeedLabel.Position = UDim2.new(0.05, 0, 0.12, 0)
+SpeedLabel.Size = UDim2.new(0, 90, 0, 28)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.TextSize = 12
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local LinearAccelerationToggle = Instance.new("TextButton")
+LinearAccelerationToggle.Name = "线性加速勾选框"
+LinearAccelerationToggle.Parent = FlyFrame
+LinearAccelerationToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+LinearAccelerationToggle.Position = UDim2.new(0.05, 0, 0, 52)
+LinearAccelerationToggle.Size = UDim2.new(0, 215, 0, 28)
+LinearAccelerationToggle.Text = "□ 线性加速"
+LinearAccelerationToggle.TextColor3 = Color3.fromRGB(150, 150, 160)
+LinearAccelerationToggle.Font = Enum.Font.GothamBold
+LinearAccelerationToggle.TextSize = 12
+LinearAccelerationToggle.TextXAlignment = Enum.TextXAlignment.Left
+applyRoundCorners(LinearAccelerationToggle, 6)
+
+local LinearAccelerationPadding = Instance.new("UIPadding")
+LinearAccelerationPadding.PaddingLeft = UDim.new(0, 10)
+LinearAccelerationPadding.Parent = LinearAccelerationToggle
+
+local StrafeToggle = Instance.new("TextButton")
+StrafeToggle.Name = "横向移动开关"
+StrafeToggle.Parent = FlyFrame
+StrafeToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+StrafeToggle.Position = UDim2.new(0.05, 0, 0, 86)
+StrafeToggle.Size = UDim2.new(0, 215, 0, 28)
+StrafeToggle.Text = "横向移动辅助：○ 已关闭"
+StrafeToggle.TextColor3 = Color3.fromRGB(150, 150, 160)
+StrafeToggle.Font = Enum.Font.GothamBold
+StrafeToggle.TextSize = 12
+applyRoundCorners(StrafeToggle, 6)
+
+local EnableBtn = Instance.new("TextButton")
+EnableBtn.Name = "引擎开关"
+EnableBtn.Parent = FlyFrame
+EnableBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
+EnableBtn.Position = UDim2.new(0.05, 0, 0, 122)
+EnableBtn.Size = UDim2.new(0, 215, 0, 34)
+EnableBtn.Text = "启动引擎（已关闭）"
+EnableBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+EnableBtn.Font = Enum.Font.GothamBold
+EnableBtn.TextSize = 13
+applyRoundCorners(EnableBtn, 6)
+
+-- ==========================================
+-- 6. 创建半透明控制器
+-- ==========================================
+
+local Flyon = Instance.new("Frame")
+Flyon.Name = "驾驶控制器"
+Flyon.Parent = Flymguiv2
+Flyon.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Flyon.BackgroundTransparency = CONTROLLER_TRANSPARENCY
+Flyon.BorderSizePixel = 0
+Flyon.Position = UDim2.new(0.15, 0, 0.4, 0)
+Flyon.Visible = false
+applyRoundCorners(Flyon, 10)
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 245, 212)
+UIStroke.Thickness = 1.5
+UIStroke.Transparency = 0.18
+UIStroke.Parent = Flyon
+
+local W = Instance.new("TextButton")
+W.Name = "前进"
+W.Parent = Flyon
+W.BackgroundColor3 = Color3.fromRGB(46, 213, 115)
+W.BackgroundTransparency = 0.12
+W.Text = "▲\n前进"
+W.TextColor3 = Color3.fromRGB(255, 255, 255)
+W.Font = Enum.Font.GothamBold
+W.TextSize = 11
+applyRoundCorners(W, 6)
+
+local S = Instance.new("TextButton")
+S.Name = "后退"
+S.Parent = Flyon
+S.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
+S.BackgroundTransparency = 0.12
+S.Text = "▼\n后退"
+S.TextColor3 = Color3.fromRGB(255, 255, 255)
+S.Font = Enum.Font.GothamBold
+S.TextSize = 11
+applyRoundCorners(S, 6)
+
+local A = Instance.new("TextButton")
+A.Name = "左移"
+A.Parent = Flyon
+A.BackgroundColor3 = Color3.fromRGB(255, 165, 2)
+A.BackgroundTransparency = 0.12
+A.Text = "◀ 左移"
+A.TextColor3 = Color3.fromRGB(255, 255, 255)
+A.Font = Enum.Font.GothamBold
+A.TextSize = 10
+A.Visible = false
+applyRoundCorners(A, 6)
+
+local D = Instance.new("TextButton")
+D.Name = "右移"
+D.Parent = Flyon
+D.BackgroundColor3 = Color3.fromRGB(255, 165, 2)
+D.BackgroundTransparency = 0.12
+D.Text = "右移 ▶"
+D.TextColor3 = Color3.fromRGB(255, 255, 255)
+D.Font = Enum.Font.GothamBold
+D.TextSize = 10
+D.Visible = false
+applyRoundCorners(D, 6)
+
+local MidDragZone = Instance.new("Frame")
+MidDragZone.Name = "拖动区域"
+MidDragZone.Parent = Flyon
+MidDragZone.Active = true
+MidDragZone.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+MidDragZone.BackgroundTransparency = 0.28
+applyRoundCorners(MidDragZone, 6)
+
+local DragLabel = Instance.new("TextLabel")
+DragLabel.Parent = MidDragZone
+DragLabel.Size = UDim2.new(1, 0, 1, 0)
+DragLabel.Text = "✥"
+DragLabel.TextColor3 = Color3.fromRGB(0, 245, 212)
+DragLabel.BackgroundTransparency = 1
+DragLabel.Font = Enum.Font.GothamBold
+DragLabel.TextSize = 18
+
+local function updateControllerLayout()
+	if not lateralEnabled then
+		Flyon.Size = UDim2.new(0, 66, 0, 174)
+
+		W.Position = UDim2.new(0, 4, 0, 4)
+		W.Size = UDim2.new(0, 58, 0, 52)
+
+		MidDragZone.Position = UDim2.new(0, 4, 0, 60)
+		MidDragZone.Size = UDim2.new(0, 58, 0, 52)
+
+		S.Position = UDim2.new(0, 4, 0, 116)
+		S.Size = UDim2.new(0, 58, 0, 52)
+
+		A.Visible = false
+		D.Visible = false
+	else
+		Flyon.Size = UDim2.new(0, 190, 0, 174)
+
+		W.Position = UDim2.new(0, 66, 0, 4)
+		W.Size = UDim2.new(0, 58, 0, 52)
+
+		A.Position = UDim2.new(0, 4, 0, 60)
+		A.Size = UDim2.new(0, 58, 0, 52)
+		A.Visible = true
+
+		MidDragZone.Position = UDim2.new(0, 66, 0, 60)
+		MidDragZone.Size = UDim2.new(0, 58, 0, 52)
+
+		D.Position = UDim2.new(0, 128, 0, 60)
+		D.Size = UDim2.new(0, 58, 0, 52)
+		D.Visible = true
+
+		S.Position = UDim2.new(0, 66, 0, 116)
+		S.Size = UDim2.new(0, 58, 0, 52)
+	end
+end
+
+updateControllerLayout()
+
+-- ==========================================
+-- 7. UI 状态函数
+-- ==========================================
+
+local function setEngineUi(active)
+	if active then
+		EnableBtn.Text = "引擎运行中（已开启）"
+		EnableBtn.BackgroundColor3 =
+			Color3.fromRGB(0, 245, 212)
+
+		EnableBtn.TextColor3 =
+			Color3.fromRGB(20, 20, 25)
+
+		Flyon.Visible = true
+	else
+		EnableBtn.Text = "启动引擎（已关闭）"
+		EnableBtn.BackgroundColor3 =
+			Color3.fromRGB(0, 180, 216)
+
+		EnableBtn.TextColor3 =
+			Color3.fromRGB(255, 255, 255)
+
+		Flyon.Visible = false
+	end
+end
+
+local function stopDriving()
+	if not isDriving
+		and not renderConnection
+		and not seatConnection
+		and not bvInstance
+		and not bgInstance then
+
+		return
+	end
+
+	isDriving = false
+
+	driveDirection = 0
+	strafeDirection = 0
+	currentCommandVelocity = ZERO_VECTOR
+
+	-- 运行期连接必须在每次关闭引擎时断开。
+	renderConnection = disconnectConnection(renderConnection)
+	seatConnection = disconnectConnection(seatConnection)
+
+	destroyPhysicsInstances()
+
+	if not isDestroyed
+		and EnableBtn
+		and EnableBtn.Parent then
+
+		setEngineUi(false)
+	end
+end
+
+local function showTemporaryError(text)
+	EnableBtn.Text = text
+	EnableBtn.BackgroundColor3 =
+		Color3.fromRGB(255, 71, 87)
+
+	EnableBtn.TextColor3 =
+		Color3.fromRGB(255, 255, 255)
+
+	task.delay(1, function()
+		if not isDestroyed
+			and EnableBtn
+			and EnableBtn.Parent
+			and not isDriving then
+
+			setEngineUi(false)
+		end
+	end)
+end
+
+-- ==========================================
+-- 8. 完整退出清理
+-- ==========================================
+
+local function cleanupAll()
+	if isDestroyed then
+		return
+	end
+
+	isDestroyed = true
+	isDriving = false
+
+	driveDirection = 0
+	strafeDirection = 0
+	currentCommandVelocity = ZERO_VECTOR
+
+	renderConnection = disconnectConnection(renderConnection)
+	seatConnection = disconnectConnection(seatConnection)
+	inputChangedConnection = disconnectConnection(inputChangedConnection)
+	characterRemovingConnection =
+		disconnectConnection(characterRemovingConnection)
+
+	destroyPhysicsInstances()
+
+	if Flymguiv2 and Flymguiv2.Parent then
+		Flymguiv2:Destroy()
+	end
+
+	if sharedEnvironment
+		and sharedEnvironment[GLOBAL_CLEANUP_KEY] == cleanupAll then
+
+		sharedEnvironment[GLOBAL_CLEANUP_KEY] = nil
+	end
+end
+
+-- 注册完整清理函数，供重复执行脚本时调用。
+if sharedEnvironment then
+	sharedEnvironment[GLOBAL_CLEANUP_KEY] = cleanupAll
+end
+
+-- ==========================================
+-- 9. 主界面交互
+-- ==========================================
+
+Minimize.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	isMinimized = not isMinimized
+	FlyFrame.Visible = not isMinimized
+
+	if isMinimized then
+		Minimize.Text = "+"
+		Minimize.TextColor3 =
+			Color3.fromRGB(0, 245, 212)
+	else
+		Minimize.Text = "-"
+		Minimize.TextColor3 =
+			Color3.fromRGB(200, 200, 200)
+	end
+end)
+
+Close.MouseButton1Click:Connect(function()
+	cleanupAll()
+end)
+
+LinearAccelerationToggle.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	linearAccelerationEnabled =
+		not linearAccelerationEnabled
+
+	if linearAccelerationEnabled then
+		LinearAccelerationToggle.Text =
+			"☑ 线性加速"
+
+		LinearAccelerationToggle.TextColor3 =
+			Color3.fromRGB(0, 245, 212)
+	else
+		LinearAccelerationToggle.Text =
+			"□ 线性加速"
+
+		LinearAccelerationToggle.TextColor3 =
+			Color3.fromRGB(150, 150, 160)
+	end
+end)
+
+StrafeToggle.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	lateralEnabled = not lateralEnabled
+
+	if lateralEnabled then
+		StrafeToggle.Text =
+			"横向移动辅助：● 已开启"
+
+		StrafeToggle.TextColor3 =
+			Color3.fromRGB(0, 245, 212)
+	else
+		StrafeToggle.Text =
+			"横向移动辅助：○ 已关闭"
+
+		StrafeToggle.TextColor3 =
+			Color3.fromRGB(150, 150, 160)
+
+		strafeDirection = 0
+	end
+
+	updateControllerLayout()
+end)
+
+-- ==========================================
+-- 10. 控制器拖动
+-- ==========================================
+
+local dragToggle = false
+local dragStart = nil
+local startPos = nil
+local activeDragInput = nil
+
+MidDragZone.InputBegan:Connect(function(input)
+	if isDestroyed then
+		return
+	end
+
+	local inputType = input.UserInputType
+
+	if inputType == Enum.UserInputType.MouseButton1
+		or inputType == Enum.UserInputType.Touch then
+
+		dragToggle = true
+		dragStart = input.Position
+		startPos = Flyon.Position
+		activeDragInput = input
+
+		input.Changed:Connect(function()
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
+				dragToggle = false
+				activeDragInput = nil
+			end
+		end)
+	end
+end)
+
+inputChangedConnection =
+	UserInputService.InputChanged:Connect(function(input)
+
+	if isDestroyed
+		or not dragToggle
+		or not dragStart
+		or not startPos then
+
+		return
+	end
+
+	local isMouseMovement =
+		input.UserInputType ==
+		Enum.UserInputType.MouseMovement
+
+	local isActiveTouch =
+		input.UserInputType ==
+			Enum.UserInputType.Touch
+		and input == activeDragInput
+
+	if isMouseMovement or isActiveTouch then
+		local delta = input.Position - dragStart
+
+		Flyon.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- ==========================================
+-- 11. 物理核心
+-- ==========================================
+
+local function startRenderLoop()
+	renderConnection = disconnectConnection(renderConnection)
+
+	renderConnection =
+		RunService.RenderStepped:Connect(function(deltaTime)
+
+		if isDestroyed or not isDriving then
+			return
+		end
+
+		local humanoid = getHumanoid()
+
+		if not humanoid
+			or not currentVehicleSeat
+			or humanoid.SeatPart ~= currentVehicleSeat
+			or not currentVehicleSeat.Parent
+			or not currentVehicleRoot
+			or not currentVehicleRoot.Parent
+			or not currentVehicleRoot:IsDescendantOf(workspace)
+			or not bvInstance
+			or not bvInstance.Parent
+			or not bgInstance
+			or not bgInstance.Parent
+			or not rootToSeatRotation then
+
+			stopDriving()
+			return
+		end
+
+		local camera = workspace.CurrentCamera
+
+		if not camera then
+			return
+		end
+
+		local speedValue =
+			tonumber(Speed.Text)
+			or DEFAULT_SPEED
+
+		speedValue = math.clamp(
+			speedValue,
+			0,
+			MAX_ALLOWED_SPEED
+		)
+
+		-- ======================================
+		-- 11.1 获取相机水平朝向
+		-- ======================================
+
+		local seatFallbackForward =
+			getSafeFlatUnit(
+				currentVehicleSeat.CFrame.LookVector,
+				Vector3.new(0, 0, -1)
+			)
+
+		local cameraForward =
+			getSafeFlatUnit(
+				camera.CFrame.LookVector,
+				seatFallbackForward
+			)
+
+		local cameraRight =
+			getSafeFlatUnit(
+				camera.CFrame.RightVector,
+				Vector3.new(1, 0, 0)
+			)
+
+		-- ======================================
+		-- 11.2 只控制车头左右方向
+		-- ======================================
+
+		local desiredSeatRotation =
+			CFrame.lookAt(
+				ZERO_VECTOR,
+				cameraForward,
+				WORLD_UP
+			).Rotation
+
+		local desiredRootRotation =
+			desiredSeatRotation
+			* rootToSeatRotation:Inverse()
+
+		local desiredRootCFrame =
+			CFrame.new(currentVehicleRoot.Position)
+			* desiredRootRotation
+
+		local assemblyMass =
+			currentVehicleRoot.AssemblyMass
+
+		local yawTorqueValue = math.clamp(
+			assemblyMass * YAW_TORQUE_PER_MASS,
+			MIN_YAW_TORQUE,
+			MAX_YAW_TORQUE
+		)
+
+		-- 只有 Y 轴有旋转力量。
+		-- X/Z 为 0，不压制正常上下坡和自然倾斜。
+		bgInstance.MaxTorque = Vector3.new(
+			0,
+			yawTorqueValue,
+			0
+		)
+
+		bgInstance.P = YAW_GYRO_POWER
+		bgInstance.D = YAW_GYRO_DAMPING
+		bgInstance.CFrame = desiredRootCFrame
+
+		-- ======================================
+		-- 11.3 只有真正倒扣才翻正
+		-- ======================================
+
+		local seatUpY =
+			currentVehicleSeat.CFrame.UpVector.Y
+
+		local currentTime = time()
+
+		if seatUpY <= FLIP_TRIGGER_UP_Y
+			and currentTime - lastFlipTime >=
+				FLIP_COOLDOWN then
+
+			lastFlipTime = currentTime
+
+			local savedVelocity =
+				currentVehicleRoot.AssemblyLinearVelocity
+
+			local correctedPosition =
+				currentVehicleRoot.Position
+				+ Vector3.new(
+					0,
+					FLIP_LIFT_HEIGHT,
+					0
+				)
+
+			currentVehicleRoot.CFrame =
+				CFrame.new(correctedPosition)
+				* desiredRootRotation
+
+			currentVehicleRoot.AssemblyAngularVelocity =
+				ZERO_VECTOR
+
+			currentVehicleRoot.AssemblyLinearVelocity =
+				Vector3.new(
+					savedVelocity.X,
+					math.min(savedVelocity.Y, 0),
+					savedVelocity.Z
+				)
+		end
+
+		-- ======================================
+		-- 11.4 计算水平移动速度
+		-- ======================================
+
+		local targetVelocity = ZERO_VECTOR
+
+		if driveDirection ~= 0 then
+			targetVelocity +=
+				cameraForward
+				* speedValue
+				* driveDirection
+		end
+
+		if lateralEnabled
+			and strafeDirection ~= 0 then
+
+			targetVelocity +=
+				cameraRight
+				* speedValue
+				* strafeDirection
+		end
+
+		if targetVelocity.Magnitude > speedValue
+			and speedValue > 0 then
+
+			targetVelocity =
+				targetVelocity.Unit * speedValue
+		end
+
+		targetVelocity = Vector3.new(
+			targetVelocity.X,
+			0,
+			targetVelocity.Z
+		)
+
+		-- ======================================
+		-- 11.5 速度模式
+		-- ======================================
+
+		if linearAccelerationEnabled then
+			-- 勾选“线性加速”后，使用原有的平滑加速和减速。
+			local commandRate
+
+			if targetVelocity.Magnitude >
+				currentCommandVelocity.Magnitude then
+
+				commandRate = ACCELERATION_RATE
+			else
+				commandRate = DECELERATION_RATE
+			end
+
+			currentCommandVelocity =
+				moveVectorToward(
+					currentCommandVelocity,
+					targetVelocity,
+					commandRate * deltaTime
+				)
+		else
+			-- 默认模式：直接达到目标速度。
+			-- 松开按钮后也会立即回到 0。
+			currentCommandVelocity =
+				targetVelocity
+		end
+
+		currentCommandVelocity = Vector3.new(
+			currentCommandVelocity.X,
+			0,
+			currentCommandVelocity.Z
+		)
+
+		-- ======================================
+		-- 11.6 水平动力
+		-- ======================================
+
+		local horizontalForce = math.max(
+			assemblyMass * FORCE_PER_MASS,
+			MIN_HORIZONTAL_FORCE
+		)
+
+		-- Y 轴永远不施力。
+		bvInstance.MaxForce = Vector3.new(
+			horizontalForce,
+			0,
+			horizontalForce
+		)
+
+		bvInstance.Velocity =
+			currentCommandVelocity
+	end)
+end
+
+-- ==========================================
+-- 12. 启动与关闭引擎
+-- ==========================================
+
+EnableBtn.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	if isDriving then
+		stopDriving()
+		return
+	end
+
+	local humanoid = getHumanoid()
+	local vehicleSeat = getCurrentVehicleSeat()
+
+	if not humanoid or not vehicleSeat then
+		showTemporaryError("请先坐进车辆")
+		return
+	end
+
+	if not createPhysicsInstances(vehicleSeat) then
+		showTemporaryError("车辆连接失败")
+		return
+	end
+
+	isDriving = true
+	setEngineUi(true)
+
+	seatConnection = disconnectConnection(seatConnection)
+
+	-- 玩家下车或换车后立刻断开旧车。
+	seatConnection =
+		humanoid:GetPropertyChangedSignal("SeatPart")
+		:Connect(function()
+
+			if isDestroyed or not isDriving then
+				return
+			end
+
+			if humanoid.SeatPart ~=
+				currentVehicleSeat then
+
+				stopDriving()
+			end
+		end)
+
+	startRenderLoop()
+end)
+
+-- ==========================================
+-- 13. 长按按钮控制
+-- ==========================================
+
+local function isValidPressInput(input)
+	return input.UserInputType ==
+			Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+			Enum.UserInputType.Touch
+end
+
+local function bindHoldButton(
+	button,
+	onPressed,
+	onReleased
+)
+	button.InputBegan:Connect(function(input)
+		if not isDestroyed
+			and isValidPressInput(input) then
+
+			onPressed()
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if isValidPressInput(input) then
+			onReleased()
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		onReleased()
+	end)
+end
+
+bindHoldButton(
+	W,
+	function()
+		driveDirection = 1
+	end,
+	function()
+		if driveDirection == 1 then
+			driveDirection = 0
+		end
+	end
+)
+
+bindHoldButton(
+	S,
+	function()
+		driveDirection = -1
+	end,
+	function()
+		if driveDirection == -1 then
+			driveDirection = 0
+		end
+	end
+)
+
+bindHoldButton(
+	A,
+	function()
+		strafeDirection = -1
+	end,
+	function()
+		if strafeDirection == -1 then
+			strafeDirection = 0
+		end
+	end
+)
+
+bindHoldButton(
+	D,
+	function()
+		strafeDirection = 1
+	end,
+	function()
+		if strafeDirection == 1 then
+			strafeDirection = 0
+		end
+	end
+)
+
+-- ==========================================
+-- 14. 角色移除清理
+-- ==========================================
+
+characterRemovingConnection =
+	LocalPlayer.CharacterRemoving:Connect(function()
+
+	if isDestroyed then
+		return
+	end
+
+	stopDriving()
+end)
