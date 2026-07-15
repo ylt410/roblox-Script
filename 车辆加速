@@ -11,7 +11,13 @@ local LocalPlayer = Players.LocalPlayer
 -- 0. 重复执行清理
 -- ==========================================
 
-local GLOBAL_CLEANUP_KEY = "__DRIVE_MATRIX_FINAL_CLEANUP_V86"
+local GLOBAL_CLEANUP_KEY = "__CAR_SPEED_GUI_CLEANUP"
+local LEGACY_CLEANUP_KEYS = {
+	"__CAR_SPEED_GUI_CLEANUP",
+	"__CAR_SPEED_GUI_FINAL_CLEANUP_V88",
+	"__DRIVE_MATRIX_FINAL_CLEANUP_V86"
+}
+
 local sharedEnvironment = nil
 
 pcall(function()
@@ -20,15 +26,18 @@ pcall(function()
 	end
 end)
 
--- 新脚本运行前，优先调用上一份 8.6 脚本注册的完整清理函数。
+-- 新脚本运行前，调用旧版本注册的完整清理函数。
 if sharedEnvironment then
-	local previousCleanup = sharedEnvironment[GLOBAL_CLEANUP_KEY]
+	for _, cleanupKey in ipairs(LEGACY_CLEANUP_KEYS) do
+		local previousCleanup =
+			sharedEnvironment[cleanupKey]
 
-	if typeof(previousCleanup) == "function" then
-		pcall(previousCleanup)
+		if typeof(previousCleanup) == "function" then
+			pcall(previousCleanup)
+		end
+
+		sharedEnvironment[cleanupKey] = nil
 	end
-
-	sharedEnvironment[GLOBAL_CLEANUP_KEY] = nil
 end
 
 -- 兼容没有注册全局清理函数的旧版本，至少先移除重名界面。
@@ -50,6 +59,7 @@ end
 local LEGACY_PHYSICS_NAMES = {
 	["驾驶矩阵_水平动力"] = true,
 	["驾驶矩阵_车头转向"] = true,
+	["驾驶矩阵_水平转向"] = true,
 	["DriveMatrixVelocity"] = true,
 	["DriveMatrixGyro"] = true
 }
@@ -59,6 +69,7 @@ for _, descendant in ipairs(workspace:GetDescendants()) do
 		and (
 			descendant:IsA("BodyVelocity")
 			or descendant:IsA("BodyGyro")
+			or descendant:IsA("BodyAngularVelocity")
 		) then
 
 		descendant:Destroy()
@@ -88,28 +99,58 @@ local lateralEnabled = false
 -- 开启后：使用原有的平滑加速和减速
 local linearAccelerationEnabled = false
 
--- 玩家当前坐着的 VehicleSeat
+-- 默认关闭：转向响应更快，但仍保留死区和缓冲，避免抖动
+-- 开启后：使用更慢、更平滑的线性转向
+local linearSteeringEnabled = false
+
+-- 默认开启：只有坐在 VehicleSeat 上才允许控制
+-- 关闭后：没坐车时控制人物，坐车时控制当前车辆
+local vehicleDetectionEnabled = true
+
+-- 当前控制类型："Vehicle" 或 "Character"
+local currentControlType = nil
+
+-- 车辆模式下的实际 SeatPart；焊接式自定义车辆可能为 nil
 local currentVehicleSeat = nil
 
--- 整辆车的物理根部
+-- 用于代表实际车头方向的参考零件
+local currentVehicleReferencePart = nil
+
+-- 当前控制目标的物理根部
 local currentVehicleRoot = nil
 
--- 车辆根部相对于座椅的固定旋转差
+-- 车辆根部相对于车头参考零件的固定旋转差
 local rootToSeatRotation = nil
 
+-- 当前车辆识别方式："Seat" 或 "ExternalAssembly"
+local currentVehicleDetectionKind = nil
+
+-- 自定义车辆只有找到可靠车身参考时才允许自动翻正
+local currentVehicleFlipEnabled = false
+
+-- 人物模式下临时关闭 AutoRotate，退出时恢复
+local controlledHumanoid = nil
+local previousHumanoidAutoRotate = nil
+
 local bvInstance = nil
-local bgInstance = nil
+local turnInstance = nil
 
 -- 运行期连接：每次启动引擎时创建，关闭引擎时断开。
 local renderConnection = nil
 local seatConnection = nil
+local sitConnection = nil
+local platformStandConnection = nil
 
 -- 脚本级连接：界面存在期间保持，关闭界面时断开。
 local inputChangedConnection = nil
 local characterRemovingConnection = nil
+local dragEndConnection = nil
 
 -- 平滑后的移动速度
 local currentCommandVelocity = ZERO_VECTOR
+
+-- 当前输出到车辆或人物的 Y 轴角速度
+local currentSteeringYawVelocity = 0
 
 -- 上一次自动翻正时间
 local lastFlipTime = 0
@@ -132,14 +173,31 @@ local VELOCITY_POWER = 1800
 local ACCELERATION_RATE = 95
 local DECELERATION_RATE = 135
 
--- 车头跟随视角的水平旋转力量
--- 只开启 Y 轴扭矩，不控制车身前后倾斜和左右侧倾
+-- 水平转向扭矩
+-- 只允许世界 Y 轴旋转，不控制正常上下坡和自然侧倾
 local MIN_YAW_TORQUE = 3000000
 local MAX_YAW_TORQUE = 45000000
 local YAW_TORQUE_PER_MASS = 180000
 
-local YAW_GYRO_POWER = 160000
-local YAW_GYRO_DAMPING = 7000
+-- BodyAngularVelocity 的响应强度
+local VEHICLE_TURN_POWER = 5000
+local CHARACTER_TURN_POWER = 3500
+local CHARACTER_YAW_TORQUE = 3000000
+
+-- 默认转向：延迟较小，但不会瞬间吸附到视角
+local DIRECT_TURN_GAIN = 4.8
+local DIRECT_TURN_MAX_RATE = math.rad(145)
+local DIRECT_TURN_RESPONSE = 10
+local DIRECT_TURN_DEADZONE = math.rad(1.4)
+
+-- 线性转向：更慢、更平滑，接近此前的转向手感
+local LINEAR_TURN_GAIN = 2.3
+local LINEAR_TURN_MAX_RATE = math.rad(75)
+local LINEAR_TURN_RESPONSE = 4
+local LINEAR_TURN_DEADZONE = math.rad(2)
+
+-- 小角度速度限制，避免到达目标后左右来回抖动
+local MIN_TURN_RATE = math.rad(4)
 
 -- UpVector.Y 小于这个值，表示车辆已经明显倒扣
 -- -1 是完全车底朝天，0 是侧躺
@@ -153,6 +211,15 @@ local FLIP_LIFT_HEIGHT = 1.5
 
 -- 控制器底板透明度
 local CONTROLLER_TRANSPARENCY = 0.42
+
+-- 非标准车辆扫描间隔。
+-- 标准 Seat/VehicleSeat 会立即识别；只有焊接式车辆使用该扫描。
+local EXTERNAL_VEHICLE_SCAN_INTERVAL = 0.05
+
+local lastExternalVehicleScanTime = -math.huge
+local cachedExternalVehicleRoot = nil
+local cachedExternalReferencePart = nil
+local cachedExternalFlipEnabled = false
 
 -- ==========================================
 -- 4. 通用函数
@@ -174,20 +241,346 @@ local function getHumanoid()
 	return character:FindFirstChildOfClass("Humanoid")
 end
 
-local function getCurrentVehicleSeat()
-	local humanoid = getHumanoid()
+local function getCharacterRoot(humanoid)
+	if not humanoid or not humanoid.Parent then
+		return nil
+	end
 
+	return humanoid.RootPart
+		or humanoid.Parent:FindFirstChild("HumanoidRootPart")
+end
+
+local function getCurrentSeatPart(humanoid)
 	if not humanoid then
 		return nil
 	end
 
 	local seatPart = humanoid.SeatPart
 
-	if seatPart and seatPart:IsA("VehicleSeat") then
+	-- Humanoid.SeatPart 可能是普通 Seat，也可能是 VehicleSeat。
+	if seatPart
+		and seatPart:IsA("BasePart")
+		and (
+			seatPart:IsA("Seat")
+			or seatPart:IsA("VehicleSeat")
+		) then
+
 		return seatPart
 	end
 
 	return nil
+end
+
+local function getVehicleReferenceScore(part, characterRoot)
+	if not part or not part:IsA("BasePart") then
+		return -math.huge
+	end
+
+	local score = 0
+	local lowerName = string.lower(part.Name)
+
+	if part:IsA("VehicleSeat") then
+		score += 10000
+	elseif part:IsA("Seat") then
+		score += 9000
+	end
+
+	if string.find(lowerName, "driver", 1, true)
+		or string.find(lowerName, "drive", 1, true)
+		or string.find(part.Name, "驾驶", 1, true) then
+
+		score += 5000
+	end
+
+	if string.find(lowerName, "seat", 1, true)
+		or string.find(part.Name, "座", 1, true) then
+
+		score += 4000
+	end
+
+	if string.find(lowerName, "chassis", 1, true)
+		or string.find(lowerName, "body", 1, true)
+		or string.find(lowerName, "frame", 1, true)
+		or string.find(lowerName, "main", 1, true)
+		or string.find(lowerName, "root", 1, true)
+		or string.find(lowerName, "base", 1, true)
+		or string.find(part.Name, "底盘", 1, true)
+		or string.find(part.Name, "车身", 1, true) then
+
+		score += 2500
+	end
+
+	if string.find(lowerName, "wheel", 1, true)
+		or string.find(lowerName, "tire", 1, true)
+		or string.find(lowerName, "tyre", 1, true)
+		or string.find(part.Name, "车轮", 1, true)
+		or string.find(part.Name, "轮胎", 1, true) then
+
+		score -= 10000
+	end
+
+	local volume =
+		part.Size.X * part.Size.Y * part.Size.Z
+
+	score += math.min(volume, 1500)
+
+	if characterRoot then
+		score -= math.min(
+			(part.Position - characterRoot.Position).Magnitude * 4,
+			400
+		)
+	end
+
+	return score
+end
+
+local function addExternalCandidate(
+	candidates,
+	part,
+	character
+)
+	if not part
+		or not part:IsA("BasePart")
+		or not part.Parent
+		or part:IsDescendantOf(character)
+		or not part:IsDescendantOf(workspace) then
+
+		return
+	end
+
+	local assemblyRoot =
+		part.AssemblyRootPart or part
+
+	if not assemblyRoot
+		or not assemblyRoot:IsA("BasePart")
+		or not assemblyRoot.Parent
+		or assemblyRoot.Anchored then
+
+		return
+	end
+
+	candidates[part] = true
+end
+
+local function addJointExternalPart(
+	candidates,
+	character,
+	part0,
+	part1
+)
+	if part0
+		and part0:IsA("BasePart")
+		and part0:IsDescendantOf(character) then
+
+		addExternalCandidate(
+			candidates,
+			part1,
+			character
+		)
+	elseif part1
+		and part1:IsA("BasePart")
+		and part1:IsDescendantOf(character) then
+
+		addExternalCandidate(
+			candidates,
+			part0,
+			character
+		)
+	end
+end
+
+local function scanExternalVehicleTarget(humanoid)
+	local character = humanoid and humanoid.Parent
+	local characterRoot = getCharacterRoot(humanoid)
+
+	if not character or not characterRoot then
+		return nil, nil, false
+	end
+
+	local candidates = {}
+
+	-- 如果人物根部的 AssemblyRootPart 已经在角色模型外，
+	-- 说明人物正与一个外部刚性装配体连成整体。
+	local directAssemblyRoot =
+		characterRoot.AssemblyRootPart
+
+	if directAssemblyRoot
+		and not directAssemblyRoot:IsDescendantOf(character) then
+
+		addExternalCandidate(
+			candidates,
+			directAssemblyRoot,
+			character
+		)
+	end
+
+	-- 检查与人物根部刚性连接的完整装配体。
+	local connectedOk, connectedParts =
+		pcall(function()
+			return characterRoot:GetConnectedParts(true)
+		end)
+
+	if connectedOk and connectedParts then
+		for _, part in ipairs(connectedParts) do
+			addExternalCandidate(
+				candidates,
+				part,
+				character
+			)
+		end
+	end
+
+	-- 补充检查角色模型内指向外部零件的刚性连接。
+	-- 主要覆盖 Weld、WeldConstraint、Motor6D 和 RigidConstraint。
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant:IsA("WeldConstraint")
+			or descendant:IsA("Weld")
+			or descendant:IsA("Motor6D") then
+
+			addJointExternalPart(
+				candidates,
+				character,
+				descendant.Part0,
+				descendant.Part1
+			)
+		elseif descendant:IsA("RigidConstraint") then
+			local attachment0 = descendant.Attachment0
+			local attachment1 = descendant.Attachment1
+
+			local part0 =
+				attachment0 and attachment0.Parent
+
+			local part1 =
+				attachment1 and attachment1.Parent
+
+			addJointExternalPart(
+				candidates,
+				character,
+				part0,
+				part1
+			)
+		end
+	end
+
+	local bestPart = nil
+	local bestScore = -math.huge
+
+	for part in pairs(candidates) do
+		local score =
+			getVehicleReferenceScore(
+				part,
+				characterRoot
+			)
+
+		if score > bestScore then
+			bestScore = score
+			bestPart = part
+		end
+	end
+
+	if not bestPart then
+		return nil, nil, false
+	end
+
+	local vehicleRoot =
+		bestPart.AssemblyRootPart or bestPart
+
+	if not vehicleRoot
+		or not vehicleRoot:IsA("BasePart")
+		or vehicleRoot.Anchored then
+
+		return nil, nil, false
+	end
+
+	-- 只有 Seat 或明显的车身/底盘参考零件才启用倒扣翻正。
+	-- 避免误选旋转中的轮子后反复触发翻车修复。
+	local flipEnabled =
+		bestPart:IsA("Seat")
+		or bestPart:IsA("VehicleSeat")
+		or bestScore >= 2000
+
+	return vehicleRoot, bestPart, flipEnabled
+end
+
+local function getExternalVehicleTarget(
+	humanoid,
+	forceScan
+)
+	local now = time()
+
+	if not forceScan
+		and now - lastExternalVehicleScanTime <
+			EXTERNAL_VEHICLE_SCAN_INTERVAL then
+
+		if cachedExternalVehicleRoot
+			and cachedExternalVehicleRoot.Parent
+			and cachedExternalReferencePart
+			and cachedExternalReferencePart.Parent then
+
+			return
+				cachedExternalVehicleRoot,
+				cachedExternalReferencePart,
+				cachedExternalFlipEnabled
+		end
+
+		return nil, nil, false
+	end
+
+	lastExternalVehicleScanTime = now
+
+	cachedExternalVehicleRoot,
+	cachedExternalReferencePart,
+	cachedExternalFlipEnabled =
+		scanExternalVehicleTarget(humanoid)
+
+	return
+		cachedExternalVehicleRoot,
+		cachedExternalReferencePart,
+		cachedExternalFlipEnabled
+end
+
+local function resolveVehicleTarget(
+	humanoid,
+	forceExternalScan
+)
+	local seatPart =
+		getCurrentSeatPart(humanoid)
+
+	if seatPart then
+		local vehicleRoot =
+			seatPart.AssemblyRootPart or seatPart
+
+		if vehicleRoot
+			and vehicleRoot:IsA("BasePart")
+			and not vehicleRoot.Anchored then
+
+			return
+				vehicleRoot,
+				seatPart,
+				seatPart,
+				"Seat",
+				true
+		end
+	end
+
+	local externalRoot,
+		externalReference,
+		externalFlipEnabled =
+		getExternalVehicleTarget(
+			humanoid,
+			forceExternalScan
+		)
+
+	if externalRoot and externalReference then
+		return
+			externalRoot,
+			externalReference,
+			nil,
+			"ExternalAssembly",
+			externalFlipEnabled
+	end
+
+	return nil, nil, nil, nil, false
 end
 
 local function getSafeFlatUnit(vector, fallback)
@@ -227,6 +620,104 @@ local function moveVectorToward(current, target, maxDelta)
 	return current + difference.Unit * maxDelta
 end
 
+local function getSignedYawError(currentForward, targetForward)
+	local currentFlat =
+		getSafeFlatUnit(
+			currentForward,
+			Vector3.new(0, 0, -1)
+		)
+
+	local targetFlat =
+		getSafeFlatUnit(
+			targetForward,
+			currentFlat
+		)
+
+	local dotValue = math.clamp(
+		currentFlat:Dot(targetFlat),
+		-1,
+		1
+	)
+
+	local crossY =
+		currentFlat:Cross(targetFlat).Y
+
+	return math.atan2(crossY, dotValue)
+end
+
+local function calculateTargetYawVelocity(
+	currentForward,
+	targetForward
+)
+	local yawError =
+		getSignedYawError(
+			currentForward,
+			targetForward
+		)
+
+	local gain
+	local maximumRate
+	local deadzone
+
+	if linearSteeringEnabled then
+		gain = LINEAR_TURN_GAIN
+		maximumRate = LINEAR_TURN_MAX_RATE
+		deadzone = LINEAR_TURN_DEADZONE
+	else
+		gain = DIRECT_TURN_GAIN
+		maximumRate = DIRECT_TURN_MAX_RATE
+		deadzone = DIRECT_TURN_DEADZONE
+	end
+
+	if math.abs(yawError) <= deadzone then
+		return 0
+	end
+
+	local targetRate = math.clamp(
+		yawError * gain,
+		-maximumRate,
+		maximumRate
+	)
+
+	-- 大于死区后保留最小转速，避免转向拖到最后完全不动。
+	if math.abs(targetRate) < MIN_TURN_RATE then
+		targetRate =
+			math.sign(targetRate)
+			* MIN_TURN_RATE
+	end
+
+	return targetRate
+end
+
+local function updateSteeringYawVelocity(
+	targetYawVelocity,
+	deltaTime
+)
+	local response
+
+	if linearSteeringEnabled then
+		response = LINEAR_TURN_RESPONSE
+	else
+		response = DIRECT_TURN_RESPONSE
+	end
+
+	local alpha =
+		1 - math.exp(-response * deltaTime)
+
+	currentSteeringYawVelocity +=
+		(
+			targetYawVelocity
+			- currentSteeringYawVelocity
+		) * alpha
+
+	if math.abs(currentSteeringYawVelocity) <
+		math.rad(0.25)
+		and targetYawVelocity == 0 then
+
+		currentSteeringYawVelocity = 0
+	end
+end
+
 local function disconnectConnection(connection)
 	if connection then
 		connection:Disconnect()
@@ -235,87 +726,240 @@ local function disconnectConnection(connection)
 	return nil
 end
 
+local stopDriving
+
+local function restoreHumanoidAutoRotate()
+	if controlledHumanoid
+		and controlledHumanoid.Parent
+		and previousHumanoidAutoRotate ~= nil then
+
+		pcall(function()
+			controlledHumanoid.AutoRotate =
+				previousHumanoidAutoRotate
+		end)
+	end
+
+	controlledHumanoid = nil
+	previousHumanoidAutoRotate = nil
+end
+
 local function destroyPhysicsInstances()
 	if bvInstance then
 		bvInstance:Destroy()
 		bvInstance = nil
 	end
 
-	if bgInstance then
-		bgInstance:Destroy()
-		bgInstance = nil
+	if turnInstance then
+		turnInstance:Destroy()
+		turnInstance = nil
 	end
 
+	restoreHumanoidAutoRotate()
+
+	currentControlType = nil
 	currentVehicleSeat = nil
+	currentVehicleReferencePart = nil
 	currentVehicleRoot = nil
 	rootToSeatRotation = nil
+	currentVehicleDetectionKind = nil
+	currentVehicleFlipEnabled = false
 
 	currentCommandVelocity = ZERO_VECTOR
+	currentSteeringYawVelocity = 0
 	lastFlipTime = 0
 end
 
-local function createPhysicsInstances(vehicleSeat)
-	destroyPhysicsInstances()
-
-	if not vehicleSeat
-		or not vehicleSeat:IsA("VehicleSeat") then
+local function createBasePhysicsInstances(rootPart)
+	if not rootPart
+		or not rootPart:IsA("BasePart") then
 
 		return false
 	end
-
-	currentVehicleSeat = vehicleSeat
-
-	-- 推力和旋转必须作用于整辆车的 AssemblyRootPart。
-	currentVehicleRoot =
-		vehicleSeat.AssemblyRootPart or vehicleSeat
-
-	if not currentVehicleRoot
-		or not currentVehicleRoot:IsA("BasePart") then
-
-		currentVehicleSeat = nil
-		currentVehicleRoot = nil
-		return false
-	end
-
-	-- 保存整车根部和座椅车头之间的固定方向差。
-	rootToSeatRotation =
-		currentVehicleRoot.CFrame.Rotation:ToObjectSpace(
-			currentVehicleSeat.CFrame.Rotation
-		)
 
 	bvInstance = Instance.new("BodyVelocity")
 	bvInstance.Name = "驾驶矩阵_水平动力"
-
-	-- Y 轴推力永久为 0，防止碰撞飞升和空中悬浮。
 	bvInstance.MaxForce = Vector3.new(
 		MIN_HORIZONTAL_FORCE,
 		0,
 		MIN_HORIZONTAL_FORCE
 	)
-
 	bvInstance.P = VELOCITY_POWER
 	bvInstance.Velocity = ZERO_VECTOR
-	bvInstance.Parent = currentVehicleRoot
+	bvInstance.Parent = rootPart
 
-	bgInstance = Instance.new("BodyGyro")
-	bgInstance.Name = "驾驶矩阵_车头转向"
-
-	-- 这里只控制世界 Y 轴旋转。
-	-- 不控制 X/Z，因此车辆可以正常上下坡和自然侧倾。
-	bgInstance.MaxTorque = Vector3.new(
+	turnInstance = Instance.new("BodyAngularVelocity")
+	turnInstance.Name = "驾驶矩阵_水平转向"
+	turnInstance.MaxTorque = Vector3.new(
 		0,
 		MIN_YAW_TORQUE,
 		0
 	)
-
-	bgInstance.P = YAW_GYRO_POWER
-	bgInstance.D = YAW_GYRO_DAMPING
-	bgInstance.CFrame = currentVehicleRoot.CFrame
-	bgInstance.Parent = currentVehicleRoot
+	turnInstance.P = VEHICLE_TURN_POWER
+	turnInstance.AngularVelocity = ZERO_VECTOR
+	turnInstance.Parent = rootPart
 
 	currentCommandVelocity = ZERO_VECTOR
+	currentSteeringYawVelocity = 0
 
 	return true
+end
+
+local function createVehiclePhysicsInstances(
+	vehicleRoot,
+	referencePart,
+	seatPart,
+	detectionKind,
+	flipEnabled
+)
+	destroyPhysicsInstances()
+
+	if not vehicleRoot
+		or not vehicleRoot:IsA("BasePart")
+		or vehicleRoot.Anchored
+		or not referencePart
+		or not referencePart:IsA("BasePart") then
+
+		return false
+	end
+
+	currentControlType = "Vehicle"
+	currentVehicleSeat = seatPart
+	currentVehicleReferencePart = referencePart
+	currentVehicleRoot = vehicleRoot
+	currentVehicleDetectionKind = detectionKind
+	currentVehicleFlipEnabled = flipEnabled == true
+
+	-- 保存物理根与车头参考零件之间的固定方向差。
+	rootToSeatRotation =
+		currentVehicleRoot.CFrame.Rotation:ToObjectSpace(
+			currentVehicleReferencePart.CFrame.Rotation
+		)
+
+	if not createBasePhysicsInstances(currentVehicleRoot) then
+		destroyPhysicsInstances()
+		return false
+	end
+
+	return true
+end
+
+local function createCharacterPhysicsInstances(humanoid)
+	destroyPhysicsInstances()
+
+	if not humanoid or not humanoid.Parent then
+		return false
+	end
+
+	local characterRoot =
+		getCharacterRoot(humanoid)
+
+	if not characterRoot
+		or not characterRoot:IsA("BasePart") then
+
+		return false
+	end
+
+	currentControlType = "Character"
+	currentVehicleSeat = nil
+	currentVehicleReferencePart = nil
+	currentVehicleRoot = characterRoot
+	rootToSeatRotation = nil
+	currentVehicleDetectionKind = nil
+	currentVehicleFlipEnabled = false
+
+	controlledHumanoid = humanoid
+	previousHumanoidAutoRotate = humanoid.AutoRotate
+	humanoid.AutoRotate = false
+
+	if not createBasePhysicsInstances(currentVehicleRoot) then
+		destroyPhysicsInstances()
+		return false
+	end
+
+	return true
+end
+
+local function hasValidPhysicsTarget()
+	return currentVehicleRoot
+		and currentVehicleRoot.Parent
+		and currentVehicleRoot:IsDescendantOf(workspace)
+		and bvInstance
+		and bvInstance.Parent == currentVehicleRoot
+		and turnInstance
+		and turnInstance.Parent == currentVehicleRoot
+end
+
+local function syncControlTarget(forceExternalScan)
+	if not isDriving or isDestroyed then
+		return
+	end
+
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		stopDriving()
+		return
+	end
+
+	local vehicleRoot,
+		referencePart,
+		seatPart,
+		detectionKind,
+		flipEnabled =
+		resolveVehicleTarget(
+			humanoid,
+			forceExternalScan == true
+		)
+
+	if vehicleDetectionEnabled then
+		-- 检测开启：必须检测到标准或自定义车辆。
+		if not vehicleRoot or not referencePart then
+			stopDriving()
+			return
+		end
+	else
+		-- 检测关闭：检测到车辆就控制车辆，否则控制人物。
+		if not vehicleRoot or not referencePart then
+			local characterRoot =
+				getCharacterRoot(humanoid)
+
+			if currentControlType ~= "Character"
+				or currentVehicleRoot ~= characterRoot
+				or controlledHumanoid ~= humanoid
+				or not hasValidPhysicsTarget() then
+
+				-- 进入人物模式前会销毁旧车上的所有物理实例。
+				if not createCharacterPhysicsInstances(humanoid) then
+					stopDriving()
+				end
+			end
+
+			return
+		end
+	end
+
+	if currentControlType ~= "Vehicle"
+		or currentVehicleRoot ~= vehicleRoot
+		or currentVehicleReferencePart ~= referencePart
+		or currentVehicleSeat ~= seatPart
+		or currentVehicleDetectionKind ~= detectionKind
+		or not hasValidPhysicsTarget() then
+
+		-- 切换到新目标前，会先彻底释放人物或上一辆车。
+		if not createVehiclePhysicsInstances(
+			vehicleRoot,
+			referencePart,
+			seatPart,
+			detectionKind,
+			flipEnabled
+		) then
+
+			stopDriving()
+		end
+	else
+		currentVehicleFlipEnabled =
+			flipEnabled == true
+	end
 end
 
 -- ==========================================
@@ -336,27 +980,27 @@ Drag.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
 Drag.BorderSizePixel = 0
 Drag.Draggable = true
 Drag.Position = UDim2.new(0.4, 0, 0.4, 0)
-Drag.Size = UDim2.new(0, 240, 0, 32)
+Drag.Size = UDim2.new(0, 210, 0, 28)
 applyRoundCorners(Drag, 8)
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "标题"
 TitleLabel.Parent = Drag
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Position = UDim2.new(0, 12, 0, 0)
-TitleLabel.Size = UDim2.new(0, 150, 1, 0)
+TitleLabel.Position = UDim2.new(0, 9, 0, 0)
+TitleLabel.Size = UDim2.new(0, 135, 1, 0)
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.Text = "⚡ Car Speed Gui"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 245, 212)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 12
 
 local Minimize = Instance.new("TextButton")
 Minimize.Name = "最小化"
 Minimize.Parent = Drag
 Minimize.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
-Minimize.Position = UDim2.new(0.74, 0, 0.15, 0)
-Minimize.Size = UDim2.new(0, 24, 0, 24)
+Minimize.Position = UDim2.new(1, -46, 0, 4)
+Minimize.Size = UDim2.new(0, 20, 0, 20)
 Minimize.Font = Enum.Font.GothamBold
 Minimize.Text = "-"
 Minimize.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -367,8 +1011,8 @@ local Close = Instance.new("TextButton")
 Close.Name = "关闭"
 Close.Parent = Drag
 Close.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
-Close.Position = UDim2.new(0.86, 0, 0.15, 0)
-Close.Size = UDim2.new(0, 24, 0, 24)
+Close.Position = UDim2.new(1, -23, 0, 4)
+Close.Size = UDim2.new(0, 20, 0, 20)
 Close.Font = Enum.Font.GothamBold
 Close.Text = "×"
 Close.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -381,21 +1025,21 @@ FlyFrame.Parent = Drag
 FlyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
 FlyFrame.BorderSizePixel = 0
 FlyFrame.Position = UDim2.new(0, 0, 1, 2)
-FlyFrame.Size = UDim2.new(0, 240, 0, 164)
+FlyFrame.Size = UDim2.new(0, 210, 0, 209)
 applyRoundCorners(FlyFrame, 8)
 
 local Speed = Instance.new("TextBox")
 Speed.Name = "速度输入框"
 Speed.Parent = FlyFrame
 Speed.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-Speed.Position = UDim2.new(0.45, 0, 0.12, 0)
-Speed.Size = UDim2.new(0, 115, 0, 28)
+Speed.Position = UDim2.new(0, 85, 0, 8)
+Speed.Size = UDim2.new(0, 115, 0, 24)
 Speed.Font = Enum.Font.Gotham
 Speed.Text = tostring(DEFAULT_SPEED)
 Speed.PlaceholderText = tostring(DEFAULT_SPEED)
 Speed.ClearTextOnFocus = false
 Speed.TextColor3 = Color3.fromRGB(255, 255, 255)
-Speed.TextSize = 14
+Speed.TextSize = 12
 applyRoundCorners(Speed, 6)
 
 local SpeedLabel = Instance.new("TextLabel")
@@ -404,22 +1048,22 @@ SpeedLabel.Parent = FlyFrame
 SpeedLabel.Text = "速度上限："
 SpeedLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
 SpeedLabel.Font = Enum.Font.Gotham
-SpeedLabel.Position = UDim2.new(0.05, 0, 0.12, 0)
-SpeedLabel.Size = UDim2.new(0, 90, 0, 28)
+SpeedLabel.Position = UDim2.new(0, 10, 0, 8)
+SpeedLabel.Size = UDim2.new(0, 72, 0, 24)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.TextSize = 12
+SpeedLabel.TextSize = 11
 SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local LinearAccelerationToggle = Instance.new("TextButton")
 LinearAccelerationToggle.Name = "线性加速勾选框"
 LinearAccelerationToggle.Parent = FlyFrame
 LinearAccelerationToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-LinearAccelerationToggle.Position = UDim2.new(0.05, 0, 0, 52)
-LinearAccelerationToggle.Size = UDim2.new(0, 215, 0, 28)
+LinearAccelerationToggle.Position = UDim2.new(0, 10, 0, 39)
+LinearAccelerationToggle.Size = UDim2.new(0, 190, 0, 24)
 LinearAccelerationToggle.Text = "□ 线性加速"
 LinearAccelerationToggle.TextColor3 = Color3.fromRGB(150, 150, 160)
 LinearAccelerationToggle.Font = Enum.Font.GothamBold
-LinearAccelerationToggle.TextSize = 12
+LinearAccelerationToggle.TextSize = 10
 LinearAccelerationToggle.TextXAlignment = Enum.TextXAlignment.Left
 applyRoundCorners(LinearAccelerationToggle, 6)
 
@@ -427,28 +1071,62 @@ local LinearAccelerationPadding = Instance.new("UIPadding")
 LinearAccelerationPadding.PaddingLeft = UDim.new(0, 10)
 LinearAccelerationPadding.Parent = LinearAccelerationToggle
 
+local LinearSteeringToggle = Instance.new("TextButton")
+LinearSteeringToggle.Name = "线性转向勾选框"
+LinearSteeringToggle.Parent = FlyFrame
+LinearSteeringToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+LinearSteeringToggle.Position = UDim2.new(0, 10, 0, 68)
+LinearSteeringToggle.Size = UDim2.new(0, 190, 0, 24)
+LinearSteeringToggle.Text = "□ 线性转向"
+LinearSteeringToggle.TextColor3 = Color3.fromRGB(150, 150, 160)
+LinearSteeringToggle.Font = Enum.Font.GothamBold
+LinearSteeringToggle.TextSize = 10
+LinearSteeringToggle.TextXAlignment = Enum.TextXAlignment.Left
+applyRoundCorners(LinearSteeringToggle, 6)
+
+local LinearSteeringPadding = Instance.new("UIPadding")
+LinearSteeringPadding.PaddingLeft = UDim.new(0, 10)
+LinearSteeringPadding.Parent = LinearSteeringToggle
+
+local VehicleDetectionToggle = Instance.new("TextButton")
+VehicleDetectionToggle.Name = "上车检测勾选框"
+VehicleDetectionToggle.Parent = FlyFrame
+VehicleDetectionToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+VehicleDetectionToggle.Position = UDim2.new(0, 10, 0, 97)
+VehicleDetectionToggle.Size = UDim2.new(0, 190, 0, 24)
+VehicleDetectionToggle.Text = "☑ 上车检测"
+VehicleDetectionToggle.TextColor3 = Color3.fromRGB(0, 245, 212)
+VehicleDetectionToggle.Font = Enum.Font.GothamBold
+VehicleDetectionToggle.TextSize = 10
+VehicleDetectionToggle.TextXAlignment = Enum.TextXAlignment.Left
+applyRoundCorners(VehicleDetectionToggle, 6)
+
+local VehicleDetectionPadding = Instance.new("UIPadding")
+VehicleDetectionPadding.PaddingLeft = UDim.new(0, 10)
+VehicleDetectionPadding.Parent = VehicleDetectionToggle
+
 local StrafeToggle = Instance.new("TextButton")
 StrafeToggle.Name = "横向移动开关"
 StrafeToggle.Parent = FlyFrame
 StrafeToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-StrafeToggle.Position = UDim2.new(0.05, 0, 0, 86)
-StrafeToggle.Size = UDim2.new(0, 215, 0, 28)
+StrafeToggle.Position = UDim2.new(0, 10, 0, 126)
+StrafeToggle.Size = UDim2.new(0, 190, 0, 24)
 StrafeToggle.Text = "横向移动辅助：○ 已关闭"
 StrafeToggle.TextColor3 = Color3.fromRGB(150, 150, 160)
 StrafeToggle.Font = Enum.Font.GothamBold
-StrafeToggle.TextSize = 12
+StrafeToggle.TextSize = 10
 applyRoundCorners(StrafeToggle, 6)
 
 local EnableBtn = Instance.new("TextButton")
 EnableBtn.Name = "引擎开关"
 EnableBtn.Parent = FlyFrame
 EnableBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
-EnableBtn.Position = UDim2.new(0.05, 0, 0, 122)
-EnableBtn.Size = UDim2.new(0, 215, 0, 34)
+EnableBtn.Position = UDim2.new(0, 10, 0, 162)
+EnableBtn.Size = UDim2.new(0, 190, 0, 34)
 EnableBtn.Text = "启动引擎（已关闭）"
 EnableBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 EnableBtn.Font = Enum.Font.GothamBold
-EnableBtn.TextSize = 13
+EnableBtn.TextSize = 11
 applyRoundCorners(EnableBtn, 6)
 
 -- ==========================================
@@ -536,38 +1214,38 @@ DragLabel.TextSize = 18
 
 local function updateControllerLayout()
 	if not lateralEnabled then
-		Flyon.Size = UDim2.new(0, 66, 0, 174)
+		Flyon.Size = UDim2.new(0, 60, 0, 158)
 
 		W.Position = UDim2.new(0, 4, 0, 4)
-		W.Size = UDim2.new(0, 58, 0, 52)
+		W.Size = UDim2.new(0, 52, 0, 46)
 
-		MidDragZone.Position = UDim2.new(0, 4, 0, 60)
-		MidDragZone.Size = UDim2.new(0, 58, 0, 52)
+		MidDragZone.Position = UDim2.new(0, 4, 0, 56)
+		MidDragZone.Size = UDim2.new(0, 52, 0, 46)
 
-		S.Position = UDim2.new(0, 4, 0, 116)
-		S.Size = UDim2.new(0, 58, 0, 52)
+		S.Position = UDim2.new(0, 4, 0, 108)
+		S.Size = UDim2.new(0, 52, 0, 46)
 
 		A.Visible = false
 		D.Visible = false
 	else
-		Flyon.Size = UDim2.new(0, 190, 0, 174)
+		Flyon.Size = UDim2.new(0, 172, 0, 158)
 
-		W.Position = UDim2.new(0, 66, 0, 4)
-		W.Size = UDim2.new(0, 58, 0, 52)
+		W.Position = UDim2.new(0, 60, 0, 4)
+		W.Size = UDim2.new(0, 52, 0, 46)
 
-		A.Position = UDim2.new(0, 4, 0, 60)
-		A.Size = UDim2.new(0, 58, 0, 52)
+		A.Position = UDim2.new(0, 4, 0, 56)
+		A.Size = UDim2.new(0, 52, 0, 46)
 		A.Visible = true
 
-		MidDragZone.Position = UDim2.new(0, 66, 0, 60)
-		MidDragZone.Size = UDim2.new(0, 58, 0, 52)
+		MidDragZone.Position = UDim2.new(0, 60, 0, 56)
+		MidDragZone.Size = UDim2.new(0, 52, 0, 46)
 
-		D.Position = UDim2.new(0, 128, 0, 60)
-		D.Size = UDim2.new(0, 58, 0, 52)
+		D.Position = UDim2.new(0, 116, 0, 56)
+		D.Size = UDim2.new(0, 52, 0, 46)
 		D.Visible = true
 
-		S.Position = UDim2.new(0, 66, 0, 116)
-		S.Size = UDim2.new(0, 58, 0, 52)
+		S.Position = UDim2.new(0, 60, 0, 108)
+		S.Size = UDim2.new(0, 52, 0, 46)
 	end
 end
 
@@ -599,12 +1277,14 @@ local function setEngineUi(active)
 	end
 end
 
-local function stopDriving()
+stopDriving = function()
 	if not isDriving
 		and not renderConnection
 		and not seatConnection
+		and not sitConnection
+		and not platformStandConnection
 		and not bvInstance
-		and not bgInstance then
+		and not turnInstance then
 
 		return
 	end
@@ -618,6 +1298,9 @@ local function stopDriving()
 	-- 运行期连接必须在每次关闭引擎时断开。
 	renderConnection = disconnectConnection(renderConnection)
 	seatConnection = disconnectConnection(seatConnection)
+	sitConnection = disconnectConnection(sitConnection)
+	platformStandConnection =
+		disconnectConnection(platformStandConnection)
 
 	destroyPhysicsInstances()
 
@@ -666,7 +1349,11 @@ local function cleanupAll()
 
 	renderConnection = disconnectConnection(renderConnection)
 	seatConnection = disconnectConnection(seatConnection)
+	sitConnection = disconnectConnection(sitConnection)
+	platformStandConnection =
+		disconnectConnection(platformStandConnection)
 	inputChangedConnection = disconnectConnection(inputChangedConnection)
+	dragEndConnection = disconnectConnection(dragEndConnection)
 	characterRemovingConnection =
 		disconnectConnection(characterRemovingConnection)
 
@@ -738,6 +1425,67 @@ LinearAccelerationToggle.MouseButton1Click:Connect(function()
 	end
 end)
 
+LinearSteeringToggle.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	linearSteeringEnabled =
+		not linearSteeringEnabled
+
+	-- 切换模式时从当前角速度重新收敛，
+	-- 不会突然把车辆或人物甩向另一边。
+	if currentVehicleRoot
+		and currentVehicleRoot.Parent then
+
+		currentSteeringYawVelocity =
+			currentVehicleRoot.AssemblyAngularVelocity.Y
+	else
+		currentSteeringYawVelocity = 0
+	end
+
+	if linearSteeringEnabled then
+		LinearSteeringToggle.Text =
+			"☑ 线性转向"
+
+		LinearSteeringToggle.TextColor3 =
+			Color3.fromRGB(0, 245, 212)
+	else
+		LinearSteeringToggle.Text =
+			"□ 线性转向"
+
+		LinearSteeringToggle.TextColor3 =
+			Color3.fromRGB(150, 150, 160)
+	end
+end)
+
+VehicleDetectionToggle.MouseButton1Click:Connect(function()
+	if isDestroyed then
+		return
+	end
+
+	vehicleDetectionEnabled =
+		not vehicleDetectionEnabled
+
+	if vehicleDetectionEnabled then
+		VehicleDetectionToggle.Text =
+			"☑ 上车检测"
+
+		VehicleDetectionToggle.TextColor3 =
+			Color3.fromRGB(0, 245, 212)
+	else
+		VehicleDetectionToggle.Text =
+			"□ 上车检测"
+
+		VehicleDetectionToggle.TextColor3 =
+			Color3.fromRGB(150, 150, 160)
+	end
+
+	if isDriving then
+		syncControlTarget(true)
+	end
+end)
+
 StrafeToggle.MouseButton1Click:Connect(function()
 	if isDestroyed then
 		return
@@ -788,12 +1536,22 @@ MidDragZone.InputBegan:Connect(function(input)
 		startPos = Flyon.Position
 		activeDragInput = input
 
-		input.Changed:Connect(function()
+		dragEndConnection =
+			disconnectConnection(dragEndConnection)
+
+		dragEndConnection =
+			input.Changed:Connect(function()
+
 			if input.UserInputState ==
 				Enum.UserInputState.End then
 
 				dragToggle = false
 				activeDragInput = nil
+
+				dragEndConnection =
+					disconnectConnection(
+						dragEndConnection
+					)
 			end
 		end)
 	end
@@ -845,23 +1603,46 @@ local function startRenderLoop()
 			return
 		end
 
+		-- 每帧核对当前应该控制人物还是车辆。
+		-- 即使 SeatPart 事件延迟，也不会继续控制旧车。
+		syncControlTarget(false)
+
+		if isDestroyed or not isDriving then
+			return
+		end
+
 		local humanoid = getHumanoid()
 
 		if not humanoid
-			or not currentVehicleSeat
-			or humanoid.SeatPart ~= currentVehicleSeat
-			or not currentVehicleSeat.Parent
-			or not currentVehicleRoot
-			or not currentVehicleRoot.Parent
-			or not currentVehicleRoot:IsDescendantOf(workspace)
-			or not bvInstance
-			or not bvInstance.Parent
-			or not bgInstance
-			or not bgInstance.Parent
-			or not rootToSeatRotation then
+			or not currentControlType
+			or not hasValidPhysicsTarget() then
 
 			stopDriving()
 			return
+		end
+
+		if currentControlType == "Vehicle"
+			and (
+				not currentVehicleReferencePart
+				or not currentVehicleReferencePart.Parent
+				or not rootToSeatRotation
+			) then
+
+			syncControlTarget(true)
+			return
+		end
+
+		if currentControlType == "Character" then
+			local detectedVehicleRoot =
+				resolveVehicleTarget(
+					humanoid,
+					false
+				)
+
+			if detectedVehicleRoot then
+				syncControlTarget(true)
+				return
+			end
 		end
 
 		local camera = workspace.CurrentCamera
@@ -880,20 +1661,22 @@ local function startRenderLoop()
 			MAX_ALLOWED_SPEED
 		)
 
-		-- ======================================
-		-- 11.1 获取相机水平朝向
-		-- ======================================
+		local fallbackForward
 
-		local seatFallbackForward =
-			getSafeFlatUnit(
-				currentVehicleSeat.CFrame.LookVector,
-				Vector3.new(0, 0, -1)
-			)
+		if currentControlType == "Vehicle"
+			and currentVehicleReferencePart then
+
+			fallbackForward =
+				currentVehicleReferencePart.CFrame.LookVector
+		else
+			fallbackForward =
+				currentVehicleRoot.CFrame.LookVector
+		end
 
 		local cameraForward =
 			getSafeFlatUnit(
 				camera.CFrame.LookVector,
-				seatFallbackForward
+				fallbackForward
 			)
 
 		local cameraRight =
@@ -902,89 +1685,131 @@ local function startRenderLoop()
 				Vector3.new(1, 0, 0)
 			)
 
-		-- ======================================
-		-- 11.2 只控制车头左右方向
-		-- ======================================
-
-		local desiredSeatRotation =
-			CFrame.lookAt(
-				ZERO_VECTOR,
-				cameraForward,
-				WORLD_UP
-			).Rotation
-
-		local desiredRootRotation =
-			desiredSeatRotation
-			* rootToSeatRotation:Inverse()
-
-		local desiredRootCFrame =
-			CFrame.new(currentVehicleRoot.Position)
-			* desiredRootRotation
-
 		local assemblyMass =
 			currentVehicleRoot.AssemblyMass
 
-		local yawTorqueValue = math.clamp(
-			assemblyMass * YAW_TORQUE_PER_MASS,
-			MIN_YAW_TORQUE,
-			MAX_YAW_TORQUE
-		)
-
-		-- 只有 Y 轴有旋转力量。
-		-- X/Z 为 0，不压制正常上下坡和自然倾斜。
-		bgInstance.MaxTorque = Vector3.new(
-			0,
-			yawTorqueValue,
-			0
-		)
-
-		bgInstance.P = YAW_GYRO_POWER
-		bgInstance.D = YAW_GYRO_DAMPING
-		bgInstance.CFrame = desiredRootCFrame
-
 		-- ======================================
-		-- 11.3 只有真正倒扣才翻正
+		-- 11.1 当前目标朝向
 		-- ======================================
 
-		local seatUpY =
-			currentVehicleSeat.CFrame.UpVector.Y
+		if currentControlType == "Vehicle" then
+			-- 车辆只控制世界 Y 轴转向。
+			-- 不干预正常上下坡和自然侧倾。
+			local desiredSeatRotation =
+				CFrame.lookAt(
+					ZERO_VECTOR,
+					cameraForward,
+					WORLD_UP
+				).Rotation
 
-		local currentTime = time()
+			local desiredRootRotation =
+				desiredSeatRotation
+				* rootToSeatRotation:Inverse()
 
-		if seatUpY <= FLIP_TRIGGER_UP_Y
-			and currentTime - lastFlipTime >=
-				FLIP_COOLDOWN then
-
-			lastFlipTime = currentTime
-
-			local savedVelocity =
-				currentVehicleRoot.AssemblyLinearVelocity
-
-			local correctedPosition =
-				currentVehicleRoot.Position
-				+ Vector3.new(
-					0,
-					FLIP_LIFT_HEIGHT,
-					0
-				)
-
-			currentVehicleRoot.CFrame =
-				CFrame.new(correctedPosition)
+			local desiredRootCFrame =
+				CFrame.new(currentVehicleRoot.Position)
 				* desiredRootRotation
 
-			currentVehicleRoot.AssemblyAngularVelocity =
-				ZERO_VECTOR
+			local yawTorqueValue = math.clamp(
+				assemblyMass * YAW_TORQUE_PER_MASS,
+				MIN_YAW_TORQUE,
+				MAX_YAW_TORQUE
+			)
 
-			currentVehicleRoot.AssemblyLinearVelocity =
-				Vector3.new(
-					savedVelocity.X,
-					math.min(savedVelocity.Y, 0),
-					savedVelocity.Z
+			local targetYawVelocity =
+				calculateTargetYawVelocity(
+					currentVehicleReferencePart.CFrame.LookVector,
+					cameraForward
 				)
+
+			updateSteeringYawVelocity(
+				targetYawVelocity,
+				deltaTime
+			)
+
+			turnInstance.MaxTorque = Vector3.new(
+				0,
+				yawTorqueValue,
+				0
+			)
+			turnInstance.P = VEHICLE_TURN_POWER
+			turnInstance.AngularVelocity = Vector3.new(
+				0,
+				currentSteeringYawVelocity,
+				0
+			)
+
+			-- 只有车辆真正倒扣时才翻正。
+			local referenceUpY =
+				currentVehicleReferencePart.CFrame.UpVector.Y
+
+			local currentTime = time()
+
+			if currentVehicleFlipEnabled
+				and referenceUpY <= FLIP_TRIGGER_UP_Y
+				and currentTime - lastFlipTime >=
+					FLIP_COOLDOWN then
+
+				lastFlipTime = currentTime
+
+				local savedVelocity =
+					currentVehicleRoot.AssemblyLinearVelocity
+
+				local correctedPosition =
+					currentVehicleRoot.Position
+					+ Vector3.new(
+						0,
+						FLIP_LIFT_HEIGHT,
+						0
+					)
+
+				currentVehicleRoot.CFrame =
+					CFrame.new(correctedPosition)
+					* desiredRootRotation
+
+				currentVehicleRoot.AssemblyAngularVelocity =
+					ZERO_VECTOR
+
+				currentSteeringYawVelocity = 0
+				turnInstance.AngularVelocity =
+					ZERO_VECTOR
+
+				currentVehicleRoot.AssemblyLinearVelocity =
+					Vector3.new(
+						savedVelocity.X,
+						math.min(savedVelocity.Y, 0),
+						savedVelocity.Z
+					)
+			end
+		else
+			-- 人物模式让人物朝向相机水平方向。
+			-- 不控制 X/Z 旋转，也不修改垂直速度。
+			local targetYawVelocity =
+				calculateTargetYawVelocity(
+					currentVehicleRoot.CFrame.LookVector,
+					cameraForward
+				)
+
+			updateSteeringYawVelocity(
+				targetYawVelocity,
+				deltaTime
+			)
+
+			turnInstance.MaxTorque = Vector3.new(
+				0,
+				CHARACTER_YAW_TORQUE,
+				0
+			)
+			turnInstance.P = CHARACTER_TURN_POWER
+			turnInstance.AngularVelocity = Vector3.new(
+				0,
+				currentSteeringYawVelocity,
+				0
+			)
 		end
 
 		-- ======================================
-		-- 11.4 计算水平移动速度
+		-- 11.2 计算水平移动速度
 		-- ======================================
 
 		local targetVelocity = ZERO_VECTOR
@@ -1019,11 +1844,10 @@ local function startRenderLoop()
 		)
 
 		-- ======================================
-		-- 11.5 速度模式
+		-- 11.3 速度模式
 		-- ======================================
 
 		if linearAccelerationEnabled then
-			-- 勾选“线性加速”后，使用原有的平滑加速和减速。
 			local commandRate
 
 			if targetVelocity.Magnitude >
@@ -1041,8 +1865,7 @@ local function startRenderLoop()
 					commandRate * deltaTime
 				)
 		else
-			-- 默认模式：直接达到目标速度。
-			-- 松开按钮后也会立即回到 0。
+			-- 默认直接达到目标速度。
 			currentCommandVelocity =
 				targetVelocity
 		end
@@ -1054,7 +1877,7 @@ local function startRenderLoop()
 		)
 
 		-- ======================================
-		-- 11.6 水平动力
+		-- 11.4 水平动力
 		-- ======================================
 
 		local horizontalForce = math.max(
@@ -1089,15 +1912,58 @@ EnableBtn.MouseButton1Click:Connect(function()
 	end
 
 	local humanoid = getHumanoid()
-	local vehicleSeat = getCurrentVehicleSeat()
 
-	if not humanoid or not vehicleSeat then
-		showTemporaryError("请先坐进车辆")
+	if not humanoid then
+		showTemporaryError("角色尚未加载")
 		return
 	end
 
-	if not createPhysicsInstances(vehicleSeat) then
-		showTemporaryError("车辆连接失败")
+	local vehicleRoot,
+		referencePart,
+		seatPart,
+		detectionKind,
+		flipEnabled =
+		resolveVehicleTarget(
+			humanoid,
+			true
+		)
+
+	local targetCreated = false
+
+	if vehicleDetectionEnabled then
+		if not vehicleRoot or not referencePart then
+			showTemporaryError("未检测到车辆")
+			return
+		end
+
+		targetCreated =
+			createVehiclePhysicsInstances(
+				vehicleRoot,
+				referencePart,
+				seatPart,
+				detectionKind,
+				flipEnabled
+			)
+	else
+		if vehicleRoot and referencePart then
+			targetCreated =
+				createVehiclePhysicsInstances(
+					vehicleRoot,
+					referencePart,
+					seatPart,
+					detectionKind,
+					flipEnabled
+				)
+		else
+			targetCreated =
+				createCharacterPhysicsInstances(
+					humanoid
+				)
+		end
+	end
+
+	if not targetCreated then
+		showTemporaryError("控制目标连接失败")
 		return
 	end
 
@@ -1105,22 +1971,31 @@ EnableBtn.MouseButton1Click:Connect(function()
 	setEngineUi(true)
 
 	seatConnection = disconnectConnection(seatConnection)
+	sitConnection = disconnectConnection(sitConnection)
+	platformStandConnection =
+		disconnectConnection(platformStandConnection)
 
-	-- 玩家下车或换车后立刻断开旧车。
+	local function refreshTargetImmediately()
+		if isDestroyed or not isDriving then
+			return
+		end
+
+		syncControlTarget(true)
+	end
+
+	-- 标准 Seat/VehicleSeat 的变化会立即触发。
 	seatConnection =
 		humanoid:GetPropertyChangedSignal("SeatPart")
-		:Connect(function()
+		:Connect(refreshTargetImmediately)
 
-			if isDestroyed or not isDriving then
-				return
-			end
+	-- 部分自定义车辆只修改 Sit 或 PlatformStand。
+	sitConnection =
+		humanoid:GetPropertyChangedSignal("Sit")
+		:Connect(refreshTargetImmediately)
 
-			if humanoid.SeatPart ~=
-				currentVehicleSeat then
-
-				stopDriving()
-			end
-		end)
+	platformStandConnection =
+		humanoid:GetPropertyChangedSignal("PlatformStand")
+		:Connect(refreshTargetImmediately)
 
 	startRenderLoop()
 end)
