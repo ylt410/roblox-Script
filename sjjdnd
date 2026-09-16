@@ -350,7 +350,7 @@
       "supportedOS": [
         {
           "minimum": "26.0",
-          "maximum": "18.7.1"
+          "maximum": "27.0"
         }
       ],
       "featured": true,
