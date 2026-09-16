@@ -344,7 +344,7 @@
         "assets/preview/preview-third.png",
         "assets/preview/preview-fourth.png"
       ],
-      "download": "packages/PATCH_V2_FREE_3_SERVER.3105",
+     "download": "https://raw.githubusercontent.com/NgynKhoa/3105-repo/main/repositories/demo/packages/PATCH_V2_FREE_3_SERVER.3105"
       "sha256": "8CA9141683C9BBE4CDF372736B6A5A26E34FEFDD20B482BA201693E6011F76AB",
       "size": 3599691,
       "supportedOS": [
